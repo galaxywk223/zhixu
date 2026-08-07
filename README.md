@@ -36,7 +36,7 @@ Supabase 未配置时，应用保持本地模式；登录和同步服务在设�
 ## Windows 预览版发布
 
 发布流程由 GitHub Actions 的 `v*.*.*` 标签工作流执行。版本号必须与
-`pubspec.yaml` 的 `version` 字段一致，当前首个预览版本为 `0.1.0+1`。
+`pubspec.yaml` 的 `version` 字段一致，当前预览版本为 `0.1.1+2`。
 
 ```powershell
 git tag v0.1.0

@@ -77,7 +77,7 @@ Future<void> showTaskEditor(
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String?>(
                       initialValue: projectId.value,
-                      decoration: const InputDecoration(labelText: '所属项目'),
+                      decoration: const InputDecoration(labelText: '所属专题'),
                       items: [
                         const DropdownMenuItem<String?>(
                           value: null,
@@ -193,40 +193,27 @@ Future<void> showTaskEditor(
 Future<void> showProjectEditor(BuildContext context, WidgetRef ref) async {
   final name = TextEditingController();
   final description = TextEditingController();
-  var kind = 'project';
   final result = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('新建项目 / 学习计划'),
+      title: const Text('新建专题'),
       content: SizedBox(
         width: 450,
-        child: StatefulBuilder(
-          builder: (context, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: '名称 *'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: kind,
-                decoration: const InputDecoration(labelText: '类型'),
-                items: const [
-                  DropdownMenuItem(value: 'project', child: Text('普通项目')),
-                  DropdownMenuItem(value: 'learning_plan', child: Text('学习计划')),
-                ],
-                onChanged: (value) => setState(() => kind = value ?? 'project'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: description,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: '目标描述'),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: '名称 *'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: description,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: '目标描述'),
+            ),
+          ],
         ),
       ),
       actions: [
@@ -242,7 +229,6 @@ Future<void> showProjectEditor(BuildContext context, WidgetRef ref) async {
                 .createProject(
                   ProjectDraft(
                     name: name.text,
-                    kind: kind,
                     descriptionMd: description.text,
                   ),
                 );
@@ -259,6 +245,6 @@ Future<void> showProjectEditor(BuildContext context, WidgetRef ref) async {
   if (result == true && context.mounted) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('项目已创建')));
+    ).showSnackBar(const SnackBar(content: Text('专题已创建')));
   }
 }

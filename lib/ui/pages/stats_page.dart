@@ -52,7 +52,7 @@ class StatsPage extends ConsumerWidget {
                   color: ZhixuColors.accent,
                 ),
                 MetricCard(
-                  label: '活跃项目',
+                  label: '活跃专题',
                   value: '${projects.length}',
                   icon: Icons.folder_open_outlined,
                   color: ZhixuColors.purple,
@@ -169,10 +169,10 @@ class _ProjectProgress extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('项目进度', style: Theme.of(context).textTheme.titleLarge),
+      Text('专题进度', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 16),
       if (projects.isEmpty)
-        const Text('暂无项目数据', style: TextStyle(color: ZhixuColors.muted))
+        const Text('暂无专题数据', style: TextStyle(color: ZhixuColors.muted))
       else
         ...projects.map((project) {
           final related = tasks

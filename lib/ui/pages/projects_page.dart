@@ -16,25 +16,26 @@ class ProjectsPage extends ConsumerWidget {
         ref.watch(projectsProvider).valueOrNull ?? const <Project>[];
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
     return PageFrame(
-      title: '项目 / 学习计划',
-      subtitle: '把长期目标拆成可执行的任务和时间安排。',
+      title: '专题',
+      subtitle: '围绕一个目标，把任务、日程和笔记放在一起。',
       actions: [
         FilledButton.icon(
           onPressed: () => showProjectEditor(context, ref),
           icon: const Icon(Icons.add, size: 18),
-          label: const Text('新建项目'),
+          label: const Text('新建专题'),
         ),
       ],
       child: projects.isEmpty
           ? SectionCard(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
               child: EmptyState(
                 icon: Icons.folder_open_outlined,
-                title: '还没有项目',
-                message: '创建一个项目或学习计划，集中管理相关任务和笔记。',
+                title: '暂无专题',
+                message: '创建一个专题，把相关任务、日程和笔记放在一起。',
                 action: FilledButton.icon(
                   onPressed: () => showProjectEditor(context, ref),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('创建项目'),
+                  label: const Text('创建专题'),
                 ),
               ),
             )
@@ -99,19 +100,11 @@ class ProjectsPage extends ConsumerWidget {
                                 itemBuilder: (_) => const [
                                   PopupMenuItem(
                                     value: 'delete',
-                                    child: Text('删除项目'),
+                                    child: Text('删除专题'),
                                   ),
                                 ],
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            project.kind == 'learning_plan' ? '学习计划' : '普通项目',
-                            style: const TextStyle(
-                              color: ZhixuColors.muted,
-                              fontSize: 12,
-                            ),
                           ),
                           const Spacer(),
                           Text(

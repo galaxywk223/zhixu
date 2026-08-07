@@ -29,6 +29,25 @@ void main() {
     expect((await database.select(database.tasks).get()).single.status, 'done');
   });
 
+  test('旧项目类型均可作为专题读取', () async {
+    await repository.createProject(
+      const ProjectDraft(name: '普通记录', kind: 'project'),
+    );
+    await repository.createProject(
+      const ProjectDraft(name: '学习记录', kind: 'learning_plan'),
+    );
+
+    final projects = await repository.watchProjects().first;
+    expect(
+      projects.map((project) => project.name),
+      containsAll(['普通记录', '学习记录']),
+    );
+    expect(
+      projects.map((project) => project.kind),
+      containsAll(['project', 'learning_plan']),
+    );
+  });
+
   test('番茄导入按 sourceKey 去重、统计有效时长并支持整批撤销', () async {
     final sessions = [
       ImportedFocusSession(

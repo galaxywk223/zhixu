@@ -20,6 +20,7 @@ void main() {
 
     expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
     expect(find.byIcon(Icons.wb_sunny_outlined), findsOneWidget);
+    expect(find.byTooltip('专题'), findsOneWidget);
     expect(find.text('页面内容'), findsOneWidget);
   });
 }
