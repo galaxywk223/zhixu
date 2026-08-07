@@ -71,7 +71,7 @@ class TomatoImportService {
       );
     }
     final raw = jsonDecode(process.stdout as String) as Map<String, dynamic>;
-    if (raw['schema_version'] != 2 || raw['source'] != 'tomatodo') {
+    if (raw['schema_version'] != 3 || raw['source'] != 'tomatodo') {
       throw StateError('不支持的番茄 TODO 解析结果');
     }
     return TomatoImportData(raw: raw, filePath: file.path);

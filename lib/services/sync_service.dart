@@ -90,7 +90,6 @@ class SyncService extends ChangeNotifier {
       }
       for (final type in const [
         'task',
-        'project',
         'note',
         'schedule_block',
         'focus_session',
@@ -129,7 +128,6 @@ class SyncService extends ChangeNotifier {
 
   String _tableName(String entityType) => switch (entityType) {
     'task' => 'tasks',
-    'project' => 'projects',
     'note' => 'notes',
     'schedule_block' => 'schedule_blocks',
     'focus_session' => 'focus_sessions',

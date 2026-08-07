@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zhixu/core/legacy_text.dart';
 import 'package:zhixu/data/database.dart';
 import 'package:zhixu/data/repository.dart';
 
@@ -28,25 +29,6 @@ void main() {
 
     await repository.setTaskStatus(taskId, 'done');
     expect((await database.select(database.tasks).get()).single.status, 'done');
-  });
-
-  test('旧项目类型均可作为专题读取', () async {
-    await repository.createProject(
-      const ProjectDraft(name: '普通记录', kind: 'project'),
-    );
-    await repository.createProject(
-      const ProjectDraft(name: '学习记录', kind: 'learning_plan'),
-    );
-
-    final projects = await repository.watchProjects().first;
-    expect(
-      projects.map((project) => project.name),
-      containsAll(['普通记录', '学习记录']),
-    );
-    expect(
-      projects.map((project) => project.kind),
-      containsAll(['project', 'learning_plan']),
-    );
   });
 
   test('番茄导入创建任务和生活事件、重复导入去重并支持整批撤销', () async {
@@ -137,6 +119,113 @@ void main() {
     expect(tasks, hasLength(1));
     expect(tasks.single.id, original.id);
     expect(tasks.single.status, 'todo');
+  });
+
+  test('累计导出按时间去重、覆盖改名并可撤销', () async {
+    final sharedStart = DateTime(2026, 8, 7, 12, 49);
+    final sharedEnd = DateTime(2026, 8, 7, 13, 2);
+    final oldBatch = await repository.importFocusSessions(
+      fileName: 'old.xls',
+      fileHash: 'old-hash',
+      sessions: [
+        ImportedFocusSession(
+          sourceKey: 'old-name-key',
+          startAt: sharedStart,
+          endAt: sharedEnd,
+          taskName: 'vibe coding',
+          durationMinutes: 13,
+          status: '已完成',
+        ),
+      ],
+    );
+    final importedTask = (await repository.watchTasks().first).single;
+    await repository.updateTask(
+      importedTask.id,
+      const TaskDraft(title: '手工改名', priority: 3),
+    );
+
+    final sessions = [
+      ImportedFocusSession(
+        sourceKey: tomatoSourceKey(sharedStart, sharedEnd),
+        legacySourceKey: 'renamed-legacy-key',
+        startAt: sharedStart,
+        endAt: sharedEnd,
+        taskName: '项目开发',
+        durationMinutes: 13,
+        status: '已完成',
+      ),
+      ImportedFocusSession(
+        sourceKey: tomatoSourceKey(
+          DateTime(2026, 8, 7, 13, 5),
+          DateTime(2026, 8, 7, 13, 7),
+        ),
+        startAt: DateTime(2026, 8, 7, 13, 5),
+        endAt: DateTime(2026, 8, 7, 13, 7),
+        taskName: '项目开发',
+        durationMinutes: 2,
+        status: '已完成',
+      ),
+      ...[
+        (13, 31, 15, 26, 115, '已完成'),
+        (16, 48, 16, 54, 6, '中途放弃'),
+        (17, 12, 17, 45, 33, '已完成'),
+        (19, 6, 20, 54, 108, '已完成'),
+      ].map((row) {
+        final start = DateTime(2026, 8, 7, row.$1, row.$2);
+        final end = DateTime(2026, 8, 7, row.$3, row.$4);
+        return ImportedFocusSession(
+          sourceKey: tomatoSourceKey(start, end),
+          startAt: start,
+          endAt: end,
+          taskName: '保研机试复习',
+          durationMinutes: row.$5,
+          status: row.$6,
+        );
+      }),
+      ImportedFocusSession(
+        sourceKey: tomatoSourceKey(
+          DateTime(2026, 8, 7, 10, 30),
+          DateTime(2026, 8, 7, 10, 30),
+        ),
+        startAt: DateTime(2026, 8, 7, 10, 30),
+        endAt: DateTime(2026, 8, 7, 10, 30),
+        taskName: '起床',
+        durationMinutes: 0,
+        status: '已完成',
+      ),
+    ];
+
+    final renamedBatch = await repository.importFocusSessions(
+      fileName: 'new.xls',
+      fileHash: 'new-hash',
+      sessions: sessions,
+    );
+    expect(await repository.focusMinutes(), 277);
+    expect(await repository.watchFocusSessions().first, hasLength(6));
+    expect(await repository.watchLifeEvents().first, hasLength(1));
+    final tasks = await repository.watchTasks().first;
+    expect(
+      tasks.map((task) => task.title),
+      unorderedEquals(['项目开发', '保研机试复习']),
+    );
+    final renamed = tasks.singleWhere((task) => task.id == importedTask.id);
+    expect(renamed.title, '项目开发');
+    expect(renamed.priority, 3);
+
+    final repeated = await repository.importFocusSessions(
+      fileName: 'new.xls',
+      fileHash: 'new-hash',
+      sessions: sessions,
+    );
+    expect(repeated.importedCount, 0);
+    expect(repeated.updatedCount, 0);
+    expect(repeated.skippedCount, 7);
+    expect(await repository.focusMinutes(), 277);
+
+    await repository.rollbackImportBatch(renamedBatch.batchId);
+    expect(await repository.focusMinutes(), 13);
+    expect((await repository.watchTasks().first).single.title, '手工改名');
+    expect(oldBatch.batchId, isNotEmpty);
   });
 
   test('旧乱码记录可迁移为规范任务和生活事件且迁移幂等', () async {

@@ -12,8 +12,6 @@ class StatsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
-    final projects =
-        ref.watch(projectsProvider).valueOrNull ?? const <Project>[];
     final focus = ref.watch(focusMinutesProvider).valueOrNull ?? 0;
     final done = tasks.where((item) => item.status == 'done').length;
     final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
@@ -28,7 +26,7 @@ class StatsPage extends ConsumerWidget {
             builder: (context, constraints) => GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: constraints.maxWidth > 1100 ? 4 : 2,
+              crossAxisCount: constraints.maxWidth > 900 ? 3 : 1,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
               childAspectRatio: 2.25,
@@ -51,39 +49,11 @@ class StatsPage extends ConsumerWidget {
                   icon: Icons.schedule_outlined,
                   color: ZhixuColors.accent,
                 ),
-                MetricCard(
-                  label: '活跃专题',
-                  value: '${projects.length}',
-                  icon: Icons.folder_open_outlined,
-                  color: ZhixuColors.purple,
-                ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final completion = SectionCard(
-                child: _CompletionChart(tasks: tasks),
-              );
-              final project = SectionCard(
-                child: _ProjectProgress(tasks: tasks, projects: projects),
-              );
-              if (constraints.maxWidth > 1000) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: completion),
-                    const SizedBox(width: 14),
-                    Expanded(child: project),
-                  ],
-                );
-              }
-              return Column(
-                children: [completion, const SizedBox(height: 14), project],
-              );
-            },
-          ),
+          SectionCard(child: _CompletionChart(tasks: tasks)),
         ],
       ),
     );
@@ -157,63 +127,4 @@ class _CompletionChart extends StatelessWidget {
       ],
     );
   }
-}
-
-class _ProjectProgress extends StatelessWidget {
-  const _ProjectProgress({required this.tasks, required this.projects});
-
-  final List<Task> tasks;
-  final List<Project> projects;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text('专题进度', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 16),
-      if (projects.isEmpty)
-        const Text('暂无专题数据', style: TextStyle(color: ZhixuColors.muted))
-      else
-        ...projects.map((project) {
-          final related = tasks
-              .where((task) => task.projectId == project.id)
-              .toList();
-          final done = related.where((task) => task.status == 'done').length;
-          final value = related.isEmpty ? 0.0 : done / related.length;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        project.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      '$done / ${related.length}',
-                      style: const TextStyle(
-                        color: ZhixuColors.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7),
-                LinearProgressIndicator(
-                  value: value,
-                  minHeight: 7,
-                  borderRadius: BorderRadius.circular(4),
-                  color: ZhixuColors.accent,
-                ),
-              ],
-            ),
-          );
-        }),
-    ],
-  );
 }

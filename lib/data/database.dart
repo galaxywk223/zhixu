@@ -19,7 +19,6 @@ class Tasks extends Table {
   DateTimeColumn get dueAt => dateTime().nullable()();
   IntColumn get estimatedMinutes => integer().withDefault(const Constant(0))();
   TextColumn get repeatRule => text().nullable()();
-  TextColumn get projectId => text().nullable()();
   TextColumn get parentTaskId => text().nullable()();
   TextColumn get externalSource => text().nullable()();
   TextColumn get externalKey => text().nullable()();
@@ -51,30 +50,10 @@ class TaskItems extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-class Projects extends Table {
-  TextColumn get id => text()();
-  TextColumn get name => text()();
-  TextColumn get kind => text().withDefault(const Constant('project'))();
-  TextColumn get descriptionMd => text().nullable()();
-  DateTimeColumn get startDate => dateTime().nullable()();
-  DateTimeColumn get targetDate => dateTime().nullable()();
-  TextColumn get colorHex => text().withDefault(const Constant('#3B82F6'))();
-  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get createdAt => dateTime()();
-  DateTimeColumn get updatedAt => dateTime()();
-  DateTimeColumn get deletedAt => dateTime().nullable()();
-  TextColumn get deviceId => text()();
-  IntColumn get serverRevision => integer().withDefault(const Constant(0))();
-
-  @override
-  Set<Column<Object>> get primaryKey => {id};
-}
-
 class ScheduleBlocks extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
   TextColumn get taskId => text().nullable()();
-  TextColumn get projectId => text().nullable()();
   DateTimeColumn get startAt => dateTime()();
   DateTimeColumn get endAt => dateTime()();
   BoolColumn get isAllDay => boolean().withDefault(const Constant(false))();
@@ -108,7 +87,6 @@ class Notes extends Table {
   TextColumn get title => text()();
   TextColumn get contentMd => text().withDefault(const Constant(''))();
   TextColumn get notebookId => text().nullable()();
-  TextColumn get projectId => text().nullable()();
   BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -184,7 +162,6 @@ class FocusSessions extends Table {
   TextColumn get status => text()();
   IntColumn get completionPercent => integer().withDefault(const Constant(0))();
   TextColumn get linkedTaskId => text().nullable()();
-  TextColumn get linkedProjectId => text().nullable()();
   TextColumn get importBatchId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -279,7 +256,6 @@ class SyncCursors extends Table {
   tables: [
     Tasks,
     TaskItems,
-    Projects,
     ScheduleBlocks,
     Notebooks,
     Notes,
@@ -299,7 +275,7 @@ class ZhixuDatabase extends _$ZhixuDatabase {
   ZhixuDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -316,6 +292,19 @@ class ZhixuDatabase extends _$ZhixuDatabase {
         await m.addColumn(tasks, tasks.createdByImportBatchId);
         await m.createTable(lifeEvents);
         await m.createTable(importBatchChanges);
+      }
+      if (from < 3) {
+        await m.deleteTable('projects');
+        await m.dropColumn(tasks, 'project_id');
+        await m.dropColumn(scheduleBlocks, 'project_id');
+        await m.dropColumn(notes, 'project_id');
+        await m.dropColumn(focusSessions, 'linked_project_id');
+        await customStatement(
+          "DELETE FROM sync_outbox WHERE entity_type = 'project'",
+        );
+        await customStatement(
+          "DELETE FROM sync_cursors WHERE entity_type = 'project'",
+        );
       }
     },
   );
@@ -335,18 +324,11 @@ class ZhixuDatabase extends _$ZhixuDatabase {
     await transaction(() async {
       await customStatement('DELETE FROM search_index');
       final taskRows = await select(tasks).get();
-      final projectRows = await select(projects).get();
       final noteRows = await select(notes).get();
       for (final row in taskRows) {
         await customStatement(
           'INSERT INTO search_index(id, entity_type, title, body) VALUES (?, ?, ?, ?)',
           [row.id, 'task', row.title, row.descriptionMd ?? ''],
-        );
-      }
-      for (final row in projectRows) {
-        await customStatement(
-          'INSERT INTO search_index(id, entity_type, title, body) VALUES (?, ?, ?, ?)',
-          [row.id, 'project', row.name, row.descriptionMd ?? ''],
         );
       }
       for (final row in noteRows) {

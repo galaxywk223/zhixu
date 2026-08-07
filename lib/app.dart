@@ -7,7 +7,6 @@ import 'state/providers.dart';
 import 'ui/pages/calendar_page.dart';
 import 'ui/pages/focus_page.dart';
 import 'ui/pages/notes_page.dart';
-import 'ui/pages/projects_page.dart';
 import 'ui/pages/settings_page.dart';
 import 'ui/pages/sleep_page.dart';
 import 'ui/pages/stats_page.dart';
@@ -44,7 +43,6 @@ class _ZhixuAppState extends ConsumerState<ZhixuApp> {
             GoRoute(path: '/focus', builder: (_, _) => const FocusPage()),
             GoRoute(path: '/sleep', builder: (_, _) => const SleepPage()),
             GoRoute(path: '/notes', builder: (_, _) => const NotesPage()),
-            GoRoute(path: '/projects', builder: (_, _) => const ProjectsPage()),
             GoRoute(path: '/stats', builder: (_, _) => const StatsPage()),
             GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           ],

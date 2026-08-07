@@ -9,16 +9,25 @@ String normalizeImportedTitle(String value) => value
     .join(' ')
     .toLowerCase();
 
-String tomatoSourceKey(DateTime startAt, DateTime endAt, String taskName) {
-  String stamp(DateTime value) {
-    final local = value.toLocal();
-    String two(int part) => part.toString().padLeft(2, '0');
-    return '${local.year}-${two(local.month)}-${two(local.day)} '
-        '${two(local.hour)}:${two(local.minute)}';
-  }
+String _tomatoStamp(DateTime value) {
+  final local = value.toLocal();
+  String two(int part) => part.toString().padLeft(2, '0');
+  return '${local.year}-${two(local.month)}-${two(local.day)} '
+      '${two(local.hour)}:${two(local.minute)}';
+}
 
+String tomatoSourceKey(DateTime startAt, DateTime endAt) {
+  final stable = 'tomatodo|${_tomatoStamp(startAt)}|${_tomatoStamp(endAt)}';
+  return 'v3:${sha256.convert(utf8.encode(stable))}';
+}
+
+String legacyTomatoSourceKey(
+  DateTime startAt,
+  DateTime endAt,
+  String taskName,
+) {
   final stable =
-      'tomatodo|${stamp(startAt)}|${stamp(endAt)}|${normalizeImportedTitle(taskName)}';
+      'tomatodo|${_tomatoStamp(startAt)}|${_tomatoStamp(endAt)}|${normalizeImportedTitle(taskName)}';
   return sha256.convert(utf8.encode(stable)).toString();
 }
 
@@ -32,7 +41,8 @@ String repairLegacyTomatoText(String value) {
       .replaceAll('艩', 'Š')
       .replaceAll('貌', 'ò')
       .replaceAll('艗', 'Œ');
-  if (source.isEmpty || source.codeUnits.every((unit) => unit <= 0x7f)) {
+  if (source.isEmpty ||
+      source.codeUnits.every((unit) => unit >= 0x20 && unit <= 0x7f)) {
     return source;
   }
   if (source.runes.where((rune) => rune >= 0x30 && rune <= 0x39).length >= 8) {
@@ -41,13 +51,39 @@ String repairLegacyTomatoText(String value) {
       return parts.map(repairLegacyTomatoText).join(' ');
     }
   }
+  final whole = _decodeLegacySpan(source);
+  if (whole != null) return whole.trim();
+
+  final result = StringBuffer();
+  final span = StringBuffer();
+  void flushSpan() {
+    final value = span.toString();
+    if (value.isEmpty) return;
+    result.write(_decodeLegacySpan(value) ?? value);
+    span.clear();
+  }
+
+  for (final rune in source.runes) {
+    if (_cp1252Byte(rune) != null) {
+      span.writeCharCode(rune);
+    } else {
+      flushSpan();
+      result.writeCharCode(rune);
+    }
+  }
+  flushSpan();
+  return result.toString().replaceAll('\u0000', '').trim();
+}
+
+String? _decodeLegacySpan(String source) {
+  if (source.isEmpty) return null;
   final bytes = <int>[];
   for (final rune in source.runes) {
     final byte = _cp1252Byte(rune);
-    if (byte == null) return source;
+    if (byte == null) return null;
     bytes.add(byte);
   }
-  if (bytes.length.isOdd) return source;
+  if (bytes.length.isOdd) return null;
   final units = <int>[];
   for (var index = 0; index < bytes.length; index += 2) {
     units.add(bytes[index] | (bytes[index + 1] << 8));
@@ -61,7 +97,7 @@ String repairLegacyTomatoText(String value) {
   final hasMarker = source.runes.any(
     (rune) => rune < 0x20 || (rune >= 0x7f && rune <= 0x9f) || rune > 0xff,
   );
-  return hasCjk && hasMarker ? candidate : source;
+  return hasCjk && hasMarker ? candidate : null;
 }
 
 int? _cp1252Byte(int rune) {

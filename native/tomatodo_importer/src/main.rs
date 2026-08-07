@@ -43,7 +43,7 @@ struct Session {
 fn cell_text(cell: &Data) -> String {
     match cell {
         Data::Empty => String::new(),
-        _ => cell.to_string().replace('\0', "").trim().to_string(),
+        _ => cell.to_string().trim().to_string(),
     }
 }
 
@@ -98,17 +98,34 @@ fn cp1252_byte(character: char) -> Option<u8> {
     Some(mapped)
 }
 
-fn repair_legacy_text(value: &str) -> String {
-    if value.is_empty() || value.is_ascii() {
-        return value.to_string();
+fn decode_legacy_span(value: &str) -> Option<String> {
+    if value.is_empty() {
+        return None;
     }
-    if let Some((prefix, suffix)) = value.split_once(':') {
-        if prefix.len() <= 16 && !prefix.is_ascii() {
-            let repaired_prefix = repair_legacy_text(prefix);
-            if repaired_prefix != prefix {
-                return format!("{}:{}", repaired_prefix, suffix);
-            }
-        }
+    let bytes = value.chars().map(cp1252_byte).collect::<Option<Vec<_>>>()?;
+    if bytes.len() % 2 != 0 {
+        return None;
+    }
+    let units = bytes
+        .chunks_exact(2)
+        .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+        .collect::<Vec<_>>();
+    let candidate = String::from_utf16(&units).ok()?;
+    let has_cjk = candidate
+        .chars()
+        .any(|c| matches!(c as u32, 0x3400..=0x9fff | 0xf900..=0xfaff));
+    let has_mojibake_marker = value
+        .chars()
+        .any(|c| c.is_control() || (0x7f..=0x9f).contains(&(c as u32)) || (c as u32) > 0xff);
+    (has_cjk && has_mojibake_marker).then(|| candidate.replace('\0', ""))
+}
+
+fn repair_legacy_text(value: &str) -> String {
+    if value.is_empty() {
+        return String::new();
+    }
+    if value.is_ascii() && !value.chars().any(char::is_control) {
+        return value.to_string();
     }
     if value.chars().filter(|c| c.is_ascii_digit()).count() >= 8 {
         let parts = value.split_whitespace().collect::<Vec<_>>();
@@ -120,32 +137,37 @@ fn repair_legacy_text(value: &str) -> String {
                 .join(" ");
         }
     }
-    let bytes = value.chars().map(cp1252_byte).collect::<Option<Vec<_>>>();
-    let Some(bytes) = bytes else {
-        return value.to_string();
-    };
-    if bytes.len() % 2 != 0 {
-        return value.to_string();
+    if let Some(candidate) = decode_legacy_span(value) {
+        return candidate.trim().to_string();
     }
-    let units = bytes
-        .chunks_exact(2)
-        .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
-        .collect::<Vec<_>>();
-    let Ok(candidate) = String::from_utf16(&units) else {
-        return value.to_string();
+
+    let mut repaired = String::new();
+    let mut span = String::new();
+    let flush_span = |span: &mut String, repaired: &mut String| {
+        if span.is_empty() {
+            return;
+        }
+        repaired.push_str(decode_legacy_span(span).as_deref().unwrap_or(span.as_str()));
+        span.clear();
     };
-    let has_cjk = candidate
-        .chars()
-        .any(|c| matches!(c as u32, 0x3400..=0x9fff | 0xf900..=0xfaff));
-    let has_mojibake_marker = value.chars().any(|c| c.is_control() || (c as u32) > 0xff);
-    if has_cjk && has_mojibake_marker {
-        candidate.replace('\0', "").trim().to_string()
-    } else {
-        value.to_string()
+    for character in value.chars() {
+        if cp1252_byte(character).is_some() {
+            span.push(character);
+        } else {
+            flush_span(&mut span, &mut repaired);
+            repaired.push(character);
+        }
     }
+    flush_span(&mut span, &mut repaired);
+    repaired.replace('\0', "").trim().to_string()
 }
 
-fn source_key(start: &str, end: &str, task_name: &str) -> String {
+fn source_key(start: &str, end: &str) -> String {
+    let stable = format!("tomatodo|{}|{}", start, end);
+    format!("v3:{:x}", Sha256::digest(stable.as_bytes()))
+}
+
+fn legacy_source_key(start: &str, end: &str, task_name: &str) -> String {
     let stable = format!("tomatodo|{}|{}|{}", start, end, normalized_task(task_name));
     format!("{:x}", Sha256::digest(stable.as_bytes()))
 }
@@ -292,11 +314,11 @@ fn main() -> Result<()> {
             .get(reflection_index)
             .cloned()
             .filter(|value| !value.is_empty());
-        let canonical_key = source_key(&start, &end, &task_name);
-        let legacy_key = source_key(&start, &end, &legacy_task_name);
+        let canonical_key = source_key(&start, &end);
+        let legacy_key = legacy_source_key(&start, &end, &legacy_task_name);
         sessions.push(Session {
             source_key: canonical_key.clone(),
-            legacy_source_key: (legacy_key != canonical_key).then_some(legacy_key),
+            legacy_source_key: Some(legacy_key),
             start_local: start,
             end_local: end,
             task_name,
@@ -318,7 +340,7 @@ fn main() -> Result<()> {
     serde_json::to_writer_pretty(
         std::io::stdout(),
         &Output {
-            schema_version: 2,
+            schema_version: 3,
             source: "tomatodo",
             file_hash,
             sheet_name: repair_legacy_text(&sheet_name),
@@ -335,7 +357,7 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalized_task, parse_number, repair_legacy_text, source_key};
+    use super::{legacy_source_key, normalized_task, parse_number, repair_legacy_text, source_key};
     use regex::Regex;
 
     #[test]
@@ -368,14 +390,18 @@ mod tests {
         assert_eq!(repair_legacy_text("w\u{008d}Š^"), "起床");
         assert_eq!(repair_legacy_text("ò]Œ[\u{0010}b"), "已完成");
         assert_eq!(repair_legacy_text("\u{0013}Nèlöeô•"), "专注时间");
+        assert_eq!(repair_legacy_text("y˜îv\0_ÑS"), "项目开发");
+        assert_eq!(repair_legacy_text("保研:gÕ‹\rY`N"), "保研机试复习");
         assert_eq!(repair_legacy_text("vibe coding"), "vibe coding");
     }
 
     #[test]
-    fn canonical_and_legacy_keys_are_distinct_and_stable() {
-        let canonical = source_key("2026-08-07 12:49", "2026-08-07 13:02", "起床");
-        let legacy = source_key("2026-08-07 12:49", "2026-08-07 13:02", "w\u{008d}Š^");
+    fn time_identity_ignores_renamed_tasks_and_keeps_legacy_alias() {
+        let canonical = source_key("2026-08-07 12:49", "2026-08-07 13:02");
+        let renamed = source_key("2026-08-07 12:49", "2026-08-07 13:02");
+        let legacy = legacy_source_key("2026-08-07 12:49", "2026-08-07 13:02", "vibe coding");
+        assert_eq!(canonical, renamed);
         assert_ne!(canonical, legacy);
-        assert_eq!(canonical.len(), 64);
+        assert!(canonical.starts_with("v3:"));
     }
 }

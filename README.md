@@ -1,6 +1,6 @@
 # 知序 Zhixu
 
-知序是本地优先的个人任务与学习规划工作台，首发 Windows，支持任务、专题、日历、Markdown 笔记、专注、睡眠统计和番茄 TODO 历史导入。
+知序是本地优先的个人任务与学习规划工作台，首发 Windows，支持任务、日历、Markdown 笔记、专注、睡眠统计和番茄 TODO 历史导入。
 
 项目仓库：<https://github.com/galaxywk223/zhixu>
 
@@ -36,11 +36,11 @@ Supabase 未配置时，应用保持本地模式；登录和同步服务在设�
 ## Windows 预览版发布
 
 发布流程由 GitHub Actions 的 `v*.*.*` 标签工作流执行。版本号必须与
-`pubspec.yaml` 的 `version` 字段一致，当前预览版本为 `0.1.2+3`。
+`pubspec.yaml` 的 `version` 字段一致，当前预览版本为 `0.1.3+4`。
 
 ```powershell
-git tag v0.1.2
-git push origin v0.1.2
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
 工作流生成当前用户安装器 `Zhixu-Setup-<version>.exe`、对应的

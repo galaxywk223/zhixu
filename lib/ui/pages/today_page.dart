@@ -31,7 +31,7 @@ class TodayPage extends ConsumerWidget {
           child: TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search, size: 19),
-              hintText: '搜索任务、笔记、专题...',
+              hintText: '搜索任务、笔记...',
             ),
             onChanged: (value) =>
                 ref.read(searchQueryProvider.notifier).state = value,

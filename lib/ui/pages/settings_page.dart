@@ -581,7 +581,7 @@ Future<void> _restoreBackup(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: const Text('恢复备份'),
-      content: const Text('恢复会覆盖当前本地任务、专题、笔记和专注记录。此操作不可撤销，请先导出当前备份。'),
+      content: const Text('恢复会覆盖当前本地任务、笔记和专注记录。此操作不可撤销，请先导出当前备份。'),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext, false),

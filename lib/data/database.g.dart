@@ -91,17 +91,6 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _projectIdMeta = const VerificationMeta(
-    'projectId',
-  );
-  @override
-  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
-    'project_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _parentTaskIdMeta = const VerificationMeta(
     'parentTaskId',
   );
@@ -238,7 +227,6 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     dueAt,
     estimatedMinutes,
     repeatRule,
-    projectId,
     parentTaskId,
     externalSource,
     externalKey,
@@ -316,12 +304,6 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
       context.handle(
         _repeatRuleMeta,
         repeatRule.isAcceptableOrUnknown(data['repeat_rule']!, _repeatRuleMeta),
-      );
-    }
-    if (data.containsKey('project_id')) {
-      context.handle(
-        _projectIdMeta,
-        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
       );
     }
     if (data.containsKey('parent_task_id')) {
@@ -455,10 +437,6 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.string,
         data['${effectivePrefix}repeat_rule'],
       ),
-      projectId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}project_id'],
-      ),
       parentTaskId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}parent_task_id'],
@@ -521,7 +499,6 @@ class Task extends DataClass implements Insertable<Task> {
   final DateTime? dueAt;
   final int estimatedMinutes;
   final String? repeatRule;
-  final String? projectId;
   final String? parentTaskId;
   final String? externalSource;
   final String? externalKey;
@@ -542,7 +519,6 @@ class Task extends DataClass implements Insertable<Task> {
     this.dueAt,
     required this.estimatedMinutes,
     this.repeatRule,
-    this.projectId,
     this.parentTaskId,
     this.externalSource,
     this.externalKey,
@@ -571,9 +547,6 @@ class Task extends DataClass implements Insertable<Task> {
     map['estimated_minutes'] = Variable<int>(estimatedMinutes);
     if (!nullToAbsent || repeatRule != null) {
       map['repeat_rule'] = Variable<String>(repeatRule);
-    }
-    if (!nullToAbsent || projectId != null) {
-      map['project_id'] = Variable<String>(projectId);
     }
     if (!nullToAbsent || parentTaskId != null) {
       map['parent_task_id'] = Variable<String>(parentTaskId);
@@ -619,9 +592,6 @@ class Task extends DataClass implements Insertable<Task> {
       repeatRule: repeatRule == null && nullToAbsent
           ? const Value.absent()
           : Value(repeatRule),
-      projectId: projectId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(projectId),
       parentTaskId: parentTaskId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentTaskId),
@@ -662,7 +632,6 @@ class Task extends DataClass implements Insertable<Task> {
       dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
       estimatedMinutes: serializer.fromJson<int>(json['estimatedMinutes']),
       repeatRule: serializer.fromJson<String?>(json['repeatRule']),
-      projectId: serializer.fromJson<String?>(json['projectId']),
       parentTaskId: serializer.fromJson<String?>(json['parentTaskId']),
       externalSource: serializer.fromJson<String?>(json['externalSource']),
       externalKey: serializer.fromJson<String?>(json['externalKey']),
@@ -690,7 +659,6 @@ class Task extends DataClass implements Insertable<Task> {
       'dueAt': serializer.toJson<DateTime?>(dueAt),
       'estimatedMinutes': serializer.toJson<int>(estimatedMinutes),
       'repeatRule': serializer.toJson<String?>(repeatRule),
-      'projectId': serializer.toJson<String?>(projectId),
       'parentTaskId': serializer.toJson<String?>(parentTaskId),
       'externalSource': serializer.toJson<String?>(externalSource),
       'externalKey': serializer.toJson<String?>(externalKey),
@@ -716,7 +684,6 @@ class Task extends DataClass implements Insertable<Task> {
     Value<DateTime?> dueAt = const Value.absent(),
     int? estimatedMinutes,
     Value<String?> repeatRule = const Value.absent(),
-    Value<String?> projectId = const Value.absent(),
     Value<String?> parentTaskId = const Value.absent(),
     Value<String?> externalSource = const Value.absent(),
     Value<String?> externalKey = const Value.absent(),
@@ -739,7 +706,6 @@ class Task extends DataClass implements Insertable<Task> {
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
     estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
     repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
-    projectId: projectId.present ? projectId.value : this.projectId,
     parentTaskId: parentTaskId.present ? parentTaskId.value : this.parentTaskId,
     externalSource: externalSource.present
         ? externalSource.value
@@ -772,7 +738,6 @@ class Task extends DataClass implements Insertable<Task> {
       repeatRule: data.repeatRule.present
           ? data.repeatRule.value
           : this.repeatRule,
-      projectId: data.projectId.present ? data.projectId.value : this.projectId,
       parentTaskId: data.parentTaskId.present
           ? data.parentTaskId.value
           : this.parentTaskId,
@@ -812,7 +777,6 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('dueAt: $dueAt, ')
           ..write('estimatedMinutes: $estimatedMinutes, ')
           ..write('repeatRule: $repeatRule, ')
-          ..write('projectId: $projectId, ')
           ..write('parentTaskId: $parentTaskId, ')
           ..write('externalSource: $externalSource, ')
           ..write('externalKey: $externalKey, ')
@@ -838,7 +802,6 @@ class Task extends DataClass implements Insertable<Task> {
     dueAt,
     estimatedMinutes,
     repeatRule,
-    projectId,
     parentTaskId,
     externalSource,
     externalKey,
@@ -863,7 +826,6 @@ class Task extends DataClass implements Insertable<Task> {
           other.dueAt == this.dueAt &&
           other.estimatedMinutes == this.estimatedMinutes &&
           other.repeatRule == this.repeatRule &&
-          other.projectId == this.projectId &&
           other.parentTaskId == this.parentTaskId &&
           other.externalSource == this.externalSource &&
           other.externalKey == this.externalKey &&
@@ -886,7 +848,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<DateTime?> dueAt;
   final Value<int> estimatedMinutes;
   final Value<String?> repeatRule;
-  final Value<String?> projectId;
   final Value<String?> parentTaskId;
   final Value<String?> externalSource;
   final Value<String?> externalKey;
@@ -908,7 +869,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.dueAt = const Value.absent(),
     this.estimatedMinutes = const Value.absent(),
     this.repeatRule = const Value.absent(),
-    this.projectId = const Value.absent(),
     this.parentTaskId = const Value.absent(),
     this.externalSource = const Value.absent(),
     this.externalKey = const Value.absent(),
@@ -931,7 +891,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.dueAt = const Value.absent(),
     this.estimatedMinutes = const Value.absent(),
     this.repeatRule = const Value.absent(),
-    this.projectId = const Value.absent(),
     this.parentTaskId = const Value.absent(),
     this.externalSource = const Value.absent(),
     this.externalKey = const Value.absent(),
@@ -958,7 +917,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<DateTime>? dueAt,
     Expression<int>? estimatedMinutes,
     Expression<String>? repeatRule,
-    Expression<String>? projectId,
     Expression<String>? parentTaskId,
     Expression<String>? externalSource,
     Expression<String>? externalKey,
@@ -981,7 +939,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (dueAt != null) 'due_at': dueAt,
       if (estimatedMinutes != null) 'estimated_minutes': estimatedMinutes,
       if (repeatRule != null) 'repeat_rule': repeatRule,
-      if (projectId != null) 'project_id': projectId,
       if (parentTaskId != null) 'parent_task_id': parentTaskId,
       if (externalSource != null) 'external_source': externalSource,
       if (externalKey != null) 'external_key': externalKey,
@@ -1007,7 +964,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<DateTime?>? dueAt,
     Value<int>? estimatedMinutes,
     Value<String?>? repeatRule,
-    Value<String?>? projectId,
     Value<String?>? parentTaskId,
     Value<String?>? externalSource,
     Value<String?>? externalKey,
@@ -1030,7 +986,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
       dueAt: dueAt ?? this.dueAt,
       estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
       repeatRule: repeatRule ?? this.repeatRule,
-      projectId: projectId ?? this.projectId,
       parentTaskId: parentTaskId ?? this.parentTaskId,
       externalSource: externalSource ?? this.externalSource,
       externalKey: externalKey ?? this.externalKey,
@@ -1073,9 +1028,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
     }
     if (repeatRule.present) {
       map['repeat_rule'] = Variable<String>(repeatRule.value);
-    }
-    if (projectId.present) {
-      map['project_id'] = Variable<String>(projectId.value);
     }
     if (parentTaskId.present) {
       map['parent_task_id'] = Variable<String>(parentTaskId.value);
@@ -1129,7 +1081,6 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('dueAt: $dueAt, ')
           ..write('estimatedMinutes: $estimatedMinutes, ')
           ..write('repeatRule: $repeatRule, ')
-          ..write('projectId: $projectId, ')
           ..write('parentTaskId: $parentTaskId, ')
           ..write('externalSource: $externalSource, ')
           ..write('externalKey: $externalKey, ')
@@ -1701,768 +1652,6 @@ class TaskItemsCompanion extends UpdateCompanion<TaskItem> {
   }
 }
 
-class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $ProjectsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
-  @override
-  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
-    'kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('project'),
-  );
-  static const VerificationMeta _descriptionMdMeta = const VerificationMeta(
-    'descriptionMd',
-  );
-  @override
-  late final GeneratedColumn<String> descriptionMd = GeneratedColumn<String>(
-    'description_md',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _startDateMeta = const VerificationMeta(
-    'startDate',
-  );
-  @override
-  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
-    'start_date',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _targetDateMeta = const VerificationMeta(
-    'targetDate',
-  );
-  @override
-  late final GeneratedColumn<DateTime> targetDate = GeneratedColumn<DateTime>(
-    'target_date',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _colorHexMeta = const VerificationMeta(
-    'colorHex',
-  );
-  @override
-  late final GeneratedColumn<String> colorHex = GeneratedColumn<String>(
-    'color_hex',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('#3B82F6'),
-  );
-  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
-    'isArchived',
-  );
-  @override
-  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
-    'is_archived',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_archived" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
-    'deletedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-    'deleted_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
-    'deviceId',
-  );
-  @override
-  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
-    'device_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _serverRevisionMeta = const VerificationMeta(
-    'serverRevision',
-  );
-  @override
-  late final GeneratedColumn<int> serverRevision = GeneratedColumn<int>(
-    'server_revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    name,
-    kind,
-    descriptionMd,
-    startDate,
-    targetDate,
-    colorHex,
-    isArchived,
-    createdAt,
-    updatedAt,
-    deletedAt,
-    deviceId,
-    serverRevision,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'projects';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<Project> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('kind')) {
-      context.handle(
-        _kindMeta,
-        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
-      );
-    }
-    if (data.containsKey('description_md')) {
-      context.handle(
-        _descriptionMdMeta,
-        descriptionMd.isAcceptableOrUnknown(
-          data['description_md']!,
-          _descriptionMdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('start_date')) {
-      context.handle(
-        _startDateMeta,
-        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
-      );
-    }
-    if (data.containsKey('target_date')) {
-      context.handle(
-        _targetDateMeta,
-        targetDate.isAcceptableOrUnknown(data['target_date']!, _targetDateMeta),
-      );
-    }
-    if (data.containsKey('color_hex')) {
-      context.handle(
-        _colorHexMeta,
-        colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta),
-      );
-    }
-    if (data.containsKey('is_archived')) {
-      context.handle(
-        _isArchivedMeta,
-        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(
-        _deletedAtMeta,
-        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
-      );
-    }
-    if (data.containsKey('device_id')) {
-      context.handle(
-        _deviceIdMeta,
-        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceIdMeta);
-    }
-    if (data.containsKey('server_revision')) {
-      context.handle(
-        _serverRevisionMeta,
-        serverRevision.isAcceptableOrUnknown(
-          data['server_revision']!,
-          _serverRevisionMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  Project map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Project(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      kind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}kind'],
-      )!,
-      descriptionMd: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}description_md'],
-      ),
-      startDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}start_date'],
-      ),
-      targetDate: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}target_date'],
-      ),
-      colorHex: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}color_hex'],
-      )!,
-      isArchived: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_archived'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-      deletedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}deleted_at'],
-      ),
-      deviceId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_id'],
-      )!,
-      serverRevision: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}server_revision'],
-      )!,
-    );
-  }
-
-  @override
-  $ProjectsTable createAlias(String alias) {
-    return $ProjectsTable(attachedDatabase, alias);
-  }
-}
-
-class Project extends DataClass implements Insertable<Project> {
-  final String id;
-  final String name;
-  final String kind;
-  final String? descriptionMd;
-  final DateTime? startDate;
-  final DateTime? targetDate;
-  final String colorHex;
-  final bool isArchived;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final DateTime? deletedAt;
-  final String deviceId;
-  final int serverRevision;
-  const Project({
-    required this.id,
-    required this.name,
-    required this.kind,
-    this.descriptionMd,
-    this.startDate,
-    this.targetDate,
-    required this.colorHex,
-    required this.isArchived,
-    required this.createdAt,
-    required this.updatedAt,
-    this.deletedAt,
-    required this.deviceId,
-    required this.serverRevision,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['name'] = Variable<String>(name);
-    map['kind'] = Variable<String>(kind);
-    if (!nullToAbsent || descriptionMd != null) {
-      map['description_md'] = Variable<String>(descriptionMd);
-    }
-    if (!nullToAbsent || startDate != null) {
-      map['start_date'] = Variable<DateTime>(startDate);
-    }
-    if (!nullToAbsent || targetDate != null) {
-      map['target_date'] = Variable<DateTime>(targetDate);
-    }
-    map['color_hex'] = Variable<String>(colorHex);
-    map['is_archived'] = Variable<bool>(isArchived);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
-    }
-    map['device_id'] = Variable<String>(deviceId);
-    map['server_revision'] = Variable<int>(serverRevision);
-    return map;
-  }
-
-  ProjectsCompanion toCompanion(bool nullToAbsent) {
-    return ProjectsCompanion(
-      id: Value(id),
-      name: Value(name),
-      kind: Value(kind),
-      descriptionMd: descriptionMd == null && nullToAbsent
-          ? const Value.absent()
-          : Value(descriptionMd),
-      startDate: startDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(startDate),
-      targetDate: targetDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(targetDate),
-      colorHex: Value(colorHex),
-      isArchived: Value(isArchived),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-      deletedAt: deletedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(deletedAt),
-      deviceId: Value(deviceId),
-      serverRevision: Value(serverRevision),
-    );
-  }
-
-  factory Project.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Project(
-      id: serializer.fromJson<String>(json['id']),
-      name: serializer.fromJson<String>(json['name']),
-      kind: serializer.fromJson<String>(json['kind']),
-      descriptionMd: serializer.fromJson<String?>(json['descriptionMd']),
-      startDate: serializer.fromJson<DateTime?>(json['startDate']),
-      targetDate: serializer.fromJson<DateTime?>(json['targetDate']),
-      colorHex: serializer.fromJson<String>(json['colorHex']),
-      isArchived: serializer.fromJson<bool>(json['isArchived']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
-      deviceId: serializer.fromJson<String>(json['deviceId']),
-      serverRevision: serializer.fromJson<int>(json['serverRevision']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'name': serializer.toJson<String>(name),
-      'kind': serializer.toJson<String>(kind),
-      'descriptionMd': serializer.toJson<String?>(descriptionMd),
-      'startDate': serializer.toJson<DateTime?>(startDate),
-      'targetDate': serializer.toJson<DateTime?>(targetDate),
-      'colorHex': serializer.toJson<String>(colorHex),
-      'isArchived': serializer.toJson<bool>(isArchived),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
-      'deviceId': serializer.toJson<String>(deviceId),
-      'serverRevision': serializer.toJson<int>(serverRevision),
-    };
-  }
-
-  Project copyWith({
-    String? id,
-    String? name,
-    String? kind,
-    Value<String?> descriptionMd = const Value.absent(),
-    Value<DateTime?> startDate = const Value.absent(),
-    Value<DateTime?> targetDate = const Value.absent(),
-    String? colorHex,
-    bool? isArchived,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    Value<DateTime?> deletedAt = const Value.absent(),
-    String? deviceId,
-    int? serverRevision,
-  }) => Project(
-    id: id ?? this.id,
-    name: name ?? this.name,
-    kind: kind ?? this.kind,
-    descriptionMd: descriptionMd.present
-        ? descriptionMd.value
-        : this.descriptionMd,
-    startDate: startDate.present ? startDate.value : this.startDate,
-    targetDate: targetDate.present ? targetDate.value : this.targetDate,
-    colorHex: colorHex ?? this.colorHex,
-    isArchived: isArchived ?? this.isArchived,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-    deviceId: deviceId ?? this.deviceId,
-    serverRevision: serverRevision ?? this.serverRevision,
-  );
-  Project copyWithCompanion(ProjectsCompanion data) {
-    return Project(
-      id: data.id.present ? data.id.value : this.id,
-      name: data.name.present ? data.name.value : this.name,
-      kind: data.kind.present ? data.kind.value : this.kind,
-      descriptionMd: data.descriptionMd.present
-          ? data.descriptionMd.value
-          : this.descriptionMd,
-      startDate: data.startDate.present ? data.startDate.value : this.startDate,
-      targetDate: data.targetDate.present
-          ? data.targetDate.value
-          : this.targetDate,
-      colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
-      isArchived: data.isArchived.present
-          ? data.isArchived.value
-          : this.isArchived,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
-      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
-      serverRevision: data.serverRevision.present
-          ? data.serverRevision.value
-          : this.serverRevision,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('Project(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('kind: $kind, ')
-          ..write('descriptionMd: $descriptionMd, ')
-          ..write('startDate: $startDate, ')
-          ..write('targetDate: $targetDate, ')
-          ..write('colorHex: $colorHex, ')
-          ..write('isArchived: $isArchived, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt, ')
-          ..write('deviceId: $deviceId, ')
-          ..write('serverRevision: $serverRevision')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    name,
-    kind,
-    descriptionMd,
-    startDate,
-    targetDate,
-    colorHex,
-    isArchived,
-    createdAt,
-    updatedAt,
-    deletedAt,
-    deviceId,
-    serverRevision,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is Project &&
-          other.id == this.id &&
-          other.name == this.name &&
-          other.kind == this.kind &&
-          other.descriptionMd == this.descriptionMd &&
-          other.startDate == this.startDate &&
-          other.targetDate == this.targetDate &&
-          other.colorHex == this.colorHex &&
-          other.isArchived == this.isArchived &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt &&
-          other.deletedAt == this.deletedAt &&
-          other.deviceId == this.deviceId &&
-          other.serverRevision == this.serverRevision);
-}
-
-class ProjectsCompanion extends UpdateCompanion<Project> {
-  final Value<String> id;
-  final Value<String> name;
-  final Value<String> kind;
-  final Value<String?> descriptionMd;
-  final Value<DateTime?> startDate;
-  final Value<DateTime?> targetDate;
-  final Value<String> colorHex;
-  final Value<bool> isArchived;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  final Value<DateTime?> deletedAt;
-  final Value<String> deviceId;
-  final Value<int> serverRevision;
-  final Value<int> rowid;
-  const ProjectsCompanion({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    this.kind = const Value.absent(),
-    this.descriptionMd = const Value.absent(),
-    this.startDate = const Value.absent(),
-    this.targetDate = const Value.absent(),
-    this.colorHex = const Value.absent(),
-    this.isArchived = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.deletedAt = const Value.absent(),
-    this.deviceId = const Value.absent(),
-    this.serverRevision = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  ProjectsCompanion.insert({
-    required String id,
-    required String name,
-    this.kind = const Value.absent(),
-    this.descriptionMd = const Value.absent(),
-    this.startDate = const Value.absent(),
-    this.targetDate = const Value.absent(),
-    this.colorHex = const Value.absent(),
-    this.isArchived = const Value.absent(),
-    required DateTime createdAt,
-    required DateTime updatedAt,
-    this.deletedAt = const Value.absent(),
-    required String deviceId,
-    this.serverRevision = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       name = Value(name),
-       createdAt = Value(createdAt),
-       updatedAt = Value(updatedAt),
-       deviceId = Value(deviceId);
-  static Insertable<Project> custom({
-    Expression<String>? id,
-    Expression<String>? name,
-    Expression<String>? kind,
-    Expression<String>? descriptionMd,
-    Expression<DateTime>? startDate,
-    Expression<DateTime>? targetDate,
-    Expression<String>? colorHex,
-    Expression<bool>? isArchived,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<DateTime>? deletedAt,
-    Expression<String>? deviceId,
-    Expression<int>? serverRevision,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (name != null) 'name': name,
-      if (kind != null) 'kind': kind,
-      if (descriptionMd != null) 'description_md': descriptionMd,
-      if (startDate != null) 'start_date': startDate,
-      if (targetDate != null) 'target_date': targetDate,
-      if (colorHex != null) 'color_hex': colorHex,
-      if (isArchived != null) 'is_archived': isArchived,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (deletedAt != null) 'deleted_at': deletedAt,
-      if (deviceId != null) 'device_id': deviceId,
-      if (serverRevision != null) 'server_revision': serverRevision,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  ProjectsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? name,
-    Value<String>? kind,
-    Value<String?>? descriptionMd,
-    Value<DateTime?>? startDate,
-    Value<DateTime?>? targetDate,
-    Value<String>? colorHex,
-    Value<bool>? isArchived,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
-    Value<DateTime?>? deletedAt,
-    Value<String>? deviceId,
-    Value<int>? serverRevision,
-    Value<int>? rowid,
-  }) {
-    return ProjectsCompanion(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      kind: kind ?? this.kind,
-      descriptionMd: descriptionMd ?? this.descriptionMd,
-      startDate: startDate ?? this.startDate,
-      targetDate: targetDate ?? this.targetDate,
-      colorHex: colorHex ?? this.colorHex,
-      isArchived: isArchived ?? this.isArchived,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      deletedAt: deletedAt ?? this.deletedAt,
-      deviceId: deviceId ?? this.deviceId,
-      serverRevision: serverRevision ?? this.serverRevision,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (kind.present) {
-      map['kind'] = Variable<String>(kind.value);
-    }
-    if (descriptionMd.present) {
-      map['description_md'] = Variable<String>(descriptionMd.value);
-    }
-    if (startDate.present) {
-      map['start_date'] = Variable<DateTime>(startDate.value);
-    }
-    if (targetDate.present) {
-      map['target_date'] = Variable<DateTime>(targetDate.value);
-    }
-    if (colorHex.present) {
-      map['color_hex'] = Variable<String>(colorHex.value);
-    }
-    if (isArchived.present) {
-      map['is_archived'] = Variable<bool>(isArchived.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
-    }
-    if (deviceId.present) {
-      map['device_id'] = Variable<String>(deviceId.value);
-    }
-    if (serverRevision.present) {
-      map['server_revision'] = Variable<int>(serverRevision.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('ProjectsCompanion(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('kind: $kind, ')
-          ..write('descriptionMd: $descriptionMd, ')
-          ..write('startDate: $startDate, ')
-          ..write('targetDate: $targetDate, ')
-          ..write('colorHex: $colorHex, ')
-          ..write('isArchived: $isArchived, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt, ')
-          ..write('deviceId: $deviceId, ')
-          ..write('serverRevision: $serverRevision, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $ScheduleBlocksTable extends ScheduleBlocks
     with TableInfo<$ScheduleBlocksTable, ScheduleBlock> {
   @override
@@ -2491,17 +1680,6 @@ class $ScheduleBlocksTable extends ScheduleBlocks
   @override
   late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
     'task_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _projectIdMeta = const VerificationMeta(
-    'projectId',
-  );
-  @override
-  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
-    'project_id',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -2626,7 +1804,6 @@ class $ScheduleBlocksTable extends ScheduleBlocks
     id,
     title,
     taskId,
-    projectId,
     startAt,
     endAt,
     isAllDay,
@@ -2667,12 +1844,6 @@ class $ScheduleBlocksTable extends ScheduleBlocks
       context.handle(
         _taskIdMeta,
         taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
-      );
-    }
-    if (data.containsKey('project_id')) {
-      context.handle(
-        _projectIdMeta,
-        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
       );
     }
     if (data.containsKey('start_at')) {
@@ -2769,10 +1940,6 @@ class $ScheduleBlocksTable extends ScheduleBlocks
         DriftSqlType.string,
         data['${effectivePrefix}task_id'],
       ),
-      projectId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}project_id'],
-      ),
       startAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}start_at'],
@@ -2826,7 +1993,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
   final String id;
   final String title;
   final String? taskId;
-  final String? projectId;
   final DateTime startAt;
   final DateTime endAt;
   final bool isAllDay;
@@ -2841,7 +2007,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
     required this.id,
     required this.title,
     this.taskId,
-    this.projectId,
     required this.startAt,
     required this.endAt,
     required this.isAllDay,
@@ -2860,9 +2025,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || taskId != null) {
       map['task_id'] = Variable<String>(taskId);
-    }
-    if (!nullToAbsent || projectId != null) {
-      map['project_id'] = Variable<String>(projectId);
     }
     map['start_at'] = Variable<DateTime>(startAt);
     map['end_at'] = Variable<DateTime>(endAt);
@@ -2888,9 +2050,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
       taskId: taskId == null && nullToAbsent
           ? const Value.absent()
           : Value(taskId),
-      projectId: projectId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(projectId),
       startAt: Value(startAt),
       endAt: Value(endAt),
       isAllDay: Value(isAllDay),
@@ -2917,7 +2076,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       taskId: serializer.fromJson<String?>(json['taskId']),
-      projectId: serializer.fromJson<String?>(json['projectId']),
       startAt: serializer.fromJson<DateTime>(json['startAt']),
       endAt: serializer.fromJson<DateTime>(json['endAt']),
       isAllDay: serializer.fromJson<bool>(json['isAllDay']),
@@ -2937,7 +2095,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'taskId': serializer.toJson<String?>(taskId),
-      'projectId': serializer.toJson<String?>(projectId),
       'startAt': serializer.toJson<DateTime>(startAt),
       'endAt': serializer.toJson<DateTime>(endAt),
       'isAllDay': serializer.toJson<bool>(isAllDay),
@@ -2955,7 +2112,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
     String? id,
     String? title,
     Value<String?> taskId = const Value.absent(),
-    Value<String?> projectId = const Value.absent(),
     DateTime? startAt,
     DateTime? endAt,
     bool? isAllDay,
@@ -2970,7 +2126,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
     id: id ?? this.id,
     title: title ?? this.title,
     taskId: taskId.present ? taskId.value : this.taskId,
-    projectId: projectId.present ? projectId.value : this.projectId,
     startAt: startAt ?? this.startAt,
     endAt: endAt ?? this.endAt,
     isAllDay: isAllDay ?? this.isAllDay,
@@ -2987,7 +2142,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       taskId: data.taskId.present ? data.taskId.value : this.taskId,
-      projectId: data.projectId.present ? data.projectId.value : this.projectId,
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
       endAt: data.endAt.present ? data.endAt.value : this.endAt,
       isAllDay: data.isAllDay.present ? data.isAllDay.value : this.isAllDay,
@@ -3011,7 +2165,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('taskId: $taskId, ')
-          ..write('projectId: $projectId, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
           ..write('isAllDay: $isAllDay, ')
@@ -3031,7 +2184,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
     id,
     title,
     taskId,
-    projectId,
     startAt,
     endAt,
     isAllDay,
@@ -3050,7 +2202,6 @@ class ScheduleBlock extends DataClass implements Insertable<ScheduleBlock> {
           other.id == this.id &&
           other.title == this.title &&
           other.taskId == this.taskId &&
-          other.projectId == this.projectId &&
           other.startAt == this.startAt &&
           other.endAt == this.endAt &&
           other.isAllDay == this.isAllDay &&
@@ -3067,7 +2218,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
   final Value<String> id;
   final Value<String> title;
   final Value<String?> taskId;
-  final Value<String?> projectId;
   final Value<DateTime> startAt;
   final Value<DateTime> endAt;
   final Value<bool> isAllDay;
@@ -3083,7 +2233,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.taskId = const Value.absent(),
-    this.projectId = const Value.absent(),
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
     this.isAllDay = const Value.absent(),
@@ -3100,7 +2249,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
     required String id,
     required String title,
     this.taskId = const Value.absent(),
-    this.projectId = const Value.absent(),
     required DateTime startAt,
     required DateTime endAt,
     this.isAllDay = const Value.absent(),
@@ -3123,7 +2271,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? taskId,
-    Expression<String>? projectId,
     Expression<DateTime>? startAt,
     Expression<DateTime>? endAt,
     Expression<bool>? isAllDay,
@@ -3140,7 +2287,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (taskId != null) 'task_id': taskId,
-      if (projectId != null) 'project_id': projectId,
       if (startAt != null) 'start_at': startAt,
       if (endAt != null) 'end_at': endAt,
       if (isAllDay != null) 'is_all_day': isAllDay,
@@ -3159,7 +2305,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
     Value<String>? id,
     Value<String>? title,
     Value<String?>? taskId,
-    Value<String?>? projectId,
     Value<DateTime>? startAt,
     Value<DateTime>? endAt,
     Value<bool>? isAllDay,
@@ -3176,7 +2321,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
       id: id ?? this.id,
       title: title ?? this.title,
       taskId: taskId ?? this.taskId,
-      projectId: projectId ?? this.projectId,
       startAt: startAt ?? this.startAt,
       endAt: endAt ?? this.endAt,
       isAllDay: isAllDay ?? this.isAllDay,
@@ -3202,9 +2346,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
     }
     if (taskId.present) {
       map['task_id'] = Variable<String>(taskId.value);
-    }
-    if (projectId.present) {
-      map['project_id'] = Variable<String>(projectId.value);
     }
     if (startAt.present) {
       map['start_at'] = Variable<DateTime>(startAt.value);
@@ -3248,7 +2389,6 @@ class ScheduleBlocksCompanion extends UpdateCompanion<ScheduleBlock> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('taskId: $taskId, ')
-          ..write('projectId: $projectId, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
           ..write('isAllDay: $isAllDay, ')
@@ -3772,17 +2912,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _projectIdMeta = const VerificationMeta(
-    'projectId',
-  );
-  @override
-  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
-    'project_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _isPinnedMeta = const VerificationMeta(
     'isPinned',
   );
@@ -3860,7 +2989,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     title,
     contentMd,
     notebookId,
-    projectId,
     isPinned,
     createdAt,
     updatedAt,
@@ -3903,12 +3031,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       context.handle(
         _notebookIdMeta,
         notebookId.isAcceptableOrUnknown(data['notebook_id']!, _notebookIdMeta),
-      );
-    }
-    if (data.containsKey('project_id')) {
-      context.handle(
-        _projectIdMeta,
-        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
       );
     }
     if (data.containsKey('is_pinned')) {
@@ -3981,10 +3103,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.string,
         data['${effectivePrefix}notebook_id'],
       ),
-      projectId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}project_id'],
-      ),
       isPinned: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_pinned'],
@@ -4023,7 +3141,6 @@ class Note extends DataClass implements Insertable<Note> {
   final String title;
   final String contentMd;
   final String? notebookId;
-  final String? projectId;
   final bool isPinned;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -4035,7 +3152,6 @@ class Note extends DataClass implements Insertable<Note> {
     required this.title,
     required this.contentMd,
     this.notebookId,
-    this.projectId,
     required this.isPinned,
     required this.createdAt,
     required this.updatedAt,
@@ -4051,9 +3167,6 @@ class Note extends DataClass implements Insertable<Note> {
     map['content_md'] = Variable<String>(contentMd);
     if (!nullToAbsent || notebookId != null) {
       map['notebook_id'] = Variable<String>(notebookId);
-    }
-    if (!nullToAbsent || projectId != null) {
-      map['project_id'] = Variable<String>(projectId);
     }
     map['is_pinned'] = Variable<bool>(isPinned);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -4074,9 +3187,6 @@ class Note extends DataClass implements Insertable<Note> {
       notebookId: notebookId == null && nullToAbsent
           ? const Value.absent()
           : Value(notebookId),
-      projectId: projectId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(projectId),
       isPinned: Value(isPinned),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -4098,7 +3208,6 @@ class Note extends DataClass implements Insertable<Note> {
       title: serializer.fromJson<String>(json['title']),
       contentMd: serializer.fromJson<String>(json['contentMd']),
       notebookId: serializer.fromJson<String?>(json['notebookId']),
-      projectId: serializer.fromJson<String?>(json['projectId']),
       isPinned: serializer.fromJson<bool>(json['isPinned']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -4115,7 +3224,6 @@ class Note extends DataClass implements Insertable<Note> {
       'title': serializer.toJson<String>(title),
       'contentMd': serializer.toJson<String>(contentMd),
       'notebookId': serializer.toJson<String?>(notebookId),
-      'projectId': serializer.toJson<String?>(projectId),
       'isPinned': serializer.toJson<bool>(isPinned),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -4130,7 +3238,6 @@ class Note extends DataClass implements Insertable<Note> {
     String? title,
     String? contentMd,
     Value<String?> notebookId = const Value.absent(),
-    Value<String?> projectId = const Value.absent(),
     bool? isPinned,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -4142,7 +3249,6 @@ class Note extends DataClass implements Insertable<Note> {
     title: title ?? this.title,
     contentMd: contentMd ?? this.contentMd,
     notebookId: notebookId.present ? notebookId.value : this.notebookId,
-    projectId: projectId.present ? projectId.value : this.projectId,
     isPinned: isPinned ?? this.isPinned,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -4158,7 +3264,6 @@ class Note extends DataClass implements Insertable<Note> {
       notebookId: data.notebookId.present
           ? data.notebookId.value
           : this.notebookId,
-      projectId: data.projectId.present ? data.projectId.value : this.projectId,
       isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -4177,7 +3282,6 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('title: $title, ')
           ..write('contentMd: $contentMd, ')
           ..write('notebookId: $notebookId, ')
-          ..write('projectId: $projectId, ')
           ..write('isPinned: $isPinned, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -4194,7 +3298,6 @@ class Note extends DataClass implements Insertable<Note> {
     title,
     contentMd,
     notebookId,
-    projectId,
     isPinned,
     createdAt,
     updatedAt,
@@ -4210,7 +3313,6 @@ class Note extends DataClass implements Insertable<Note> {
           other.title == this.title &&
           other.contentMd == this.contentMd &&
           other.notebookId == this.notebookId &&
-          other.projectId == this.projectId &&
           other.isPinned == this.isPinned &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -4224,7 +3326,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String> title;
   final Value<String> contentMd;
   final Value<String?> notebookId;
-  final Value<String?> projectId;
   final Value<bool> isPinned;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -4237,7 +3338,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.title = const Value.absent(),
     this.contentMd = const Value.absent(),
     this.notebookId = const Value.absent(),
-    this.projectId = const Value.absent(),
     this.isPinned = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4251,7 +3351,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     required String title,
     this.contentMd = const Value.absent(),
     this.notebookId = const Value.absent(),
-    this.projectId = const Value.absent(),
     this.isPinned = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -4269,7 +3368,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? title,
     Expression<String>? contentMd,
     Expression<String>? notebookId,
-    Expression<String>? projectId,
     Expression<bool>? isPinned,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -4283,7 +3381,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (title != null) 'title': title,
       if (contentMd != null) 'content_md': contentMd,
       if (notebookId != null) 'notebook_id': notebookId,
-      if (projectId != null) 'project_id': projectId,
       if (isPinned != null) 'is_pinned': isPinned,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4299,7 +3396,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<String>? title,
     Value<String>? contentMd,
     Value<String?>? notebookId,
-    Value<String?>? projectId,
     Value<bool>? isPinned,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -4313,7 +3409,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
       title: title ?? this.title,
       contentMd: contentMd ?? this.contentMd,
       notebookId: notebookId ?? this.notebookId,
-      projectId: projectId ?? this.projectId,
       isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4338,9 +3433,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
     }
     if (notebookId.present) {
       map['notebook_id'] = Variable<String>(notebookId.value);
-    }
-    if (projectId.present) {
-      map['project_id'] = Variable<String>(projectId.value);
     }
     if (isPinned.present) {
       map['is_pinned'] = Variable<bool>(isPinned.value);
@@ -4373,7 +3465,6 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('title: $title, ')
           ..write('contentMd: $contentMd, ')
           ..write('notebookId: $notebookId, ')
-          ..write('projectId: $projectId, ')
           ..write('isPinned: $isPinned, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -6342,17 +5433,6 @@ class $FocusSessionsTable extends FocusSessions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _linkedProjectIdMeta = const VerificationMeta(
-    'linkedProjectId',
-  );
-  @override
-  late final GeneratedColumn<String> linkedProjectId = GeneratedColumn<String>(
-    'linked_project_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _importBatchIdMeta = const VerificationMeta(
     'importBatchId',
   );
@@ -6433,7 +5513,6 @@ class $FocusSessionsTable extends FocusSessions
     status,
     completionPercent,
     linkedTaskId,
-    linkedProjectId,
     importBatchId,
     createdAt,
     updatedAt,
@@ -6536,15 +5615,6 @@ class $FocusSessionsTable extends FocusSessions
         linkedTaskId.isAcceptableOrUnknown(
           data['linked_task_id']!,
           _linkedTaskIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('linked_project_id')) {
-      context.handle(
-        _linkedProjectIdMeta,
-        linkedProjectId.isAcceptableOrUnknown(
-          data['linked_project_id']!,
-          _linkedProjectIdMeta,
         ),
       );
     }
@@ -6653,10 +5723,6 @@ class $FocusSessionsTable extends FocusSessions
         DriftSqlType.string,
         data['${effectivePrefix}linked_task_id'],
       ),
-      linkedProjectId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}linked_project_id'],
-      ),
       importBatchId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}import_batch_id'],
@@ -6702,7 +5768,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
   final String status;
   final int completionPercent;
   final String? linkedTaskId;
-  final String? linkedProjectId;
   final String? importBatchId;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -6721,7 +5786,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     required this.status,
     required this.completionPercent,
     this.linkedTaskId,
-    this.linkedProjectId,
     this.importBatchId,
     required this.createdAt,
     required this.updatedAt,
@@ -6746,9 +5810,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     map['completion_percent'] = Variable<int>(completionPercent);
     if (!nullToAbsent || linkedTaskId != null) {
       map['linked_task_id'] = Variable<String>(linkedTaskId);
-    }
-    if (!nullToAbsent || linkedProjectId != null) {
-      map['linked_project_id'] = Variable<String>(linkedProjectId);
     }
     if (!nullToAbsent || importBatchId != null) {
       map['import_batch_id'] = Variable<String>(importBatchId);
@@ -6780,9 +5841,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       linkedTaskId: linkedTaskId == null && nullToAbsent
           ? const Value.absent()
           : Value(linkedTaskId),
-      linkedProjectId: linkedProjectId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(linkedProjectId),
       importBatchId: importBatchId == null && nullToAbsent
           ? const Value.absent()
           : Value(importBatchId),
@@ -6813,7 +5871,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       status: serializer.fromJson<String>(json['status']),
       completionPercent: serializer.fromJson<int>(json['completionPercent']),
       linkedTaskId: serializer.fromJson<String?>(json['linkedTaskId']),
-      linkedProjectId: serializer.fromJson<String?>(json['linkedProjectId']),
       importBatchId: serializer.fromJson<String?>(json['importBatchId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -6837,7 +5894,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       'status': serializer.toJson<String>(status),
       'completionPercent': serializer.toJson<int>(completionPercent),
       'linkedTaskId': serializer.toJson<String?>(linkedTaskId),
-      'linkedProjectId': serializer.toJson<String?>(linkedProjectId),
       'importBatchId': serializer.toJson<String?>(importBatchId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -6859,7 +5915,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     String? status,
     int? completionPercent,
     Value<String?> linkedTaskId = const Value.absent(),
-    Value<String?> linkedProjectId = const Value.absent(),
     Value<String?> importBatchId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -6878,9 +5933,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     status: status ?? this.status,
     completionPercent: completionPercent ?? this.completionPercent,
     linkedTaskId: linkedTaskId.present ? linkedTaskId.value : this.linkedTaskId,
-    linkedProjectId: linkedProjectId.present
-        ? linkedProjectId.value
-        : this.linkedProjectId,
     importBatchId: importBatchId.present
         ? importBatchId.value
         : this.importBatchId,
@@ -6911,9 +5963,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
       linkedTaskId: data.linkedTaskId.present
           ? data.linkedTaskId.value
           : this.linkedTaskId,
-      linkedProjectId: data.linkedProjectId.present
-          ? data.linkedProjectId.value
-          : this.linkedProjectId,
       importBatchId: data.importBatchId.present
           ? data.importBatchId.value
           : this.importBatchId,
@@ -6941,7 +5990,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
           ..write('status: $status, ')
           ..write('completionPercent: $completionPercent, ')
           ..write('linkedTaskId: $linkedTaskId, ')
-          ..write('linkedProjectId: $linkedProjectId, ')
           ..write('importBatchId: $importBatchId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -6965,7 +6013,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
     status,
     completionPercent,
     linkedTaskId,
-    linkedProjectId,
     importBatchId,
     createdAt,
     updatedAt,
@@ -6988,7 +6035,6 @@ class FocusSession extends DataClass implements Insertable<FocusSession> {
           other.status == this.status &&
           other.completionPercent == this.completionPercent &&
           other.linkedTaskId == this.linkedTaskId &&
-          other.linkedProjectId == this.linkedProjectId &&
           other.importBatchId == this.importBatchId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -7009,7 +6055,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
   final Value<String> status;
   final Value<int> completionPercent;
   final Value<String?> linkedTaskId;
-  final Value<String?> linkedProjectId;
   final Value<String?> importBatchId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -7029,7 +6074,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     this.status = const Value.absent(),
     this.completionPercent = const Value.absent(),
     this.linkedTaskId = const Value.absent(),
-    this.linkedProjectId = const Value.absent(),
     this.importBatchId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -7050,7 +6094,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     required String status,
     this.completionPercent = const Value.absent(),
     this.linkedTaskId = const Value.absent(),
-    this.linkedProjectId = const Value.absent(),
     this.importBatchId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -7080,7 +6123,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     Expression<String>? status,
     Expression<int>? completionPercent,
     Expression<String>? linkedTaskId,
-    Expression<String>? linkedProjectId,
     Expression<String>? importBatchId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -7101,7 +6143,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
       if (status != null) 'status': status,
       if (completionPercent != null) 'completion_percent': completionPercent,
       if (linkedTaskId != null) 'linked_task_id': linkedTaskId,
-      if (linkedProjectId != null) 'linked_project_id': linkedProjectId,
       if (importBatchId != null) 'import_batch_id': importBatchId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -7124,7 +6165,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     Value<String>? status,
     Value<int>? completionPercent,
     Value<String?>? linkedTaskId,
-    Value<String?>? linkedProjectId,
     Value<String?>? importBatchId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -7145,7 +6185,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
       status: status ?? this.status,
       completionPercent: completionPercent ?? this.completionPercent,
       linkedTaskId: linkedTaskId ?? this.linkedTaskId,
-      linkedProjectId: linkedProjectId ?? this.linkedProjectId,
       importBatchId: importBatchId ?? this.importBatchId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -7192,9 +6231,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
     if (linkedTaskId.present) {
       map['linked_task_id'] = Variable<String>(linkedTaskId.value);
     }
-    if (linkedProjectId.present) {
-      map['linked_project_id'] = Variable<String>(linkedProjectId.value);
-    }
     if (importBatchId.present) {
       map['import_batch_id'] = Variable<String>(importBatchId.value);
     }
@@ -7233,7 +6269,6 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
           ..write('status: $status, ')
           ..write('completionPercent: $completionPercent, ')
           ..write('linkedTaskId: $linkedTaskId, ')
-          ..write('linkedProjectId: $linkedProjectId, ')
           ..write('importBatchId: $importBatchId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -10087,7 +9122,6 @@ abstract class _$ZhixuDatabase extends GeneratedDatabase {
   $ZhixuDatabaseManager get managers => $ZhixuDatabaseManager(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $TaskItemsTable taskItems = $TaskItemsTable(this);
-  late final $ProjectsTable projects = $ProjectsTable(this);
   late final $ScheduleBlocksTable scheduleBlocks = $ScheduleBlocksTable(this);
   late final $NotebooksTable notebooks = $NotebooksTable(this);
   late final $NotesTable notes = $NotesTable(this);
@@ -10109,7 +9143,6 @@ abstract class _$ZhixuDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     tasks,
     taskItems,
-    projects,
     scheduleBlocks,
     notebooks,
     notes,
@@ -10136,7 +9169,6 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<DateTime?> dueAt,
       Value<int> estimatedMinutes,
       Value<String?> repeatRule,
-      Value<String?> projectId,
       Value<String?> parentTaskId,
       Value<String?> externalSource,
       Value<String?> externalKey,
@@ -10160,7 +9192,6 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<DateTime?> dueAt,
       Value<int> estimatedMinutes,
       Value<String?> repeatRule,
-      Value<String?> projectId,
       Value<String?> parentTaskId,
       Value<String?> externalSource,
       Value<String?> externalKey,
@@ -10221,11 +9252,6 @@ class $$TasksTableFilterComposer
 
   ColumnFilters<String> get repeatRule => $composableBuilder(
     column: $table.repeatRule,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get projectId => $composableBuilder(
-    column: $table.projectId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10334,11 +9360,6 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get projectId => $composableBuilder(
-    column: $table.projectId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get parentTaskId => $composableBuilder(
     column: $table.parentTaskId,
     builder: (column) => ColumnOrderings(column),
@@ -10434,9 +9455,6 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get projectId =>
-      $composableBuilder(column: $table.projectId, builder: (column) => column);
-
   GeneratedColumn<String> get parentTaskId => $composableBuilder(
     column: $table.parentTaskId,
     builder: (column) => column,
@@ -10521,7 +9539,6 @@ class $$TasksTableTableManager
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> estimatedMinutes = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
-                Value<String?> projectId = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
                 Value<String?> externalSource = const Value.absent(),
                 Value<String?> externalKey = const Value.absent(),
@@ -10543,7 +9560,6 @@ class $$TasksTableTableManager
                 dueAt: dueAt,
                 estimatedMinutes: estimatedMinutes,
                 repeatRule: repeatRule,
-                projectId: projectId,
                 parentTaskId: parentTaskId,
                 externalSource: externalSource,
                 externalKey: externalKey,
@@ -10567,7 +9583,6 @@ class $$TasksTableTableManager
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> estimatedMinutes = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
-                Value<String?> projectId = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
                 Value<String?> externalSource = const Value.absent(),
                 Value<String?> externalKey = const Value.absent(),
@@ -10589,7 +9604,6 @@ class $$TasksTableTableManager
                 dueAt: dueAt,
                 estimatedMinutes: estimatedMinutes,
                 repeatRule: repeatRule,
-                projectId: projectId,
                 parentTaskId: parentTaskId,
                 externalSource: externalSource,
                 externalKey: externalKey,
@@ -10898,366 +9912,11 @@ typedef $$TaskItemsTableProcessedTableManager =
       TaskItem,
       PrefetchHooks Function()
     >;
-typedef $$ProjectsTableCreateCompanionBuilder =
-    ProjectsCompanion Function({
-      required String id,
-      required String name,
-      Value<String> kind,
-      Value<String?> descriptionMd,
-      Value<DateTime?> startDate,
-      Value<DateTime?> targetDate,
-      Value<String> colorHex,
-      Value<bool> isArchived,
-      required DateTime createdAt,
-      required DateTime updatedAt,
-      Value<DateTime?> deletedAt,
-      required String deviceId,
-      Value<int> serverRevision,
-      Value<int> rowid,
-    });
-typedef $$ProjectsTableUpdateCompanionBuilder =
-    ProjectsCompanion Function({
-      Value<String> id,
-      Value<String> name,
-      Value<String> kind,
-      Value<String?> descriptionMd,
-      Value<DateTime?> startDate,
-      Value<DateTime?> targetDate,
-      Value<String> colorHex,
-      Value<bool> isArchived,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-      Value<DateTime?> deletedAt,
-      Value<String> deviceId,
-      Value<int> serverRevision,
-      Value<int> rowid,
-    });
-
-class $$ProjectsTableFilterComposer
-    extends Composer<_$ZhixuDatabase, $ProjectsTable> {
-  $$ProjectsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get descriptionMd => $composableBuilder(
-    column: $table.descriptionMd,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get startDate => $composableBuilder(
-    column: $table.startDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get targetDate => $composableBuilder(
-    column: $table.targetDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get colorHex => $composableBuilder(
-    column: $table.colorHex,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isArchived => $composableBuilder(
-    column: $table.isArchived,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get serverRevision => $composableBuilder(
-    column: $table.serverRevision,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$ProjectsTableOrderingComposer
-    extends Composer<_$ZhixuDatabase, $ProjectsTable> {
-  $$ProjectsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get descriptionMd => $composableBuilder(
-    column: $table.descriptionMd,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get startDate => $composableBuilder(
-    column: $table.startDate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get targetDate => $composableBuilder(
-    column: $table.targetDate,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get colorHex => $composableBuilder(
-    column: $table.colorHex,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isArchived => $composableBuilder(
-    column: $table.isArchived,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get serverRevision => $composableBuilder(
-    column: $table.serverRevision,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$ProjectsTableAnnotationComposer
-    extends Composer<_$ZhixuDatabase, $ProjectsTable> {
-  $$ProjectsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get kind =>
-      $composableBuilder(column: $table.kind, builder: (column) => column);
-
-  GeneratedColumn<String> get descriptionMd => $composableBuilder(
-    column: $table.descriptionMd,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get startDate =>
-      $composableBuilder(column: $table.startDate, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get targetDate => $composableBuilder(
-    column: $table.targetDate,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get colorHex =>
-      $composableBuilder(column: $table.colorHex, builder: (column) => column);
-
-  GeneratedColumn<bool> get isArchived => $composableBuilder(
-    column: $table.isArchived,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get deletedAt =>
-      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
-
-  GeneratedColumn<String> get deviceId =>
-      $composableBuilder(column: $table.deviceId, builder: (column) => column);
-
-  GeneratedColumn<int> get serverRevision => $composableBuilder(
-    column: $table.serverRevision,
-    builder: (column) => column,
-  );
-}
-
-class $$ProjectsTableTableManager
-    extends
-        RootTableManager<
-          _$ZhixuDatabase,
-          $ProjectsTable,
-          Project,
-          $$ProjectsTableFilterComposer,
-          $$ProjectsTableOrderingComposer,
-          $$ProjectsTableAnnotationComposer,
-          $$ProjectsTableCreateCompanionBuilder,
-          $$ProjectsTableUpdateCompanionBuilder,
-          (Project, BaseReferences<_$ZhixuDatabase, $ProjectsTable, Project>),
-          Project,
-          PrefetchHooks Function()
-        > {
-  $$ProjectsTableTableManager(_$ZhixuDatabase db, $ProjectsTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$ProjectsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$ProjectsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$ProjectsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> kind = const Value.absent(),
-                Value<String?> descriptionMd = const Value.absent(),
-                Value<DateTime?> startDate = const Value.absent(),
-                Value<DateTime?> targetDate = const Value.absent(),
-                Value<String> colorHex = const Value.absent(),
-                Value<bool> isArchived = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<DateTime?> deletedAt = const Value.absent(),
-                Value<String> deviceId = const Value.absent(),
-                Value<int> serverRevision = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => ProjectsCompanion(
-                id: id,
-                name: name,
-                kind: kind,
-                descriptionMd: descriptionMd,
-                startDate: startDate,
-                targetDate: targetDate,
-                colorHex: colorHex,
-                isArchived: isArchived,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                deletedAt: deletedAt,
-                deviceId: deviceId,
-                serverRevision: serverRevision,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                required String name,
-                Value<String> kind = const Value.absent(),
-                Value<String?> descriptionMd = const Value.absent(),
-                Value<DateTime?> startDate = const Value.absent(),
-                Value<DateTime?> targetDate = const Value.absent(),
-                Value<String> colorHex = const Value.absent(),
-                Value<bool> isArchived = const Value.absent(),
-                required DateTime createdAt,
-                required DateTime updatedAt,
-                Value<DateTime?> deletedAt = const Value.absent(),
-                required String deviceId,
-                Value<int> serverRevision = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => ProjectsCompanion.insert(
-                id: id,
-                name: name,
-                kind: kind,
-                descriptionMd: descriptionMd,
-                startDate: startDate,
-                targetDate: targetDate,
-                colorHex: colorHex,
-                isArchived: isArchived,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                deletedAt: deletedAt,
-                deviceId: deviceId,
-                serverRevision: serverRevision,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$ProjectsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$ZhixuDatabase,
-      $ProjectsTable,
-      Project,
-      $$ProjectsTableFilterComposer,
-      $$ProjectsTableOrderingComposer,
-      $$ProjectsTableAnnotationComposer,
-      $$ProjectsTableCreateCompanionBuilder,
-      $$ProjectsTableUpdateCompanionBuilder,
-      (Project, BaseReferences<_$ZhixuDatabase, $ProjectsTable, Project>),
-      Project,
-      PrefetchHooks Function()
-    >;
 typedef $$ScheduleBlocksTableCreateCompanionBuilder =
     ScheduleBlocksCompanion Function({
       required String id,
       required String title,
       Value<String?> taskId,
-      Value<String?> projectId,
       required DateTime startAt,
       required DateTime endAt,
       Value<bool> isAllDay,
@@ -11275,7 +9934,6 @@ typedef $$ScheduleBlocksTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> title,
       Value<String?> taskId,
-      Value<String?> projectId,
       Value<DateTime> startAt,
       Value<DateTime> endAt,
       Value<bool> isAllDay,
@@ -11310,11 +9968,6 @@ class $$ScheduleBlocksTableFilterComposer
 
   ColumnFilters<String> get taskId => $composableBuilder(
     column: $table.taskId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get projectId => $composableBuilder(
-    column: $table.projectId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11393,11 +10046,6 @@ class $$ScheduleBlocksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get projectId => $composableBuilder(
-    column: $table.projectId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get startAt => $composableBuilder(
     column: $table.startAt,
     builder: (column) => ColumnOrderings(column),
@@ -11466,9 +10114,6 @@ class $$ScheduleBlocksTableAnnotationComposer
 
   GeneratedColumn<String> get taskId =>
       $composableBuilder(column: $table.taskId, builder: (column) => column);
-
-  GeneratedColumn<String> get projectId =>
-      $composableBuilder(column: $table.projectId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get startAt =>
       $composableBuilder(column: $table.startAt, builder: (column) => column);
@@ -11545,7 +10190,6 @@ class $$ScheduleBlocksTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> taskId = const Value.absent(),
-                Value<String?> projectId = const Value.absent(),
                 Value<DateTime> startAt = const Value.absent(),
                 Value<DateTime> endAt = const Value.absent(),
                 Value<bool> isAllDay = const Value.absent(),
@@ -11561,7 +10205,6 @@ class $$ScheduleBlocksTableTableManager
                 id: id,
                 title: title,
                 taskId: taskId,
-                projectId: projectId,
                 startAt: startAt,
                 endAt: endAt,
                 isAllDay: isAllDay,
@@ -11579,7 +10222,6 @@ class $$ScheduleBlocksTableTableManager
                 required String id,
                 required String title,
                 Value<String?> taskId = const Value.absent(),
-                Value<String?> projectId = const Value.absent(),
                 required DateTime startAt,
                 required DateTime endAt,
                 Value<bool> isAllDay = const Value.absent(),
@@ -11595,7 +10237,6 @@ class $$ScheduleBlocksTableTableManager
                 id: id,
                 title: title,
                 taskId: taskId,
-                projectId: projectId,
                 startAt: startAt,
                 endAt: endAt,
                 isAllDay: isAllDay,
@@ -11874,7 +10515,6 @@ typedef $$NotesTableCreateCompanionBuilder =
       required String title,
       Value<String> contentMd,
       Value<String?> notebookId,
-      Value<String?> projectId,
       Value<bool> isPinned,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -11889,7 +10529,6 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String> contentMd,
       Value<String?> notebookId,
-      Value<String?> projectId,
       Value<bool> isPinned,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -11925,11 +10564,6 @@ class $$NotesTableFilterComposer
 
   ColumnFilters<String> get notebookId => $composableBuilder(
     column: $table.notebookId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get projectId => $composableBuilder(
-    column: $table.projectId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11993,11 +10627,6 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get projectId => $composableBuilder(
-    column: $table.projectId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<bool> get isPinned => $composableBuilder(
     column: $table.isPinned,
     builder: (column) => ColumnOrderings(column),
@@ -12052,9 +10681,6 @@ class $$NotesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get projectId =>
-      $composableBuilder(column: $table.projectId, builder: (column) => column);
-
   GeneratedColumn<bool> get isPinned =>
       $composableBuilder(column: $table.isPinned, builder: (column) => column);
 
@@ -12108,7 +10734,6 @@ class $$NotesTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String> contentMd = const Value.absent(),
                 Value<String?> notebookId = const Value.absent(),
-                Value<String?> projectId = const Value.absent(),
                 Value<bool> isPinned = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -12121,7 +10746,6 @@ class $$NotesTableTableManager
                 title: title,
                 contentMd: contentMd,
                 notebookId: notebookId,
-                projectId: projectId,
                 isPinned: isPinned,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -12136,7 +10760,6 @@ class $$NotesTableTableManager
                 required String title,
                 Value<String> contentMd = const Value.absent(),
                 Value<String?> notebookId = const Value.absent(),
-                Value<String?> projectId = const Value.absent(),
                 Value<bool> isPinned = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -12149,7 +10772,6 @@ class $$NotesTableTableManager
                 title: title,
                 contentMd: contentMd,
                 notebookId: notebookId,
-                projectId: projectId,
                 isPinned: isPinned,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -13135,7 +11757,6 @@ typedef $$FocusSessionsTableCreateCompanionBuilder =
       required String status,
       Value<int> completionPercent,
       Value<String?> linkedTaskId,
-      Value<String?> linkedProjectId,
       Value<String?> importBatchId,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -13157,7 +11778,6 @@ typedef $$FocusSessionsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<int> completionPercent,
       Value<String?> linkedTaskId,
-      Value<String?> linkedProjectId,
       Value<String?> importBatchId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -13228,11 +11848,6 @@ class $$FocusSessionsTableFilterComposer
 
   ColumnFilters<String> get linkedTaskId => $composableBuilder(
     column: $table.linkedTaskId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get linkedProjectId => $composableBuilder(
-    column: $table.linkedProjectId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13331,11 +11946,6 @@ class $$FocusSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get linkedProjectId => $composableBuilder(
-    column: $table.linkedProjectId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get importBatchId => $composableBuilder(
     column: $table.importBatchId,
     builder: (column) => ColumnOrderings(column),
@@ -13417,11 +12027,6 @@ class $$FocusSessionsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get linkedProjectId => $composableBuilder(
-    column: $table.linkedProjectId,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<String> get importBatchId => $composableBuilder(
     column: $table.importBatchId,
     builder: (column) => column,
@@ -13489,7 +12094,6 @@ class $$FocusSessionsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> completionPercent = const Value.absent(),
                 Value<String?> linkedTaskId = const Value.absent(),
-                Value<String?> linkedProjectId = const Value.absent(),
                 Value<String?> importBatchId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -13509,7 +12113,6 @@ class $$FocusSessionsTableTableManager
                 status: status,
                 completionPercent: completionPercent,
                 linkedTaskId: linkedTaskId,
-                linkedProjectId: linkedProjectId,
                 importBatchId: importBatchId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -13531,7 +12134,6 @@ class $$FocusSessionsTableTableManager
                 required String status,
                 Value<int> completionPercent = const Value.absent(),
                 Value<String?> linkedTaskId = const Value.absent(),
-                Value<String?> linkedProjectId = const Value.absent(),
                 Value<String?> importBatchId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -13551,7 +12153,6 @@ class $$FocusSessionsTableTableManager
                 status: status,
                 completionPercent: completionPercent,
                 linkedTaskId: linkedTaskId,
-                linkedProjectId: linkedProjectId,
                 importBatchId: importBatchId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -15007,8 +13608,6 @@ class $ZhixuDatabaseManager {
       $$TasksTableTableManager(_db, _db.tasks);
   $$TaskItemsTableTableManager get taskItems =>
       $$TaskItemsTableTableManager(_db, _db.taskItems);
-  $$ProjectsTableTableManager get projects =>
-      $$ProjectsTableTableManager(_db, _db.projects);
   $$ScheduleBlocksTableTableManager get scheduleBlocks =>
       $$ScheduleBlocksTableTableManager(_db, _db.scheduleBlocks);
   $$NotebooksTableTableManager get notebooks =>

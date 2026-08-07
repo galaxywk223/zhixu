@@ -32,10 +32,6 @@ final tasksProvider = StreamProvider<List<Task>>((ref) {
   return ref.watch(repositoryProvider).watchTasks();
 });
 
-final projectsProvider = StreamProvider<List<Project>>((ref) {
-  return ref.watch(repositoryProvider).watchProjects();
-});
-
 final notesProvider = StreamProvider<List<Note>>((ref) {
   return ref.watch(repositoryProvider).watchNotes();
 });
@@ -77,7 +73,6 @@ void refreshCore(WidgetRef ref) {
   ref.invalidate(todayTasksProvider);
   ref.invalidate(focusMinutesProvider);
   ref.invalidate(tasksProvider);
-  ref.invalidate(projectsProvider);
   ref.invalidate(notesProvider);
   ref.invalidate(focusSessionsProvider);
   ref.invalidate(lifeEventsProvider);

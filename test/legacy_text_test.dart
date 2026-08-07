@@ -8,6 +8,8 @@ void main() {
     expect(repairLegacyTomatoText('ò]Œ[\u0010b'), '已完成');
     expect(repairLegacyTomatoText('貌]艗[\u0010b'), '已完成');
     expect(repairLegacyTomatoText('\u0013Nèlöeô•'), '专注时间');
+    expect(repairLegacyTomatoText('y˜îv\u0000_ÑS'), '项目开发');
+    expect(repairLegacyTomatoText('保研:gÕ‹\rY`N'), '保研机试复习');
     expect(repairLegacyTomatoText('vibe coding'), 'vibe coding');
   });
 
@@ -20,14 +22,11 @@ void main() {
     expect(classifyLifeEvent('喝水'), 'other');
   });
 
-  test('Dart 与 Rust 使用相同的番茄去重键规则', () {
-    expect(
-      tomatoSourceKey(
-        DateTime(2026, 8, 7, 10, 30),
-        DateTime(2026, 8, 7, 10, 30),
-        '起床',
-      ),
-      'a1be8bc6ea057123662d796549beebfd3b37e169ab50a67c444f70a591705c1e',
-    );
+  test('Dart 与 Rust 使用不含任务名的 v3 时间键', () {
+    final start = DateTime(2026, 8, 7, 10, 30);
+    final key = tomatoSourceKey(start, start);
+    expect(key, startsWith('v3:'));
+    expect(key, hasLength(67));
+    expect(legacyTomatoSourceKey(start, start, '起床'), isNot(equals(key)));
   });
 }

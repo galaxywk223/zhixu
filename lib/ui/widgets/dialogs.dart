@@ -19,133 +19,105 @@ Future<void> showTaskEditor(
   );
   var priority = task?.priority ?? 1;
   DateTime? dueAt = task?.dueAt?.toLocal();
-  final projectId = ValueNotifier<String?>(task?.projectId);
   final result = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text(task == null ? '添加任务' : '编辑任务'),
       content: SizedBox(
         width: 520,
-        child: Consumer(
-          builder: (context, ref, _) {
-            final projects =
-                ref.watch(projectsProvider).valueOrNull ?? const <Project>[];
-            return StatefulBuilder(
-              builder: (context, setState) => SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+        child: StatefulBuilder(
+          builder: (context, setState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: title,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: '任务名称 *'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: description,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: '备注 / 描述'),
+                ),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    TextField(
-                      controller: title,
-                      autofocus: true,
-                      decoration: const InputDecoration(labelText: '任务名称 *'),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: priority,
+                        decoration: const InputDecoration(labelText: '优先级'),
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('低')),
+                          DropdownMenuItem(value: 2, child: Text('中')),
+                          DropdownMenuItem(value: 3, child: Text('高')),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => priority = value ?? 1),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: description,
-                      maxLines: 3,
-                      decoration: const InputDecoration(labelText: '备注 / 描述'),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            initialValue: priority,
-                            decoration: const InputDecoration(labelText: '优先级'),
-                            items: const [
-                              DropdownMenuItem(value: 1, child: Text('低')),
-                              DropdownMenuItem(value: 2, child: Text('中')),
-                              DropdownMenuItem(value: 3, child: Text('高')),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => priority = value ?? 1),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: minutes,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: '预计分钟',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String?>(
-                      initialValue: projectId.value,
-                      decoration: const InputDecoration(labelText: '所属专题'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('未关联'),
-                        ),
-                        ...projects.map(
-                          (item) => DropdownMenuItem<String?>(
-                            value: item.id,
-                            child: Text(item.name),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => projectId.value = value),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            dueAt == null
-                                ? '未设置截止时间'
-                                : '截止：${dueAt!.year}-${dueAt!.month.toString().padLeft(2, '0')}-${dueAt!.day.toString().padLeft(2, '0')} ${dueAt!.hour.toString().padLeft(2, '0')}:${dueAt!.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                        TextButton.icon(
-                          icon: const Icon(Icons.event_outlined, size: 18),
-                          label: const Text('选择'),
-                          onPressed: () async {
-                            final day = await showDatePicker(
-                              context: context,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2100),
-                              initialDate: dueAt ?? DateTime.now(),
-                            );
-                            if (day == null) return;
-                            if (!context.mounted) return;
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(
-                                dueAt ?? DateTime.now(),
-                              ),
-                            );
-                            setState(
-                              () => dueAt = DateTime(
-                                day.year,
-                                day.month,
-                                day.day,
-                                time?.hour ?? 18,
-                                time?.minute ?? 0,
-                              ),
-                            );
-                          },
-                        ),
-                        if (dueAt != null)
-                          IconButton(
-                            tooltip: '清除',
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: () => setState(() => dueAt = null),
-                          ),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: minutes,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: '预计分钟'),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        dueAt == null
+                            ? '未设置截止时间'
+                            : '截止：${dueAt!.year}-${dueAt!.month.toString().padLeft(2, '0')}-${dueAt!.day.toString().padLeft(2, '0')} ${dueAt!.hour.toString().padLeft(2, '0')}:${dueAt!.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.event_outlined, size: 18),
+                      label: const Text('选择'),
+                      onPressed: () async {
+                        final day = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                          initialDate: dueAt ?? DateTime.now(),
+                        );
+                        if (day == null) return;
+                        if (!context.mounted) return;
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(
+                            dueAt ?? DateTime.now(),
+                          ),
+                        );
+                        setState(
+                          () => dueAt = DateTime(
+                            day.year,
+                            day.month,
+                            day.day,
+                            time?.hour ?? 18,
+                            time?.minute ?? 0,
+                          ),
+                        );
+                      },
+                    ),
+                    if (dueAt != null)
+                      IconButton(
+                        tooltip: '清除',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => setState(() => dueAt = null),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
       actions: [
@@ -165,7 +137,6 @@ Future<void> showTaskEditor(
               priority: priority,
               dueAt: dueAt,
               estimatedMinutes: int.tryParse(minutes.text) ?? 0,
-              projectId: projectId.value,
             );
             if (task == null) {
               await repository.createTask(draft);
@@ -187,64 +158,5 @@ Future<void> showTaskEditor(
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('任务已保存')));
-  }
-}
-
-Future<void> showProjectEditor(BuildContext context, WidgetRef ref) async {
-  final name = TextEditingController();
-  final description = TextEditingController();
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('新建专题'),
-      content: SizedBox(
-        width: 450,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: '名称 *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: description,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: '目标描述'),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () async {
-            if (name.text.trim().isEmpty) return;
-            await ref
-                .read(repositoryProvider)
-                .createProject(
-                  ProjectDraft(
-                    name: name.text,
-                    descriptionMd: description.text,
-                  ),
-                );
-            if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-            refreshCore(ref);
-          },
-          child: const Text('创建'),
-        ),
-      ],
-    ),
-  );
-  name.dispose();
-  description.dispose();
-  if (result == true && context.mounted) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('专题已创建')));
   }
 }

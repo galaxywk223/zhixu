@@ -27,7 +27,7 @@ void main() {
     expect(find.byIcon(Icons.wb_sunny_outlined), findsOneWidget);
     expect(find.byTooltip('专注'), findsOneWidget);
     expect(find.byTooltip('睡眠'), findsOneWidget);
-    expect(find.byTooltip('专题'), findsOneWidget);
+    expect(find.byTooltip('专题'), findsNothing);
     expect(find.text('页面内容'), findsOneWidget);
   });
 
