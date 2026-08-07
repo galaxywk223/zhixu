@@ -12,6 +12,8 @@ class AppShell extends StatelessWidget {
     _NavItem('今天', Icons.wb_sunny_outlined, '/today'),
     _NavItem('任务', Icons.check_box_outlined, '/tasks'),
     _NavItem('日历', Icons.calendar_month_outlined, '/calendar'),
+    _NavItem('专注', Icons.timer_outlined, '/focus'),
+    _NavItem('睡眠', Icons.bedtime_outlined, '/sleep'),
     _NavItem('笔记', Icons.edit_note_outlined, '/notes'),
     _NavItem('专题', Icons.folder_open_outlined, '/projects'),
     _NavItem('统计', Icons.bar_chart_outlined, '/stats'),

@@ -25,13 +25,13 @@ class TomatoImportData {
         final row = item as Map<String, dynamic>;
         return ImportedFocusSession(
           sourceKey: row['source_key'] as String,
+          legacySourceKey: row['legacy_source_key'] as String?,
           startAt: _parseLocal(row['start_local'] as String) ?? DateTime.now(),
           endAt: _parseLocal(row['end_local'] as String) ?? DateTime.now(),
           taskName: row['task_name'] as String? ?? '',
           durationMinutes: row['duration_minutes'] as int? ?? 0,
           reflection: row['reflection'] as String?,
           status: row['status'] as String? ?? '',
-          completionPercent: row['completion_percent'] as int? ?? 0,
         );
       }).toList();
 
@@ -57,7 +57,12 @@ class TomatoImportService {
     if (executable == null) {
       throw StateError('未找到番茄 TODO 解析器，请先运行 tool/build_native.ps1');
     }
-    final process = await Process.run(executable, [file.path]);
+    final process = await Process.run(
+      executable,
+      [file.path],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
     if (process.exitCode != 0) {
       throw StateError(
         (process.stderr as String).trim().isEmpty
@@ -66,6 +71,9 @@ class TomatoImportService {
       );
     }
     final raw = jsonDecode(process.stdout as String) as Map<String, dynamic>;
+    if (raw['schema_version'] != 2 || raw['source'] != 'tomatodo') {
+      throw StateError('不支持的番茄 TODO 解析结果');
+    }
     return TomatoImportData(raw: raw, filePath: file.path);
   }
 

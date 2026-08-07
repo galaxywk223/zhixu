@@ -1,0 +1,104 @@
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:zhixu/data/database.dart';
+import 'package:zhixu/data/repository.dart';
+
+void main() {
+  test('schema v1 数据库升级到 v2 并完成导入数据修复', () async {
+    final database = ZhixuDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute('PRAGMA user_version = 1');
+          raw.execute('''
+            CREATE TABLE tasks (
+              id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL,
+              description_md TEXT, status TEXT NOT NULL DEFAULT 'todo',
+              priority INTEGER NOT NULL DEFAULT 1, due_at INTEGER,
+              estimated_minutes INTEGER NOT NULL DEFAULT 0, repeat_rule TEXT,
+              project_id TEXT, parent_task_id TEXT, completed_at INTEGER,
+              is_archived INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL, deleted_at INTEGER, device_id TEXT NOT NULL,
+              server_revision INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+          raw.execute('''
+            CREATE TABLE projects (
+              id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'project',
+              description_md TEXT, start_date INTEGER, target_date INTEGER,
+              color_hex TEXT NOT NULL DEFAULT '#3B82F6', is_archived INTEGER NOT NULL DEFAULT 0,
+              created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+              device_id TEXT NOT NULL, server_revision INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+          raw.execute('''
+            CREATE TABLE notes (
+              id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content_md TEXT NOT NULL DEFAULT '',
+              notebook_id TEXT, project_id TEXT, is_pinned INTEGER NOT NULL DEFAULT 0,
+              created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+              device_id TEXT NOT NULL, server_revision INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+          raw.execute('''
+            CREATE TABLE focus_sessions (
+              id TEXT PRIMARY KEY NOT NULL, source_key TEXT NOT NULL UNIQUE,
+              source TEXT NOT NULL DEFAULT 'tomatodo', start_at INTEGER NOT NULL,
+              end_at INTEGER NOT NULL, task_name TEXT NOT NULL, duration_minutes INTEGER NOT NULL,
+              reflection TEXT, status TEXT NOT NULL, completion_percent INTEGER NOT NULL DEFAULT 0,
+              linked_task_id TEXT, linked_project_id TEXT, import_batch_id TEXT,
+              created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER,
+              device_id TEXT NOT NULL, server_revision INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+          raw.execute('''
+            CREATE TABLE import_batches (
+              id TEXT PRIMARY KEY NOT NULL, source TEXT NOT NULL, file_name TEXT NOT NULL,
+              file_hash TEXT NOT NULL, export_user TEXT, range_start INTEGER, range_end INTEGER,
+              declared_minutes INTEGER, declared_records INTEGER, imported_count INTEGER NOT NULL DEFAULT 0,
+              skipped_count INTEGER NOT NULL DEFAULT 0, error_message TEXT, created_at INTEGER NOT NULL,
+              rolled_back_at INTEGER
+            )
+          ''');
+          raw.execute(
+            'CREATE VIRTUAL TABLE search_index USING fts5(id UNINDEXED, entity_type UNINDEXED, title, body)',
+          );
+          raw.execute('''
+            CREATE TABLE sync_outbox (
+              id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL,
+              entity_id TEXT NOT NULL, operation TEXT NOT NULL, payload_json TEXT NOT NULL,
+              created_at INTEGER NOT NULL, retry_count INTEGER NOT NULL DEFAULT 0,
+              last_error TEXT
+            )
+          ''');
+          final focusStart = DateTime.utc(
+            2026,
+            8,
+            7,
+            12,
+            49,
+          ).millisecondsSinceEpoch;
+          final focusEnd = DateTime.utc(
+            2026,
+            8,
+            7,
+            13,
+            2,
+          ).millisecondsSinceEpoch;
+          raw.execute(
+            "INSERT INTO focus_sessions (id, source_key, start_at, end_at, task_name, duration_minutes, status, created_at, updated_at, device_id) VALUES ('focus', 'old', ?, ?, 'vibe coding', 13, '貌]艗[\u0010b', ?, ?, 'old')",
+            [focusStart, focusEnd, focusStart, focusStart],
+          );
+          raw.execute(
+            "INSERT INTO focus_sessions (id, source_key, start_at, end_at, task_name, duration_minutes, status, created_at, updated_at, device_id) VALUES ('wake', 'old-wake', ?, ?, 'w聧艩^', 0, '貌]艗[\u0010b', ?, ?, 'old')",
+            [focusStart, focusStart, focusStart, focusStart],
+          );
+        },
+      ),
+    );
+    final repository = ZhixuRepository(database, deviceId: 'migration-test');
+    await repository.reconcileLegacyTomatoData();
+    expect(await repository.focusMinutes(), 13);
+    expect((await repository.watchTasks().first).single.status, 'done');
+    expect((await repository.watchLifeEvents().first).single.title, '起床');
+    await database.close();
+  });
+}

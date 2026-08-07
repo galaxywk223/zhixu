@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'data/database.dart';
+import 'data/repository.dart';
 import 'state/providers.dart';
 
 Future<void> main() async {
@@ -28,6 +29,7 @@ Future<void> main() async {
     });
   }
   final database = await ZhixuDatabase.open();
+  await ZhixuRepository(database).reconcileLegacyTomatoData();
   runApp(
     ProviderScope(
       overrides: [databaseProvider.overrideWithValue(database)],

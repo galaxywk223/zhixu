@@ -34,7 +34,9 @@ class BackupService {
     final entry = archive.findFile('manifest.json');
     if (entry == null) throw StateError('备份中缺少 manifest.json');
     final raw = jsonDecode(utf8.decode(entry.content as List<int>));
-    if (raw is! Map || raw['schema_version'] != 1) throw StateError('不支持的备份版本');
+    if (raw is! Map || !const {1, 2}.contains(raw['schema_version'])) {
+      throw StateError('不支持的备份版本');
+    }
     await repository.restorePayload(Map<String, dynamic>.from(raw));
   }
 }

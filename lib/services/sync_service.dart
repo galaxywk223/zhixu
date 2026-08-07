@@ -94,6 +94,7 @@ class SyncService extends ChangeNotifier {
         'note',
         'schedule_block',
         'focus_session',
+        'life_event',
       ]) {
         final cursor = await repository.syncCursor(type);
         final table = _tableName(type);
@@ -132,6 +133,7 @@ class SyncService extends ChangeNotifier {
     'note' => 'notes',
     'schedule_block' => 'schedule_blocks',
     'focus_session' => 'focus_sessions',
+    'life_event' => 'life_events',
     _ => throw StateError('不支持的同步实体: $entityType'),
   };
 }

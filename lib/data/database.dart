@@ -21,6 +21,9 @@ class Tasks extends Table {
   TextColumn get repeatRule => text().nullable()();
   TextColumn get projectId => text().nullable()();
   TextColumn get parentTaskId => text().nullable()();
+  TextColumn get externalSource => text().nullable()();
+  TextColumn get externalKey => text().nullable()();
+  TextColumn get createdByImportBatchId => text().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
@@ -198,6 +201,30 @@ class FocusSessions extends Table {
   ];
 }
 
+class LifeEvents extends Table {
+  TextColumn get id => text()();
+  TextColumn get sourceKey => text()();
+  TextColumn get source => text().withDefault(const Constant('tomatodo'))();
+  TextColumn get kind => text().withDefault(const Constant('other'))();
+  TextColumn get title => text()();
+  DateTimeColumn get occurredAt => dateTime()();
+  TextColumn get note => text().nullable()();
+  TextColumn get importBatchId => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  TextColumn get deviceId => text()();
+  IntColumn get serverRevision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {sourceKey},
+  ];
+}
+
 class ImportBatches extends Table {
   TextColumn get id => text()();
   TextColumn get source => text()();
@@ -216,6 +243,17 @@ class ImportBatches extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+class ImportBatchChanges extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get batchId => text()();
+  TextColumn get entityType => text()();
+  TextColumn get entityId => text()();
+  TextColumn get operation => text()();
+  TextColumn get beforeJson => text().nullable()();
+  TextColumn get afterJson => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
 }
 
 class SyncOutbox extends Table {
@@ -250,7 +288,9 @@ class SyncCursors extends Table {
     TagLinks,
     Reminders,
     FocusSessions,
+    LifeEvents,
     ImportBatches,
+    ImportBatchChanges,
     SyncOutbox,
     SyncCursors,
   ],
@@ -259,7 +299,7 @@ class ZhixuDatabase extends _$ZhixuDatabase {
   ZhixuDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -269,7 +309,15 @@ class ZhixuDatabase extends _$ZhixuDatabase {
         'CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(id UNINDEXED, entity_type UNINDEXED, title, body)',
       );
     },
-    onUpgrade: (m, from, to) async {},
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(tasks, tasks.externalSource);
+        await m.addColumn(tasks, tasks.externalKey);
+        await m.addColumn(tasks, tasks.createdByImportBatchId);
+        await m.createTable(lifeEvents);
+        await m.createTable(importBatchChanges);
+      }
+    },
   );
 
   static Future<ZhixuDatabase> open() async {

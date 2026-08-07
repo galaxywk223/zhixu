@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/legacy_text.dart';
 import 'database.dart';
 
 const _uuid = Uuid();
@@ -91,17 +92,17 @@ class ImportedFocusSession {
     required this.taskName,
     required this.durationMinutes,
     required this.status,
-    required this.completionPercent,
+    this.legacySourceKey,
     this.reflection,
   });
 
   final String sourceKey;
+  final String? legacySourceKey;
   final DateTime startAt;
   final DateTime endAt;
   final String taskName;
   final int durationMinutes;
   final String status;
-  final int completionPercent;
   final String? reflection;
 }
 
@@ -111,12 +112,38 @@ class ImportResult {
     required this.importedCount,
     required this.updatedCount,
     required this.skippedCount,
+    this.focusImportedCount = 0,
+    this.lifeEventImportedCount = 0,
+    this.tasksCreatedCount = 0,
   });
 
   final String batchId;
   final int importedCount;
   final int updatedCount;
   final int skippedCount;
+  final int focusImportedCount;
+  final int lifeEventImportedCount;
+  final int tasksCreatedCount;
+}
+
+class SleepRecord {
+  const SleepRecord({this.start, this.end, this.issue});
+
+  final LifeEvent? start;
+  final LifeEvent? end;
+  final String? issue;
+
+  Duration? get duration => start == null || end == null
+      ? null
+      : end!.occurredAt.difference(start!.occurredAt);
+  bool get isValid {
+    final value = duration;
+    return issue == null &&
+        value != null &&
+        !value.isNegative &&
+        value > Duration.zero &&
+        value <= const Duration(hours: 24);
+  }
 }
 
 class SearchHit {
@@ -155,6 +182,37 @@ class ZhixuRepository {
 
   Stream<List<Note>> watchNotes() =>
       (db.select(db.notes)..where((row) => row.deletedAt.isNull())).watch();
+
+  Stream<List<FocusSession>> watchFocusSessions() =>
+      (db.select(db.focusSessions)
+            ..where((row) => row.deletedAt.isNull())
+            ..orderBy([
+              (row) => OrderingTerm(
+                expression: row.startAt,
+                mode: OrderingMode.desc,
+              ),
+            ]))
+          .watch();
+
+  Stream<List<LifeEvent>> watchLifeEvents() =>
+      (db.select(db.lifeEvents)
+            ..where((row) => row.deletedAt.isNull())
+            ..orderBy([
+              (row) => OrderingTerm(
+                expression: row.occurredAt,
+                mode: OrderingMode.desc,
+              ),
+            ]))
+          .watch();
+
+  Stream<List<ImportBatche>> watchImportBatches() =>
+      (db.select(db.importBatches)..orderBy([
+            (row) => OrderingTerm(
+              expression: row.createdAt,
+              mode: OrderingMode.desc,
+            ),
+          ]))
+          .watch();
 
   Stream<List<ScheduleBlock>> watchScheduleBlocks(
     DateTime start,
@@ -418,7 +476,13 @@ class ZhixuRepository {
     var imported = 0;
     var updated = 0;
     var skipped = 0;
+    var focusImported = 0;
+    var lifeEventImported = 0;
+    var tasksCreated = 0;
     final now = DateTime.now().toUtc();
+    final changedTasks = <String>{};
+    final changedFocus = <String>{};
+    final changedLifeEvents = <String>{};
     await db.transaction(() async {
       await db
           .into(db.importBatches)
@@ -436,54 +500,126 @@ class ZhixuRepository {
               createdAt: now,
             ),
           );
-      for (final session in sessions) {
-        final existing =
-            await (db.select(db.focusSessions)
-                  ..where((row) => row.sourceKey.equals(session.sourceKey)))
+      final positiveSessions = sessions
+          .where((session) => session.durationMinutes > 0)
+          .toList();
+      final groups = <String, List<ImportedFocusSession>>{};
+      for (final session in positiveSessions) {
+        groups
+            .putIfAbsent(normalizeImportedTitle(session.taskName), () => [])
+            .add(session);
+      }
+
+      for (final entry in groups.entries) {
+        final group = entry.value
+          ..sort((a, b) => a.startAt.compareTo(b.startAt));
+        final latest = group.last;
+        final externalKey = importedTaskKey(latest.taskName);
+        Task? linkedTask;
+
+        final existingFocus = await db.select(db.focusSessions).get();
+        for (final focus in existingFocus) {
+          if (focus.linkedTaskId != null &&
+              normalizeImportedTitle(repairLegacyTomatoText(focus.taskName)) ==
+                  entry.key) {
+            linkedTask =
+                await (db.select(db.tasks)
+                      ..where((row) => row.id.equals(focus.linkedTaskId!)))
+                    .getSingleOrNull();
+            if (linkedTask != null) break;
+          }
+        }
+        linkedTask ??=
+            await (db.select(db.tasks)..where(
+                  (row) =>
+                      row.deletedAt.isNull() &
+                      row.externalKey.equals(externalKey),
+                ))
                 .getSingleOrNull();
-        if (existing == null) {
+        if (linkedTask == null) {
+          final candidates = await (db.select(
+            db.tasks,
+          )..where((row) => row.deletedAt.isNull())).get();
+          for (final task in candidates) {
+            if (normalizeImportedTitle(task.title) == entry.key) {
+              linkedTask = task;
+              break;
+            }
+          }
+        }
+        if (linkedTask == null) {
           final id = db.newId();
+          final status = mapImportedTaskStatus(latest.status);
           await db
-              .into(db.focusSessions)
+              .into(db.tasks)
               .insert(
-                FocusSessionsCompanion.insert(
+                TasksCompanion.insert(
                   id: id,
-                  sourceKey: session.sourceKey,
-                  startAt: session.startAt.toUtc(),
-                  endAt: session.endAt.toUtc(),
-                  taskName: session.taskName,
-                  durationMinutes: session.durationMinutes,
-                  reflection: Value(session.reflection),
-                  status: session.status,
-                  completionPercent: Value(session.completionPercent),
-                  importBatchId: Value(batchId),
-                  createdAt: now,
+                  title: latest.taskName.trim(),
+                  status: Value(status),
+                  completedAt: Value(
+                    status == 'done' ? latest.endAt.toUtc() : null,
+                  ),
+                  externalSource: const Value('tomatodo'),
+                  externalKey: Value(externalKey),
+                  createdByImportBatchId: Value(batchId),
+                  createdAt: group.first.startAt.toUtc(),
                   updatedAt: now,
                   deviceId: deviceId,
                 ),
               );
-          imported++;
-        } else if (existing.durationMinutes != session.durationMinutes ||
-            existing.reflection != session.reflection ||
-            existing.status != session.status ||
-            existing.completionPercent != session.completionPercent) {
-          await (db.update(
-            db.focusSessions,
-          )..where((row) => row.id.equals(existing.id))).write(
-            FocusSessionsCompanion(
-              durationMinutes: Value(session.durationMinutes),
-              reflection: Value(session.reflection),
-              status: Value(session.status),
-              completionPercent: Value(session.completionPercent),
-              importBatchId: Value(batchId),
-              updatedAt: Value(now),
-              deviceId: Value(deviceId),
-            ),
+          linkedTask = await (db.select(
+            db.tasks,
+          )..where((row) => row.id.equals(id))).getSingle();
+          await _recordImportChange(
+            batchId,
+            'task',
+            id,
+            'insert',
+            null,
+            _taskJson(linkedTask),
+            now,
           );
+          changedTasks.add(id);
+          tasksCreated++;
+        }
+
+        for (final session in group) {
+          final outcome = await _upsertImportedFocus(
+            batchId: batchId,
+            session: session,
+            linkedTaskId: linkedTask.id,
+            now: now,
+          );
+          if (outcome.$1 == 'insert') {
+            imported++;
+            focusImported++;
+          } else if (outcome.$1 == 'update') {
+            updated++;
+          } else {
+            skipped++;
+          }
+          if (outcome.$2 != null) changedFocus.add(outcome.$2!);
+        }
+      }
+
+      for (final session in sessions.where(
+        (item) => item.durationMinutes <= 0,
+      )) {
+        final outcome = await _upsertImportedLifeEvent(
+          batchId: batchId,
+          session: session,
+          now: now,
+        );
+        if (outcome.$1 == 'insert') {
+          imported++;
+          lifeEventImported++;
+        } else if (outcome.$1 == 'update') {
           updated++;
         } else {
           skipped++;
         }
+        if (outcome.$2 != null) changedLifeEvents.add(outcome.$2!);
       }
       await (db.update(
         db.importBatches,
@@ -494,25 +630,588 @@ class ZhixuRepository {
         ),
       );
     });
+    for (final id in changedTasks) {
+      await _enqueue('task', id, 'upsert', await taskPayload(id));
+    }
+    for (final id in changedFocus) {
+      await _enqueue('focus_session', id, 'upsert', await focusPayload(id));
+    }
+    for (final id in changedLifeEvents) {
+      await _enqueue('life_event', id, 'upsert', await lifeEventPayload(id));
+    }
+    await db.rebuildSearchIndex();
     return ImportResult(
       batchId: batchId,
       importedCount: imported,
       updatedCount: updated,
       skippedCount: skipped,
+      focusImportedCount: focusImported,
+      lifeEventImportedCount: lifeEventImported,
+      tasksCreatedCount: tasksCreated,
     );
   }
 
   Future<void> rollbackImportBatch(String batchId) async {
+    final syncChanges = <(String, String, String)>[];
+    final now = DateTime.now().toUtc();
     await db.transaction(() async {
-      await (db.delete(
-        db.focusSessions,
-      )..where((row) => row.importBatchId.equals(batchId))).go();
+      final changes =
+          await (db.select(db.importBatchChanges)
+                ..where((row) => row.batchId.equals(batchId))
+                ..orderBy([
+                  (row) =>
+                      OrderingTerm(expression: row.id, mode: OrderingMode.desc),
+                ]))
+              .get();
+      if (changes.isEmpty) {
+        final focusRows = await (db.select(
+          db.focusSessions,
+        )..where((row) => row.importBatchId.equals(batchId))).get();
+        for (final row in focusRows) {
+          await (db.update(
+            db.focusSessions,
+          )..where((item) => item.id.equals(row.id))).write(
+            FocusSessionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+            ),
+          );
+          syncChanges.add(('focus_session', row.id, 'delete'));
+        }
+        final lifeRows = await (db.select(
+          db.lifeEvents,
+        )..where((row) => row.importBatchId.equals(batchId))).get();
+        for (final row in lifeRows) {
+          await (db.update(
+            db.lifeEvents,
+          )..where((item) => item.id.equals(row.id))).write(
+            LifeEventsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+          );
+          syncChanges.add(('life_event', row.id, 'delete'));
+        }
+        final taskRows = await (db.select(
+          db.tasks,
+        )..where((row) => row.createdByImportBatchId.equals(batchId))).get();
+        for (final row in taskRows) {
+          await (db.update(
+            db.tasks,
+          )..where((item) => item.id.equals(row.id))).write(
+            TasksCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+          );
+          syncChanges.add(('task', row.id, 'delete'));
+        }
+      }
+      for (final change in changes) {
+        if (change.operation == 'insert') {
+          if (change.entityType == 'focus_session') {
+            await (db.update(
+              db.focusSessions,
+            )..where((row) => row.id.equals(change.entityId))).write(
+              FocusSessionsCompanion(
+                deletedAt: Value(now),
+                updatedAt: Value(now),
+              ),
+            );
+            syncChanges.add(('focus_session', change.entityId, 'delete'));
+          } else if (change.entityType == 'life_event') {
+            await (db.update(
+              db.lifeEvents,
+            )..where((row) => row.id.equals(change.entityId))).write(
+              LifeEventsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+            );
+            syncChanges.add(('life_event', change.entityId, 'delete'));
+          } else if (change.entityType == 'task') {
+            final task =
+                await (db.select(db.tasks)
+                      ..where((row) => row.id.equals(change.entityId)))
+                    .getSingleOrNull();
+            final refs =
+                await (db.select(db.focusSessions)..where(
+                      (row) =>
+                          row.linkedTaskId.equals(change.entityId) &
+                          row.deletedAt.isNull(),
+                    ))
+                    .get();
+            final after = change.afterJson == null
+                ? null
+                : jsonDecode(change.afterJson!) as Map<String, dynamic>;
+            if (task != null &&
+                refs.isEmpty &&
+                after?['updated_at'] == task.updatedAt.toIso8601String()) {
+              await (db.update(
+                db.tasks,
+              )..where((row) => row.id.equals(change.entityId))).write(
+                TasksCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+              );
+              syncChanges.add(('task', change.entityId, 'delete'));
+            }
+          }
+        } else if (change.beforeJson != null) {
+          final before = jsonDecode(change.beforeJson!) as Map<String, dynamic>;
+          if (change.entityType == 'focus_session') {
+            await db
+                .into(db.focusSessions)
+                .insertOnConflictUpdate(_focusCompanion(before));
+            syncChanges.add(('focus_session', change.entityId, 'upsert'));
+          } else if (change.entityType == 'life_event') {
+            await db
+                .into(db.lifeEvents)
+                .insertOnConflictUpdate(_lifeEventCompanion(before));
+            syncChanges.add(('life_event', change.entityId, 'upsert'));
+          }
+        }
+      }
       await (db.update(
         db.importBatches,
       )..where((row) => row.id.equals(batchId))).write(
         ImportBatchesCompanion(rolledBackAt: Value(DateTime.now().toUtc())),
       );
     });
+    for (final change in syncChanges) {
+      final payload = switch (change.$1) {
+        'task' => await taskPayload(change.$2),
+        'focus_session' => await focusPayload(change.$2),
+        'life_event' => await lifeEventPayload(change.$2),
+        _ => null,
+      };
+      await _enqueue(change.$1, change.$2, change.$3, payload);
+    }
+    await db.rebuildSearchIndex();
+  }
+
+  Future<(String, String?)> _upsertImportedFocus({
+    required String batchId,
+    required ImportedFocusSession session,
+    required String linkedTaskId,
+    required DateTime now,
+  }) async {
+    final keys = <String>{session.sourceKey};
+    if (session.legacySourceKey != null) keys.add(session.legacySourceKey!);
+    final matches = await (db.select(
+      db.focusSessions,
+    )..where((row) => row.sourceKey.isIn(keys))).get();
+    final existing = matches.isEmpty
+        ? null
+        : matches.firstWhere(
+            (row) => row.sourceKey == session.sourceKey,
+            orElse: () => matches.first,
+          );
+    if (existing == null) {
+      final id = db.newId();
+      await db
+          .into(db.focusSessions)
+          .insert(
+            FocusSessionsCompanion.insert(
+              id: id,
+              sourceKey: session.sourceKey,
+              startAt: session.startAt.toUtc(),
+              endAt: session.endAt.toUtc(),
+              taskName: session.taskName,
+              durationMinutes: session.durationMinutes,
+              reflection: Value(session.reflection),
+              status: session.status,
+              linkedTaskId: Value(linkedTaskId),
+              importBatchId: Value(batchId),
+              createdAt: now,
+              updatedAt: now,
+              deviceId: deviceId,
+            ),
+          );
+      final inserted = await (db.select(
+        db.focusSessions,
+      )..where((row) => row.id.equals(id))).getSingle();
+      await _recordImportChange(
+        batchId,
+        'focus_session',
+        id,
+        'insert',
+        null,
+        _focusJson(inserted),
+        now,
+      );
+      return ('insert', id);
+    }
+
+    final changed =
+        existing.sourceKey != session.sourceKey ||
+        existing.startAt.millisecondsSinceEpoch !=
+            session.startAt.toUtc().millisecondsSinceEpoch ||
+        existing.endAt.millisecondsSinceEpoch !=
+            session.endAt.toUtc().millisecondsSinceEpoch ||
+        existing.taskName != session.taskName ||
+        existing.durationMinutes != session.durationMinutes ||
+        existing.reflection != session.reflection ||
+        existing.status != session.status ||
+        existing.linkedTaskId != linkedTaskId ||
+        existing.deletedAt != null;
+    if (!changed) return ('skip', null);
+    final before = _focusJson(existing);
+    await (db.update(
+      db.focusSessions,
+    )..where((row) => row.id.equals(existing.id))).write(
+      FocusSessionsCompanion(
+        sourceKey: Value(session.sourceKey),
+        startAt: Value(session.startAt.toUtc()),
+        endAt: Value(session.endAt.toUtc()),
+        taskName: Value(session.taskName),
+        durationMinutes: Value(session.durationMinutes),
+        reflection: Value(session.reflection),
+        status: Value(session.status),
+        linkedTaskId: Value(linkedTaskId),
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
+        deviceId: Value(deviceId),
+      ),
+    );
+    final after = await (db.select(
+      db.focusSessions,
+    )..where((row) => row.id.equals(existing.id))).getSingle();
+    await _recordImportChange(
+      batchId,
+      'focus_session',
+      existing.id,
+      'update',
+      before,
+      _focusJson(after),
+      now,
+    );
+    return ('update', existing.id);
+  }
+
+  Future<(String, String?)> _upsertImportedLifeEvent({
+    required String batchId,
+    required ImportedFocusSession session,
+    required DateTime now,
+  }) async {
+    final keys = <String>{session.sourceKey};
+    if (session.legacySourceKey != null) keys.add(session.legacySourceKey!);
+    final matches = await (db.select(
+      db.lifeEvents,
+    )..where((row) => row.sourceKey.isIn(keys))).get();
+    final existing = matches.isEmpty
+        ? null
+        : matches.firstWhere(
+            (row) => row.sourceKey == session.sourceKey,
+            orElse: () => matches.first,
+          );
+    final kind = classifyLifeEvent(session.taskName);
+    if (existing == null) {
+      final id = db.newId();
+      await db
+          .into(db.lifeEvents)
+          .insert(
+            LifeEventsCompanion.insert(
+              id: id,
+              sourceKey: session.sourceKey,
+              kind: Value(kind),
+              title: session.taskName,
+              occurredAt: session.startAt.toUtc(),
+              note: Value(session.reflection),
+              importBatchId: Value(batchId),
+              createdAt: now,
+              updatedAt: now,
+              deviceId: deviceId,
+            ),
+          );
+      final inserted = await (db.select(
+        db.lifeEvents,
+      )..where((row) => row.id.equals(id))).getSingle();
+      await _recordImportChange(
+        batchId,
+        'life_event',
+        id,
+        'insert',
+        null,
+        _lifeEventJson(inserted),
+        now,
+      );
+      return ('insert', id);
+    }
+    final changed =
+        existing.sourceKey != session.sourceKey ||
+        existing.kind != kind ||
+        existing.title != session.taskName ||
+        existing.occurredAt.millisecondsSinceEpoch !=
+            session.startAt.toUtc().millisecondsSinceEpoch ||
+        existing.note != session.reflection ||
+        existing.deletedAt != null;
+    if (!changed) return ('skip', null);
+    final before = _lifeEventJson(existing);
+    await (db.update(
+      db.lifeEvents,
+    )..where((row) => row.id.equals(existing.id))).write(
+      LifeEventsCompanion(
+        sourceKey: Value(session.sourceKey),
+        kind: Value(kind),
+        title: Value(session.taskName),
+        occurredAt: Value(session.startAt.toUtc()),
+        note: Value(session.reflection),
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
+        deviceId: Value(deviceId),
+      ),
+    );
+    final after = await (db.select(
+      db.lifeEvents,
+    )..where((row) => row.id.equals(existing.id))).getSingle();
+    await _recordImportChange(
+      batchId,
+      'life_event',
+      existing.id,
+      'update',
+      before,
+      _lifeEventJson(after),
+      now,
+    );
+    return ('update', existing.id);
+  }
+
+  Future<void> _recordImportChange(
+    String batchId,
+    String entityType,
+    String entityId,
+    String operation,
+    Map<String, dynamic>? before,
+    Map<String, dynamic>? after,
+    DateTime now,
+  ) => db
+      .into(db.importBatchChanges)
+      .insert(
+        ImportBatchChangesCompanion.insert(
+          batchId: batchId,
+          entityType: entityType,
+          entityId: entityId,
+          operation: operation,
+          beforeJson: Value(before == null ? null : jsonEncode(before)),
+          afterJson: Value(after == null ? null : jsonEncode(after)),
+          createdAt: now,
+        ),
+      );
+
+  Future<void> reconcileLegacyTomatoData() async {
+    final changedTasks = <String>{};
+    final changedFocus = <String>{};
+    final changedLifeEvents = <String>{};
+    await db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      final existingRows = await db.select(db.focusSessions).get();
+      for (final row in existingRows) {
+        final title = repairLegacyTomatoText(row.taskName);
+        final status = repairLegacyTomatoText(row.status);
+        final reflection = row.reflection == null
+            ? null
+            : repairLegacyTomatoText(row.reflection!);
+        final canonicalKey = tomatoSourceKey(row.startAt, row.endAt, title);
+        if (row.durationMinutes <= 0) {
+          final existingEvent =
+              await (db.select(db.lifeEvents)
+                    ..where((event) => event.sourceKey.equals(canonicalKey)))
+                  .getSingleOrNull();
+          if (existingEvent == null) {
+            await db
+                .into(db.lifeEvents)
+                .insert(
+                  LifeEventsCompanion.insert(
+                    id: row.id,
+                    sourceKey: canonicalKey,
+                    source: Value(row.source),
+                    kind: Value(classifyLifeEvent(title)),
+                    title: title,
+                    occurredAt: row.startAt,
+                    note: Value(reflection),
+                    importBatchId: Value(row.importBatchId),
+                    createdAt: row.createdAt,
+                    updatedAt: now,
+                    deviceId: deviceId,
+                    serverRevision: Value(row.serverRevision),
+                  ),
+                );
+            changedLifeEvents.add(row.id);
+          }
+          await (db.update(
+            db.focusSessions,
+          )..where((focus) => focus.id.equals(row.id))).write(
+            FocusSessionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+            ),
+          );
+          changedFocus.add(row.id);
+        } else {
+          final collision =
+              await (db.select(db.focusSessions)..where(
+                    (focus) =>
+                        focus.sourceKey.equals(canonicalKey) &
+                        focus.id.equals(row.id).not(),
+                  ))
+                  .getSingleOrNull();
+          if (collision != null) {
+            await (db.delete(
+              db.focusSessions,
+            )..where((focus) => focus.id.equals(row.id))).go();
+          } else {
+            if (row.sourceKey != canonicalKey ||
+                row.taskName != title ||
+                row.status != status ||
+                row.reflection != reflection) {
+              await (db.update(
+                db.focusSessions,
+              )..where((focus) => focus.id.equals(row.id))).write(
+                FocusSessionsCompanion(
+                  sourceKey: Value(canonicalKey),
+                  taskName: Value(title),
+                  status: Value(status),
+                  reflection: Value(reflection),
+                  updatedAt: Value(now),
+                ),
+              );
+              changedFocus.add(row.id);
+            }
+          }
+        }
+      }
+
+      final focusRows = await (db.select(
+        db.focusSessions,
+      )..where((row) => row.deletedAt.isNull())).get();
+      final groups = <String, List<FocusSession>>{};
+      for (final row in focusRows) {
+        groups
+            .putIfAbsent(normalizeImportedTitle(row.taskName), () => [])
+            .add(row);
+      }
+      final tasks = await (db.select(
+        db.tasks,
+      )..where((row) => row.deletedAt.isNull())).get();
+      for (final entry in groups.entries) {
+        final rows = entry.value
+          ..sort((a, b) => a.startAt.compareTo(b.startAt));
+        Task? task;
+        for (final row in rows) {
+          if (row.linkedTaskId == null) continue;
+          for (final candidate in tasks) {
+            if (candidate.id == row.linkedTaskId) task = candidate;
+          }
+        }
+        task ??= tasks.cast<Task?>().firstWhere(
+          (candidate) =>
+              candidate != null &&
+              (candidate.externalKey == importedTaskKey(rows.last.taskName) ||
+                  normalizeImportedTitle(candidate.title) == entry.key),
+          orElse: () => null,
+        );
+        if (task == null) {
+          final id = db.newId();
+          final latest = rows.last;
+          final mappedStatus = mapImportedTaskStatus(latest.status);
+          await db
+              .into(db.tasks)
+              .insert(
+                TasksCompanion.insert(
+                  id: id,
+                  title: latest.taskName,
+                  status: Value(mappedStatus),
+                  completedAt: Value(
+                    mappedStatus == 'done' ? latest.endAt : null,
+                  ),
+                  externalSource: const Value('tomatodo'),
+                  externalKey: Value(importedTaskKey(latest.taskName)),
+                  createdByImportBatchId: Value(latest.importBatchId),
+                  createdAt: rows.first.startAt,
+                  updatedAt: now,
+                  deviceId: deviceId,
+                ),
+              );
+          task = await (db.select(
+            db.tasks,
+          )..where((row) => row.id.equals(id))).getSingle();
+          tasks.add(task);
+          changedTasks.add(task.id);
+        }
+        for (final row in rows.where((item) => item.linkedTaskId != task!.id)) {
+          await (db.update(
+            db.focusSessions,
+          )..where((item) => item.id.equals(row.id))).write(
+            FocusSessionsCompanion(
+              linkedTaskId: Value(task.id),
+              updatedAt: Value(now),
+            ),
+          );
+          changedFocus.add(row.id);
+        }
+      }
+    });
+    for (final id in changedTasks) {
+      await _enqueue('task', id, 'upsert', await taskPayload(id));
+    }
+    for (final id in changedFocus) {
+      await _enqueue('focus_session', id, 'upsert', await focusPayload(id));
+    }
+    for (final id in changedLifeEvents) {
+      await _enqueue('life_event', id, 'upsert', await lifeEventPayload(id));
+    }
+    await db.rebuildSearchIndex();
+  }
+
+  Future<String> createLifeEvent({
+    required String kind,
+    required String title,
+    required DateTime occurredAt,
+    String? note,
+  }) async {
+    final id = db.newId();
+    final now = DateTime.now().toUtc();
+    await db
+        .into(db.lifeEvents)
+        .insert(
+          LifeEventsCompanion.insert(
+            id: id,
+            sourceKey: 'manual|$id',
+            source: const Value('manual'),
+            kind: Value(kind),
+            title: title.trim(),
+            occurredAt: occurredAt.toUtc(),
+            note: Value(note),
+            createdAt: now,
+            updatedAt: now,
+            deviceId: deviceId,
+          ),
+        );
+    await _enqueue('life_event', id, 'upsert', await lifeEventPayload(id));
+    return id;
+  }
+
+  Future<void> updateLifeEvent(
+    String id, {
+    required String kind,
+    required String title,
+    required DateTime occurredAt,
+    String? note,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await (db.update(db.lifeEvents)..where((row) => row.id.equals(id))).write(
+      LifeEventsCompanion(
+        kind: Value(kind),
+        title: Value(title.trim()),
+        occurredAt: Value(occurredAt.toUtc()),
+        note: Value(note),
+        updatedAt: Value(now),
+        deviceId: Value(deviceId),
+      ),
+    );
+    await _enqueue('life_event', id, 'upsert', await lifeEventPayload(id));
+  }
+
+  Future<void> deleteLifeEvent(String id) async {
+    final now = DateTime.now().toUtc();
+    await (db.update(db.lifeEvents)..where((row) => row.id.equals(id))).write(
+      LifeEventsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        deviceId: Value(deviceId),
+      ),
+    );
+    await _enqueue('life_event', id, 'delete', await lifeEventPayload(id));
   }
 
   Future<int> focusMinutes({DateTime? start, DateTime? end}) async {
@@ -566,7 +1265,7 @@ class ZhixuRepository {
 
   Future<Map<String, dynamic>> exportPayload() async {
     return {
-      'schema_version': 1,
+      'schema_version': 2,
       'exported_at': DateTime.now().toUtc().toIso8601String(),
       'tasks': (await db.select(db.tasks).get()).map(_taskJson).toList(),
       'projects': (await db.select(db.projects).get())
@@ -582,8 +1281,14 @@ class ZhixuRepository {
       'focus_sessions': (await db.select(db.focusSessions).get())
           .map(_focusJson)
           .toList(),
+      'life_events': (await db.select(db.lifeEvents).get())
+          .map(_lifeEventJson)
+          .toList(),
       'import_batches': (await db.select(db.importBatches).get())
           .map(_batchJson)
+          .toList(),
+      'import_batch_changes': (await db.select(db.importBatchChanges).get())
+          .map(_batchChangeJson)
           .toList(),
     };
   }
@@ -596,6 +1301,8 @@ class ZhixuRepository {
       await db.delete(db.tasks).go();
       await db.delete(db.projects).go();
       await db.delete(db.focusSessions).go();
+      await db.delete(db.lifeEvents).go();
+      await db.delete(db.importBatchChanges).go();
       await db.delete(db.importBatches).go();
       for (final raw in (payload['tasks'] as List? ?? const [])) {
         await db.into(db.tasks).insert(_taskCompanion(raw as Map));
@@ -617,8 +1324,17 @@ class ZhixuRepository {
       for (final raw in (payload['focus_sessions'] as List? ?? const [])) {
         await db.into(db.focusSessions).insert(_focusCompanion(raw as Map));
       }
+      for (final raw in (payload['life_events'] as List? ?? const [])) {
+        await db.into(db.lifeEvents).insert(_lifeEventCompanion(raw as Map));
+      }
       for (final raw in (payload['import_batches'] as List? ?? const [])) {
         await db.into(db.importBatches).insert(_batchCompanion(raw as Map));
+      }
+      for (final raw
+          in (payload['import_batch_changes'] as List? ?? const [])) {
+        await db
+            .into(db.importBatchChanges)
+            .insert(_batchChangeCompanion(raw as Map));
       }
     });
     await db.rebuildSearchIndex();
@@ -650,6 +1366,20 @@ class ZhixuRepository {
       db.scheduleBlocks,
     )..where((item) => item.id.equals(id))).getSingleOrNull();
     return row == null ? null : _scheduleJson(row);
+  }
+
+  Future<Map<String, dynamic>?> focusPayload(String id) async {
+    final row = await (db.select(
+      db.focusSessions,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _focusJson(row);
+  }
+
+  Future<Map<String, dynamic>?> lifeEventPayload(String id) async {
+    final row = await (db.select(
+      db.lifeEvents,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _lifeEventJson(row);
   }
 
   Future<List<SyncOutboxData>> pendingOutbox() => (db.select(
@@ -698,6 +1428,10 @@ class ZhixuRepository {
         await db
             .into(db.focusSessions)
             .insertOnConflictUpdate(_focusCompanion(raw));
+      case 'life_event':
+        await db
+            .into(db.lifeEvents)
+            .insertOnConflictUpdate(_lifeEventCompanion(raw));
     }
   }
 
@@ -732,6 +1466,9 @@ Map<String, dynamic> _taskJson(Task row) => {
   'repeat_rule': row.repeatRule,
   'project_id': row.projectId,
   'parent_task_id': row.parentTaskId,
+  'external_source': row.externalSource,
+  'external_key': row.externalKey,
+  'created_by_import_batch_id': row.createdByImportBatchId,
   'completed_at': row.completedAt?.toIso8601String(),
   'is_archived': row.isArchived,
   'created_at': row.createdAt.toIso8601String(),
@@ -818,6 +1555,22 @@ Map<String, dynamic> _focusJson(FocusSession row) => {
   'server_revision': row.serverRevision,
 };
 
+Map<String, dynamic> _lifeEventJson(LifeEvent row) => {
+  'id': row.id,
+  'source_key': row.sourceKey,
+  'source': row.source,
+  'kind': row.kind,
+  'title': row.title,
+  'occurred_at': row.occurredAt.toIso8601String(),
+  'note': row.note,
+  'import_batch_id': row.importBatchId,
+  'created_at': row.createdAt.toIso8601String(),
+  'updated_at': row.updatedAt.toIso8601String(),
+  'deleted_at': row.deletedAt?.toIso8601String(),
+  'device_id': row.deviceId,
+  'server_revision': row.serverRevision,
+};
+
 Map<String, dynamic> _batchJson(ImportBatche row) => {
   'id': row.id,
   'source': row.source,
@@ -835,6 +1588,17 @@ Map<String, dynamic> _batchJson(ImportBatche row) => {
   'rolled_back_at': row.rolledBackAt?.toIso8601String(),
 };
 
+Map<String, dynamic> _batchChangeJson(ImportBatchChange row) => {
+  'id': row.id,
+  'batch_id': row.batchId,
+  'entity_type': row.entityType,
+  'entity_id': row.entityId,
+  'operation': row.operation,
+  'before_json': row.beforeJson,
+  'after_json': row.afterJson,
+  'created_at': row.createdAt.toIso8601String(),
+};
+
 DateTime? _date(dynamic value) =>
     value == null ? null : DateTime.parse(value as String);
 
@@ -849,6 +1613,9 @@ TasksCompanion _taskCompanion(Map raw) => TasksCompanion.insert(
   repeatRule: Value(raw['repeat_rule'] as String?),
   projectId: Value(raw['project_id'] as String?),
   parentTaskId: Value(raw['parent_task_id'] as String?),
+  externalSource: Value(raw['external_source'] as String?),
+  externalKey: Value(raw['external_key'] as String?),
+  createdByImportBatchId: Value(raw['created_by_import_batch_id'] as String?),
   completedAt: Value(_date(raw['completed_at'])),
   isArchived: Value(raw['is_archived'] as bool? ?? false),
   createdAt: DateTime.parse(raw['created_at'] as String),
@@ -938,6 +1705,22 @@ FocusSessionsCompanion _focusCompanion(Map raw) =>
       serverRevision: Value(raw['server_revision'] as int? ?? 0),
     );
 
+LifeEventsCompanion _lifeEventCompanion(Map raw) => LifeEventsCompanion.insert(
+  id: raw['id'] as String,
+  sourceKey: raw['source_key'] as String,
+  source: Value(raw['source'] as String? ?? 'tomatodo'),
+  kind: Value(raw['kind'] as String? ?? 'other'),
+  title: raw['title'] as String,
+  occurredAt: DateTime.parse(raw['occurred_at'] as String),
+  note: Value(raw['note'] as String?),
+  importBatchId: Value(raw['import_batch_id'] as String?),
+  createdAt: DateTime.parse(raw['created_at'] as String),
+  updatedAt: DateTime.parse(raw['updated_at'] as String),
+  deletedAt: Value(_date(raw['deleted_at'])),
+  deviceId: raw['device_id'] as String? ?? 'restore',
+  serverRevision: Value(raw['server_revision'] as int? ?? 0),
+);
+
 ImportBatchesCompanion _batchCompanion(Map raw) =>
     ImportBatchesCompanion.insert(
       id: raw['id'] as String,
@@ -955,3 +1738,59 @@ ImportBatchesCompanion _batchCompanion(Map raw) =>
       createdAt: DateTime.parse(raw['created_at'] as String),
       rolledBackAt: Value(_date(raw['rolled_back_at'])),
     );
+
+ImportBatchChangesCompanion _batchChangeCompanion(Map raw) =>
+    ImportBatchChangesCompanion.insert(
+      id: Value(raw['id'] as int),
+      batchId: raw['batch_id'] as String,
+      entityType: raw['entity_type'] as String,
+      entityId: raw['entity_id'] as String,
+      operation: raw['operation'] as String,
+      beforeJson: Value(raw['before_json'] as String?),
+      afterJson: Value(raw['after_json'] as String?),
+      createdAt: DateTime.parse(raw['created_at'] as String),
+    );
+
+List<SleepRecord> buildSleepRecords(Iterable<LifeEvent> source) {
+  final events =
+      source
+          .where(
+            (event) =>
+                event.deletedAt == null &&
+                (event.kind == 'sleep' || event.kind == 'wake'),
+          )
+          .toList()
+        ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+  final records = <SleepRecord>[];
+  LifeEvent? pendingSleep;
+  for (final event in events) {
+    if (event.kind == 'sleep') {
+      if (pendingSleep != null) {
+        records.add(SleepRecord(start: pendingSleep, issue: '缺少起床记录'));
+      }
+      pendingSleep = event;
+      continue;
+    }
+    if (pendingSleep == null) {
+      records.add(SleepRecord(end: event, issue: '缺少睡觉记录'));
+      continue;
+    }
+    final duration = event.occurredAt.difference(pendingSleep.occurredAt);
+    records.add(
+      SleepRecord(
+        start: pendingSleep,
+        end: event,
+        issue: duration <= Duration.zero
+            ? '时间顺序异常'
+            : duration > const Duration(hours: 24)
+            ? '睡眠区间超过 24 小时'
+            : null,
+      ),
+    );
+    pendingSleep = null;
+  }
+  if (pendingSleep != null) {
+    records.add(SleepRecord(start: pendingSleep, issue: '缺少起床记录'));
+  }
+  return records.reversed.toList();
+}

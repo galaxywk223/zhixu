@@ -15,14 +15,16 @@ class TasksPage extends ConsumerStatefulWidget {
 }
 
 class _TasksPageState extends ConsumerState<TasksPage> {
-  String filter = 'all';
+  String filter = 'active';
   String query = '';
 
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
     final visible = tasks.where((task) {
-      final matchesFilter = filter == 'all' || task.status == filter;
+      final matchesFilter =
+          filter == 'all' ||
+          (filter == 'active' ? task.status != 'done' : task.status == filter);
       final matchesQuery =
           query.trim().isEmpty ||
           task.title.toLowerCase().contains(query.toLowerCase());
@@ -57,10 +59,10 @@ class _TasksPageState extends ConsumerState<TasksPage> {
             runSpacing: 8,
             children: [
               _FilterButton(
-                label: '全部',
-                count: tasks.length,
-                active: filter == 'all',
-                onTap: () => setState(() => filter = 'all'),
+                label: '待处理',
+                count: tasks.where((item) => item.status != 'done').length,
+                active: filter == 'active',
+                onTap: () => setState(() => filter = 'active'),
               ),
               _FilterButton(
                 label: '待完成',
@@ -81,6 +83,12 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                 count: tasks.where((item) => item.status == 'done').length,
                 active: filter == 'done',
                 onTap: () => setState(() => filter = 'done'),
+              ),
+              _FilterButton(
+                label: '全部',
+                count: tasks.length,
+                active: filter == 'all',
+                onTap: () => setState(() => filter = 'all'),
               ),
             ],
           ),

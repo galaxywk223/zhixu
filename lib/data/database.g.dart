@@ -113,6 +113,39 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _externalSourceMeta = const VerificationMeta(
+    'externalSource',
+  );
+  @override
+  late final GeneratedColumn<String> externalSource = GeneratedColumn<String>(
+    'external_source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _externalKeyMeta = const VerificationMeta(
+    'externalKey',
+  );
+  @override
+  late final GeneratedColumn<String> externalKey = GeneratedColumn<String>(
+    'external_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdByImportBatchIdMeta =
+      const VerificationMeta('createdByImportBatchId');
+  @override
+  late final GeneratedColumn<String> createdByImportBatchId =
+      GeneratedColumn<String>(
+        'created_by_import_batch_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -207,6 +240,9 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     repeatRule,
     projectId,
     parentTaskId,
+    externalSource,
+    externalKey,
+    createdByImportBatchId,
     completedAt,
     isArchived,
     createdAt,
@@ -294,6 +330,33 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         parentTaskId.isAcceptableOrUnknown(
           data['parent_task_id']!,
           _parentTaskIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('external_source')) {
+      context.handle(
+        _externalSourceMeta,
+        externalSource.isAcceptableOrUnknown(
+          data['external_source']!,
+          _externalSourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('external_key')) {
+      context.handle(
+        _externalKeyMeta,
+        externalKey.isAcceptableOrUnknown(
+          data['external_key']!,
+          _externalKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_by_import_batch_id')) {
+      context.handle(
+        _createdByImportBatchIdMeta,
+        createdByImportBatchId.isAcceptableOrUnknown(
+          data['created_by_import_batch_id']!,
+          _createdByImportBatchIdMeta,
         ),
       );
     }
@@ -400,6 +463,18 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.string,
         data['${effectivePrefix}parent_task_id'],
       ),
+      externalSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_source'],
+      ),
+      externalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_key'],
+      ),
+      createdByImportBatchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by_import_batch_id'],
+      ),
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -448,6 +523,9 @@ class Task extends DataClass implements Insertable<Task> {
   final String? repeatRule;
   final String? projectId;
   final String? parentTaskId;
+  final String? externalSource;
+  final String? externalKey;
+  final String? createdByImportBatchId;
   final DateTime? completedAt;
   final bool isArchived;
   final DateTime createdAt;
@@ -466,6 +544,9 @@ class Task extends DataClass implements Insertable<Task> {
     this.repeatRule,
     this.projectId,
     this.parentTaskId,
+    this.externalSource,
+    this.externalKey,
+    this.createdByImportBatchId,
     this.completedAt,
     required this.isArchived,
     required this.createdAt,
@@ -496,6 +577,17 @@ class Task extends DataClass implements Insertable<Task> {
     }
     if (!nullToAbsent || parentTaskId != null) {
       map['parent_task_id'] = Variable<String>(parentTaskId);
+    }
+    if (!nullToAbsent || externalSource != null) {
+      map['external_source'] = Variable<String>(externalSource);
+    }
+    if (!nullToAbsent || externalKey != null) {
+      map['external_key'] = Variable<String>(externalKey);
+    }
+    if (!nullToAbsent || createdByImportBatchId != null) {
+      map['created_by_import_batch_id'] = Variable<String>(
+        createdByImportBatchId,
+      );
     }
     if (!nullToAbsent || completedAt != null) {
       map['completed_at'] = Variable<DateTime>(completedAt);
@@ -533,6 +625,15 @@ class Task extends DataClass implements Insertable<Task> {
       parentTaskId: parentTaskId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentTaskId),
+      externalSource: externalSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalSource),
+      externalKey: externalKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalKey),
+      createdByImportBatchId: createdByImportBatchId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdByImportBatchId),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(completedAt),
@@ -563,6 +664,11 @@ class Task extends DataClass implements Insertable<Task> {
       repeatRule: serializer.fromJson<String?>(json['repeatRule']),
       projectId: serializer.fromJson<String?>(json['projectId']),
       parentTaskId: serializer.fromJson<String?>(json['parentTaskId']),
+      externalSource: serializer.fromJson<String?>(json['externalSource']),
+      externalKey: serializer.fromJson<String?>(json['externalKey']),
+      createdByImportBatchId: serializer.fromJson<String?>(
+        json['createdByImportBatchId'],
+      ),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -586,6 +692,11 @@ class Task extends DataClass implements Insertable<Task> {
       'repeatRule': serializer.toJson<String?>(repeatRule),
       'projectId': serializer.toJson<String?>(projectId),
       'parentTaskId': serializer.toJson<String?>(parentTaskId),
+      'externalSource': serializer.toJson<String?>(externalSource),
+      'externalKey': serializer.toJson<String?>(externalKey),
+      'createdByImportBatchId': serializer.toJson<String?>(
+        createdByImportBatchId,
+      ),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'isArchived': serializer.toJson<bool>(isArchived),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -607,6 +718,9 @@ class Task extends DataClass implements Insertable<Task> {
     Value<String?> repeatRule = const Value.absent(),
     Value<String?> projectId = const Value.absent(),
     Value<String?> parentTaskId = const Value.absent(),
+    Value<String?> externalSource = const Value.absent(),
+    Value<String?> externalKey = const Value.absent(),
+    Value<String?> createdByImportBatchId = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
     bool? isArchived,
     DateTime? createdAt,
@@ -627,6 +741,13 @@ class Task extends DataClass implements Insertable<Task> {
     repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
     projectId: projectId.present ? projectId.value : this.projectId,
     parentTaskId: parentTaskId.present ? parentTaskId.value : this.parentTaskId,
+    externalSource: externalSource.present
+        ? externalSource.value
+        : this.externalSource,
+    externalKey: externalKey.present ? externalKey.value : this.externalKey,
+    createdByImportBatchId: createdByImportBatchId.present
+        ? createdByImportBatchId.value
+        : this.createdByImportBatchId,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     isArchived: isArchived ?? this.isArchived,
     createdAt: createdAt ?? this.createdAt,
@@ -655,6 +776,15 @@ class Task extends DataClass implements Insertable<Task> {
       parentTaskId: data.parentTaskId.present
           ? data.parentTaskId.value
           : this.parentTaskId,
+      externalSource: data.externalSource.present
+          ? data.externalSource.value
+          : this.externalSource,
+      externalKey: data.externalKey.present
+          ? data.externalKey.value
+          : this.externalKey,
+      createdByImportBatchId: data.createdByImportBatchId.present
+          ? data.createdByImportBatchId.value
+          : this.createdByImportBatchId,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -684,6 +814,9 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('repeatRule: $repeatRule, ')
           ..write('projectId: $projectId, ')
           ..write('parentTaskId: $parentTaskId, ')
+          ..write('externalSource: $externalSource, ')
+          ..write('externalKey: $externalKey, ')
+          ..write('createdByImportBatchId: $createdByImportBatchId, ')
           ..write('completedAt: $completedAt, ')
           ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
@@ -707,6 +840,9 @@ class Task extends DataClass implements Insertable<Task> {
     repeatRule,
     projectId,
     parentTaskId,
+    externalSource,
+    externalKey,
+    createdByImportBatchId,
     completedAt,
     isArchived,
     createdAt,
@@ -729,6 +865,9 @@ class Task extends DataClass implements Insertable<Task> {
           other.repeatRule == this.repeatRule &&
           other.projectId == this.projectId &&
           other.parentTaskId == this.parentTaskId &&
+          other.externalSource == this.externalSource &&
+          other.externalKey == this.externalKey &&
+          other.createdByImportBatchId == this.createdByImportBatchId &&
           other.completedAt == this.completedAt &&
           other.isArchived == this.isArchived &&
           other.createdAt == this.createdAt &&
@@ -749,6 +888,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String?> repeatRule;
   final Value<String?> projectId;
   final Value<String?> parentTaskId;
+  final Value<String?> externalSource;
+  final Value<String?> externalKey;
+  final Value<String?> createdByImportBatchId;
   final Value<DateTime?> completedAt;
   final Value<bool> isArchived;
   final Value<DateTime> createdAt;
@@ -768,6 +910,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.repeatRule = const Value.absent(),
     this.projectId = const Value.absent(),
     this.parentTaskId = const Value.absent(),
+    this.externalSource = const Value.absent(),
+    this.externalKey = const Value.absent(),
+    this.createdByImportBatchId = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -788,6 +933,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.repeatRule = const Value.absent(),
     this.projectId = const Value.absent(),
     this.parentTaskId = const Value.absent(),
+    this.externalSource = const Value.absent(),
+    this.externalKey = const Value.absent(),
+    this.createdByImportBatchId = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.isArchived = const Value.absent(),
     required DateTime createdAt,
@@ -812,6 +960,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? repeatRule,
     Expression<String>? projectId,
     Expression<String>? parentTaskId,
+    Expression<String>? externalSource,
+    Expression<String>? externalKey,
+    Expression<String>? createdByImportBatchId,
     Expression<DateTime>? completedAt,
     Expression<bool>? isArchived,
     Expression<DateTime>? createdAt,
@@ -832,6 +983,10 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (repeatRule != null) 'repeat_rule': repeatRule,
       if (projectId != null) 'project_id': projectId,
       if (parentTaskId != null) 'parent_task_id': parentTaskId,
+      if (externalSource != null) 'external_source': externalSource,
+      if (externalKey != null) 'external_key': externalKey,
+      if (createdByImportBatchId != null)
+        'created_by_import_batch_id': createdByImportBatchId,
       if (completedAt != null) 'completed_at': completedAt,
       if (isArchived != null) 'is_archived': isArchived,
       if (createdAt != null) 'created_at': createdAt,
@@ -854,6 +1009,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<String?>? repeatRule,
     Value<String?>? projectId,
     Value<String?>? parentTaskId,
+    Value<String?>? externalSource,
+    Value<String?>? externalKey,
+    Value<String?>? createdByImportBatchId,
     Value<DateTime?>? completedAt,
     Value<bool>? isArchived,
     Value<DateTime>? createdAt,
@@ -874,6 +1032,10 @@ class TasksCompanion extends UpdateCompanion<Task> {
       repeatRule: repeatRule ?? this.repeatRule,
       projectId: projectId ?? this.projectId,
       parentTaskId: parentTaskId ?? this.parentTaskId,
+      externalSource: externalSource ?? this.externalSource,
+      externalKey: externalKey ?? this.externalKey,
+      createdByImportBatchId:
+          createdByImportBatchId ?? this.createdByImportBatchId,
       completedAt: completedAt ?? this.completedAt,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
@@ -918,6 +1080,17 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (parentTaskId.present) {
       map['parent_task_id'] = Variable<String>(parentTaskId.value);
     }
+    if (externalSource.present) {
+      map['external_source'] = Variable<String>(externalSource.value);
+    }
+    if (externalKey.present) {
+      map['external_key'] = Variable<String>(externalKey.value);
+    }
+    if (createdByImportBatchId.present) {
+      map['created_by_import_batch_id'] = Variable<String>(
+        createdByImportBatchId.value,
+      );
+    }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
     }
@@ -958,6 +1131,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('repeatRule: $repeatRule, ')
           ..write('projectId: $projectId, ')
           ..write('parentTaskId: $parentTaskId, ')
+          ..write('externalSource: $externalSource, ')
+          ..write('externalKey: $externalKey, ')
+          ..write('createdByImportBatchId: $createdByImportBatchId, ')
           ..write('completedAt: $completedAt, ')
           ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
@@ -7070,6 +7246,763 @@ class FocusSessionsCompanion extends UpdateCompanion<FocusSession> {
   }
 }
 
+class $LifeEventsTable extends LifeEvents
+    with TableInfo<$LifeEventsTable, LifeEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LifeEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceKeyMeta = const VerificationMeta(
+    'sourceKey',
+  );
+  @override
+  late final GeneratedColumn<String> sourceKey = GeneratedColumn<String>(
+    'source_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('tomatodo'),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('other'),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _occurredAtMeta = const VerificationMeta(
+    'occurredAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurredAt = GeneratedColumn<DateTime>(
+    'occurred_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _importBatchIdMeta = const VerificationMeta(
+    'importBatchId',
+  );
+  @override
+  late final GeneratedColumn<String> importBatchId = GeneratedColumn<String>(
+    'import_batch_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverRevisionMeta = const VerificationMeta(
+    'serverRevision',
+  );
+  @override
+  late final GeneratedColumn<int> serverRevision = GeneratedColumn<int>(
+    'server_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceKey,
+    source,
+    kind,
+    title,
+    occurredAt,
+    note,
+    importBatchId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    deviceId,
+    serverRevision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'life_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LifeEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('source_key')) {
+      context.handle(
+        _sourceKeyMeta,
+        sourceKey.isAcceptableOrUnknown(data['source_key']!, _sourceKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceKeyMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('occurred_at')) {
+      context.handle(
+        _occurredAtMeta,
+        occurredAt.isAcceptableOrUnknown(data['occurred_at']!, _occurredAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_occurredAtMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('import_batch_id')) {
+      context.handle(
+        _importBatchIdMeta,
+        importBatchId.isAcceptableOrUnknown(
+          data['import_batch_id']!,
+          _importBatchIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('server_revision')) {
+      context.handle(
+        _serverRevisionMeta,
+        serverRevision.isAcceptableOrUnknown(
+          data['server_revision']!,
+          _serverRevisionMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {sourceKey},
+  ];
+  @override
+  LifeEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LifeEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_key'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      occurredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurred_at'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      importBatchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}import_batch_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      serverRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_revision'],
+      )!,
+    );
+  }
+
+  @override
+  $LifeEventsTable createAlias(String alias) {
+    return $LifeEventsTable(attachedDatabase, alias);
+  }
+}
+
+class LifeEvent extends DataClass implements Insertable<LifeEvent> {
+  final String id;
+  final String sourceKey;
+  final String source;
+  final String kind;
+  final String title;
+  final DateTime occurredAt;
+  final String? note;
+  final String? importBatchId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final String deviceId;
+  final int serverRevision;
+  const LifeEvent({
+    required this.id,
+    required this.sourceKey,
+    required this.source,
+    required this.kind,
+    required this.title,
+    required this.occurredAt,
+    this.note,
+    this.importBatchId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.deviceId,
+    required this.serverRevision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['source_key'] = Variable<String>(sourceKey);
+    map['source'] = Variable<String>(source);
+    map['kind'] = Variable<String>(kind);
+    map['title'] = Variable<String>(title);
+    map['occurred_at'] = Variable<DateTime>(occurredAt);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || importBatchId != null) {
+      map['import_batch_id'] = Variable<String>(importBatchId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['device_id'] = Variable<String>(deviceId);
+    map['server_revision'] = Variable<int>(serverRevision);
+    return map;
+  }
+
+  LifeEventsCompanion toCompanion(bool nullToAbsent) {
+    return LifeEventsCompanion(
+      id: Value(id),
+      sourceKey: Value(sourceKey),
+      source: Value(source),
+      kind: Value(kind),
+      title: Value(title),
+      occurredAt: Value(occurredAt),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      importBatchId: importBatchId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(importBatchId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      deviceId: Value(deviceId),
+      serverRevision: Value(serverRevision),
+    );
+  }
+
+  factory LifeEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LifeEvent(
+      id: serializer.fromJson<String>(json['id']),
+      sourceKey: serializer.fromJson<String>(json['sourceKey']),
+      source: serializer.fromJson<String>(json['source']),
+      kind: serializer.fromJson<String>(json['kind']),
+      title: serializer.fromJson<String>(json['title']),
+      occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
+      note: serializer.fromJson<String?>(json['note']),
+      importBatchId: serializer.fromJson<String?>(json['importBatchId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      serverRevision: serializer.fromJson<int>(json['serverRevision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sourceKey': serializer.toJson<String>(sourceKey),
+      'source': serializer.toJson<String>(source),
+      'kind': serializer.toJson<String>(kind),
+      'title': serializer.toJson<String>(title),
+      'occurredAt': serializer.toJson<DateTime>(occurredAt),
+      'note': serializer.toJson<String?>(note),
+      'importBatchId': serializer.toJson<String?>(importBatchId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'serverRevision': serializer.toJson<int>(serverRevision),
+    };
+  }
+
+  LifeEvent copyWith({
+    String? id,
+    String? sourceKey,
+    String? source,
+    String? kind,
+    String? title,
+    DateTime? occurredAt,
+    Value<String?> note = const Value.absent(),
+    Value<String?> importBatchId = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? deviceId,
+    int? serverRevision,
+  }) => LifeEvent(
+    id: id ?? this.id,
+    sourceKey: sourceKey ?? this.sourceKey,
+    source: source ?? this.source,
+    kind: kind ?? this.kind,
+    title: title ?? this.title,
+    occurredAt: occurredAt ?? this.occurredAt,
+    note: note.present ? note.value : this.note,
+    importBatchId: importBatchId.present
+        ? importBatchId.value
+        : this.importBatchId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    deviceId: deviceId ?? this.deviceId,
+    serverRevision: serverRevision ?? this.serverRevision,
+  );
+  LifeEvent copyWithCompanion(LifeEventsCompanion data) {
+    return LifeEvent(
+      id: data.id.present ? data.id.value : this.id,
+      sourceKey: data.sourceKey.present ? data.sourceKey.value : this.sourceKey,
+      source: data.source.present ? data.source.value : this.source,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      title: data.title.present ? data.title.value : this.title,
+      occurredAt: data.occurredAt.present
+          ? data.occurredAt.value
+          : this.occurredAt,
+      note: data.note.present ? data.note.value : this.note,
+      importBatchId: data.importBatchId.present
+          ? data.importBatchId.value
+          : this.importBatchId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      serverRevision: data.serverRevision.present
+          ? data.serverRevision.value
+          : this.serverRevision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LifeEvent(')
+          ..write('id: $id, ')
+          ..write('sourceKey: $sourceKey, ')
+          ..write('source: $source, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('occurredAt: $occurredAt, ')
+          ..write('note: $note, ')
+          ..write('importBatchId: $importBatchId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sourceKey,
+    source,
+    kind,
+    title,
+    occurredAt,
+    note,
+    importBatchId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    deviceId,
+    serverRevision,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LifeEvent &&
+          other.id == this.id &&
+          other.sourceKey == this.sourceKey &&
+          other.source == this.source &&
+          other.kind == this.kind &&
+          other.title == this.title &&
+          other.occurredAt == this.occurredAt &&
+          other.note == this.note &&
+          other.importBatchId == this.importBatchId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.deviceId == this.deviceId &&
+          other.serverRevision == this.serverRevision);
+}
+
+class LifeEventsCompanion extends UpdateCompanion<LifeEvent> {
+  final Value<String> id;
+  final Value<String> sourceKey;
+  final Value<String> source;
+  final Value<String> kind;
+  final Value<String> title;
+  final Value<DateTime> occurredAt;
+  final Value<String?> note;
+  final Value<String?> importBatchId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<String> deviceId;
+  final Value<int> serverRevision;
+  final Value<int> rowid;
+  const LifeEventsCompanion({
+    this.id = const Value.absent(),
+    this.sourceKey = const Value.absent(),
+    this.source = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.title = const Value.absent(),
+    this.occurredAt = const Value.absent(),
+    this.note = const Value.absent(),
+    this.importBatchId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.serverRevision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LifeEventsCompanion.insert({
+    required String id,
+    required String sourceKey,
+    this.source = const Value.absent(),
+    this.kind = const Value.absent(),
+    required String title,
+    required DateTime occurredAt,
+    this.note = const Value.absent(),
+    this.importBatchId = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String deviceId,
+    this.serverRevision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sourceKey = Value(sourceKey),
+       title = Value(title),
+       occurredAt = Value(occurredAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       deviceId = Value(deviceId);
+  static Insertable<LifeEvent> custom({
+    Expression<String>? id,
+    Expression<String>? sourceKey,
+    Expression<String>? source,
+    Expression<String>? kind,
+    Expression<String>? title,
+    Expression<DateTime>? occurredAt,
+    Expression<String>? note,
+    Expression<String>? importBatchId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<String>? deviceId,
+    Expression<int>? serverRevision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceKey != null) 'source_key': sourceKey,
+      if (source != null) 'source': source,
+      if (kind != null) 'kind': kind,
+      if (title != null) 'title': title,
+      if (occurredAt != null) 'occurred_at': occurredAt,
+      if (note != null) 'note': note,
+      if (importBatchId != null) 'import_batch_id': importBatchId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (deviceId != null) 'device_id': deviceId,
+      if (serverRevision != null) 'server_revision': serverRevision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LifeEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? sourceKey,
+    Value<String>? source,
+    Value<String>? kind,
+    Value<String>? title,
+    Value<DateTime>? occurredAt,
+    Value<String?>? note,
+    Value<String?>? importBatchId,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<String>? deviceId,
+    Value<int>? serverRevision,
+    Value<int>? rowid,
+  }) {
+    return LifeEventsCompanion(
+      id: id ?? this.id,
+      sourceKey: sourceKey ?? this.sourceKey,
+      source: source ?? this.source,
+      kind: kind ?? this.kind,
+      title: title ?? this.title,
+      occurredAt: occurredAt ?? this.occurredAt,
+      note: note ?? this.note,
+      importBatchId: importBatchId ?? this.importBatchId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deviceId: deviceId ?? this.deviceId,
+      serverRevision: serverRevision ?? this.serverRevision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sourceKey.present) {
+      map['source_key'] = Variable<String>(sourceKey.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (occurredAt.present) {
+      map['occurred_at'] = Variable<DateTime>(occurredAt.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (importBatchId.present) {
+      map['import_batch_id'] = Variable<String>(importBatchId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (serverRevision.present) {
+      map['server_revision'] = Variable<int>(serverRevision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LifeEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceKey: $sourceKey, ')
+          ..write('source: $source, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('occurredAt: $occurredAt, ')
+          ..write('note: $note, ')
+          ..write('importBatchId: $importBatchId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ImportBatchesTable extends ImportBatches
     with TableInfo<$ImportBatchesTable, ImportBatche> {
   @override
@@ -7909,6 +8842,515 @@ class ImportBatchesCompanion extends UpdateCompanion<ImportBatche> {
   }
 }
 
+class $ImportBatchChangesTable extends ImportBatchChanges
+    with TableInfo<$ImportBatchChangesTable, ImportBatchChange> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ImportBatchChangesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _batchIdMeta = const VerificationMeta(
+    'batchId',
+  );
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+    'batch_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _operationMeta = const VerificationMeta(
+    'operation',
+  );
+  @override
+  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
+    'operation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _beforeJsonMeta = const VerificationMeta(
+    'beforeJson',
+  );
+  @override
+  late final GeneratedColumn<String> beforeJson = GeneratedColumn<String>(
+    'before_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _afterJsonMeta = const VerificationMeta(
+    'afterJson',
+  );
+  @override
+  late final GeneratedColumn<String> afterJson = GeneratedColumn<String>(
+    'after_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    batchId,
+    entityType,
+    entityId,
+    operation,
+    beforeJson,
+    afterJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'import_batch_changes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ImportBatchChange> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(
+        _batchIdMeta,
+        batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('operation')) {
+      context.handle(
+        _operationMeta,
+        operation.isAcceptableOrUnknown(data['operation']!, _operationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_operationMeta);
+    }
+    if (data.containsKey('before_json')) {
+      context.handle(
+        _beforeJsonMeta,
+        beforeJson.isAcceptableOrUnknown(data['before_json']!, _beforeJsonMeta),
+      );
+    }
+    if (data.containsKey('after_json')) {
+      context.handle(
+        _afterJsonMeta,
+        afterJson.isAcceptableOrUnknown(data['after_json']!, _afterJsonMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ImportBatchChange map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ImportBatchChange(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      batchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      operation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation'],
+      )!,
+      beforeJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}before_json'],
+      ),
+      afterJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}after_json'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ImportBatchChangesTable createAlias(String alias) {
+    return $ImportBatchChangesTable(attachedDatabase, alias);
+  }
+}
+
+class ImportBatchChange extends DataClass
+    implements Insertable<ImportBatchChange> {
+  final int id;
+  final String batchId;
+  final String entityType;
+  final String entityId;
+  final String operation;
+  final String? beforeJson;
+  final String? afterJson;
+  final DateTime createdAt;
+  const ImportBatchChange({
+    required this.id,
+    required this.batchId,
+    required this.entityType,
+    required this.entityId,
+    required this.operation,
+    this.beforeJson,
+    this.afterJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['batch_id'] = Variable<String>(batchId);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['operation'] = Variable<String>(operation);
+    if (!nullToAbsent || beforeJson != null) {
+      map['before_json'] = Variable<String>(beforeJson);
+    }
+    if (!nullToAbsent || afterJson != null) {
+      map['after_json'] = Variable<String>(afterJson);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ImportBatchChangesCompanion toCompanion(bool nullToAbsent) {
+    return ImportBatchChangesCompanion(
+      id: Value(id),
+      batchId: Value(batchId),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      operation: Value(operation),
+      beforeJson: beforeJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(beforeJson),
+      afterJson: afterJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(afterJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ImportBatchChange.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ImportBatchChange(
+      id: serializer.fromJson<int>(json['id']),
+      batchId: serializer.fromJson<String>(json['batchId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      operation: serializer.fromJson<String>(json['operation']),
+      beforeJson: serializer.fromJson<String?>(json['beforeJson']),
+      afterJson: serializer.fromJson<String?>(json['afterJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'batchId': serializer.toJson<String>(batchId),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'operation': serializer.toJson<String>(operation),
+      'beforeJson': serializer.toJson<String?>(beforeJson),
+      'afterJson': serializer.toJson<String?>(afterJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ImportBatchChange copyWith({
+    int? id,
+    String? batchId,
+    String? entityType,
+    String? entityId,
+    String? operation,
+    Value<String?> beforeJson = const Value.absent(),
+    Value<String?> afterJson = const Value.absent(),
+    DateTime? createdAt,
+  }) => ImportBatchChange(
+    id: id ?? this.id,
+    batchId: batchId ?? this.batchId,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    operation: operation ?? this.operation,
+    beforeJson: beforeJson.present ? beforeJson.value : this.beforeJson,
+    afterJson: afterJson.present ? afterJson.value : this.afterJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ImportBatchChange copyWithCompanion(ImportBatchChangesCompanion data) {
+    return ImportBatchChange(
+      id: data.id.present ? data.id.value : this.id,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      operation: data.operation.present ? data.operation.value : this.operation,
+      beforeJson: data.beforeJson.present
+          ? data.beforeJson.value
+          : this.beforeJson,
+      afterJson: data.afterJson.present ? data.afterJson.value : this.afterJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ImportBatchChange(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operation: $operation, ')
+          ..write('beforeJson: $beforeJson, ')
+          ..write('afterJson: $afterJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    batchId,
+    entityType,
+    entityId,
+    operation,
+    beforeJson,
+    afterJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ImportBatchChange &&
+          other.id == this.id &&
+          other.batchId == this.batchId &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.operation == this.operation &&
+          other.beforeJson == this.beforeJson &&
+          other.afterJson == this.afterJson &&
+          other.createdAt == this.createdAt);
+}
+
+class ImportBatchChangesCompanion extends UpdateCompanion<ImportBatchChange> {
+  final Value<int> id;
+  final Value<String> batchId;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> operation;
+  final Value<String?> beforeJson;
+  final Value<String?> afterJson;
+  final Value<DateTime> createdAt;
+  const ImportBatchChangesCompanion({
+    this.id = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.operation = const Value.absent(),
+    this.beforeJson = const Value.absent(),
+    this.afterJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ImportBatchChangesCompanion.insert({
+    this.id = const Value.absent(),
+    required String batchId,
+    required String entityType,
+    required String entityId,
+    required String operation,
+    this.beforeJson = const Value.absent(),
+    this.afterJson = const Value.absent(),
+    required DateTime createdAt,
+  }) : batchId = Value(batchId),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       operation = Value(operation),
+       createdAt = Value(createdAt);
+  static Insertable<ImportBatchChange> custom({
+    Expression<int>? id,
+    Expression<String>? batchId,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? operation,
+    Expression<String>? beforeJson,
+    Expression<String>? afterJson,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (batchId != null) 'batch_id': batchId,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (operation != null) 'operation': operation,
+      if (beforeJson != null) 'before_json': beforeJson,
+      if (afterJson != null) 'after_json': afterJson,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ImportBatchChangesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? batchId,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String>? operation,
+    Value<String?>? beforeJson,
+    Value<String?>? afterJson,
+    Value<DateTime>? createdAt,
+  }) {
+    return ImportBatchChangesCompanion(
+      id: id ?? this.id,
+      batchId: batchId ?? this.batchId,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      operation: operation ?? this.operation,
+      beforeJson: beforeJson ?? this.beforeJson,
+      afterJson: afterJson ?? this.afterJson,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (operation.present) {
+      map['operation'] = Variable<String>(operation.value);
+    }
+    if (beforeJson.present) {
+      map['before_json'] = Variable<String>(beforeJson.value);
+    }
+    if (afterJson.present) {
+      map['after_json'] = Variable<String>(afterJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ImportBatchChangesCompanion(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operation: $operation, ')
+          ..write('beforeJson: $beforeJson, ')
+          ..write('afterJson: $afterJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncOutboxTable extends SyncOutbox
     with TableInfo<$SyncOutboxTable, SyncOutboxData> {
   @override
@@ -8654,7 +10096,10 @@ abstract class _$ZhixuDatabase extends GeneratedDatabase {
   late final $TagLinksTable tagLinks = $TagLinksTable(this);
   late final $RemindersTable reminders = $RemindersTable(this);
   late final $FocusSessionsTable focusSessions = $FocusSessionsTable(this);
+  late final $LifeEventsTable lifeEvents = $LifeEventsTable(this);
   late final $ImportBatchesTable importBatches = $ImportBatchesTable(this);
+  late final $ImportBatchChangesTable importBatchChanges =
+      $ImportBatchChangesTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
   late final $SyncCursorsTable syncCursors = $SyncCursorsTable(this);
   @override
@@ -8673,7 +10118,9 @@ abstract class _$ZhixuDatabase extends GeneratedDatabase {
     tagLinks,
     reminders,
     focusSessions,
+    lifeEvents,
     importBatches,
+    importBatchChanges,
     syncOutbox,
     syncCursors,
   ];
@@ -8691,6 +10138,9 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String?> repeatRule,
       Value<String?> projectId,
       Value<String?> parentTaskId,
+      Value<String?> externalSource,
+      Value<String?> externalKey,
+      Value<String?> createdByImportBatchId,
       Value<DateTime?> completedAt,
       Value<bool> isArchived,
       required DateTime createdAt,
@@ -8712,6 +10162,9 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String?> repeatRule,
       Value<String?> projectId,
       Value<String?> parentTaskId,
+      Value<String?> externalSource,
+      Value<String?> externalKey,
+      Value<String?> createdByImportBatchId,
       Value<DateTime?> completedAt,
       Value<bool> isArchived,
       Value<DateTime> createdAt,
@@ -8778,6 +10231,21 @@ class $$TasksTableFilterComposer
 
   ColumnFilters<String> get parentTaskId => $composableBuilder(
     column: $table.parentTaskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalSource => $composableBuilder(
+    column: $table.externalSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalKey => $composableBuilder(
+    column: $table.externalKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdByImportBatchId => $composableBuilder(
+    column: $table.createdByImportBatchId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8876,6 +10344,21 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get externalSource => $composableBuilder(
+    column: $table.externalSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get externalKey => $composableBuilder(
+    column: $table.externalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdByImportBatchId => $composableBuilder(
+    column: $table.createdByImportBatchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => ColumnOrderings(column),
@@ -8959,6 +10442,21 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get externalSource => $composableBuilder(
+    column: $table.externalSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get externalKey => $composableBuilder(
+    column: $table.externalKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdByImportBatchId => $composableBuilder(
+    column: $table.createdByImportBatchId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => column,
@@ -9025,6 +10523,9 @@ class $$TasksTableTableManager
                 Value<String?> repeatRule = const Value.absent(),
                 Value<String?> projectId = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
+                Value<String?> externalSource = const Value.absent(),
+                Value<String?> externalKey = const Value.absent(),
+                Value<String?> createdByImportBatchId = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -9044,6 +10545,9 @@ class $$TasksTableTableManager
                 repeatRule: repeatRule,
                 projectId: projectId,
                 parentTaskId: parentTaskId,
+                externalSource: externalSource,
+                externalKey: externalKey,
+                createdByImportBatchId: createdByImportBatchId,
                 completedAt: completedAt,
                 isArchived: isArchived,
                 createdAt: createdAt,
@@ -9065,6 +10569,9 @@ class $$TasksTableTableManager
                 Value<String?> repeatRule = const Value.absent(),
                 Value<String?> projectId = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
+                Value<String?> externalSource = const Value.absent(),
+                Value<String?> externalKey = const Value.absent(),
+                Value<String?> createdByImportBatchId = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 required DateTime createdAt,
@@ -9084,6 +10591,9 @@ class $$TasksTableTableManager
                 repeatRule: repeatRule,
                 projectId: projectId,
                 parentTaskId: parentTaskId,
+                externalSource: externalSource,
+                externalKey: externalKey,
+                createdByImportBatchId: createdByImportBatchId,
                 completedAt: completedAt,
                 isArchived: isArchived,
                 createdAt: createdAt,
@@ -12075,6 +13585,361 @@ typedef $$FocusSessionsTableProcessedTableManager =
       FocusSession,
       PrefetchHooks Function()
     >;
+typedef $$LifeEventsTableCreateCompanionBuilder =
+    LifeEventsCompanion Function({
+      required String id,
+      required String sourceKey,
+      Value<String> source,
+      Value<String> kind,
+      required String title,
+      required DateTime occurredAt,
+      Value<String?> note,
+      Value<String?> importBatchId,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      required String deviceId,
+      Value<int> serverRevision,
+      Value<int> rowid,
+    });
+typedef $$LifeEventsTableUpdateCompanionBuilder =
+    LifeEventsCompanion Function({
+      Value<String> id,
+      Value<String> sourceKey,
+      Value<String> source,
+      Value<String> kind,
+      Value<String> title,
+      Value<DateTime> occurredAt,
+      Value<String?> note,
+      Value<String?> importBatchId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> deviceId,
+      Value<int> serverRevision,
+      Value<int> rowid,
+    });
+
+class $$LifeEventsTableFilterComposer
+    extends Composer<_$ZhixuDatabase, $LifeEventsTable> {
+  $$LifeEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceKey => $composableBuilder(
+    column: $table.sourceKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get occurredAt => $composableBuilder(
+    column: $table.occurredAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get importBatchId => $composableBuilder(
+    column: $table.importBatchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LifeEventsTableOrderingComposer
+    extends Composer<_$ZhixuDatabase, $LifeEventsTable> {
+  $$LifeEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceKey => $composableBuilder(
+    column: $table.sourceKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get occurredAt => $composableBuilder(
+    column: $table.occurredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get importBatchId => $composableBuilder(
+    column: $table.importBatchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LifeEventsTableAnnotationComposer
+    extends Composer<_$ZhixuDatabase, $LifeEventsTable> {
+  $$LifeEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKey =>
+      $composableBuilder(column: $table.sourceKey, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get occurredAt => $composableBuilder(
+    column: $table.occurredAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get importBatchId => $composableBuilder(
+    column: $table.importBatchId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => column,
+  );
+}
+
+class $$LifeEventsTableTableManager
+    extends
+        RootTableManager<
+          _$ZhixuDatabase,
+          $LifeEventsTable,
+          LifeEvent,
+          $$LifeEventsTableFilterComposer,
+          $$LifeEventsTableOrderingComposer,
+          $$LifeEventsTableAnnotationComposer,
+          $$LifeEventsTableCreateCompanionBuilder,
+          $$LifeEventsTableUpdateCompanionBuilder,
+          (
+            LifeEvent,
+            BaseReferences<_$ZhixuDatabase, $LifeEventsTable, LifeEvent>,
+          ),
+          LifeEvent,
+          PrefetchHooks Function()
+        > {
+  $$LifeEventsTableTableManager(_$ZhixuDatabase db, $LifeEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LifeEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LifeEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LifeEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> sourceKey = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<DateTime> occurredAt = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> importBatchId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LifeEventsCompanion(
+                id: id,
+                sourceKey: sourceKey,
+                source: source,
+                kind: kind,
+                title: title,
+                occurredAt: occurredAt,
+                note: note,
+                importBatchId: importBatchId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                deviceId: deviceId,
+                serverRevision: serverRevision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String sourceKey,
+                Value<String> source = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                required String title,
+                required DateTime occurredAt,
+                Value<String?> note = const Value.absent(),
+                Value<String?> importBatchId = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                required String deviceId,
+                Value<int> serverRevision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LifeEventsCompanion.insert(
+                id: id,
+                sourceKey: sourceKey,
+                source: source,
+                kind: kind,
+                title: title,
+                occurredAt: occurredAt,
+                note: note,
+                importBatchId: importBatchId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                deviceId: deviceId,
+                serverRevision: serverRevision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LifeEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ZhixuDatabase,
+      $LifeEventsTable,
+      LifeEvent,
+      $$LifeEventsTableFilterComposer,
+      $$LifeEventsTableOrderingComposer,
+      $$LifeEventsTableAnnotationComposer,
+      $$LifeEventsTableCreateCompanionBuilder,
+      $$LifeEventsTableUpdateCompanionBuilder,
+      (LifeEvent, BaseReferences<_$ZhixuDatabase, $LifeEventsTable, LifeEvent>),
+      LifeEvent,
+      PrefetchHooks Function()
+    >;
 typedef $$ImportBatchesTableCreateCompanionBuilder =
     ImportBatchesCompanion Function({
       required String id,
@@ -12462,6 +14327,274 @@ typedef $$ImportBatchesTableProcessedTableManager =
         BaseReferences<_$ZhixuDatabase, $ImportBatchesTable, ImportBatche>,
       ),
       ImportBatche,
+      PrefetchHooks Function()
+    >;
+typedef $$ImportBatchChangesTableCreateCompanionBuilder =
+    ImportBatchChangesCompanion Function({
+      Value<int> id,
+      required String batchId,
+      required String entityType,
+      required String entityId,
+      required String operation,
+      Value<String?> beforeJson,
+      Value<String?> afterJson,
+      required DateTime createdAt,
+    });
+typedef $$ImportBatchChangesTableUpdateCompanionBuilder =
+    ImportBatchChangesCompanion Function({
+      Value<int> id,
+      Value<String> batchId,
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String> operation,
+      Value<String?> beforeJson,
+      Value<String?> afterJson,
+      Value<DateTime> createdAt,
+    });
+
+class $$ImportBatchChangesTableFilterComposer
+    extends Composer<_$ZhixuDatabase, $ImportBatchChangesTable> {
+  $$ImportBatchChangesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get beforeJson => $composableBuilder(
+    column: $table.beforeJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get afterJson => $composableBuilder(
+    column: $table.afterJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ImportBatchChangesTableOrderingComposer
+    extends Composer<_$ZhixuDatabase, $ImportBatchChangesTable> {
+  $$ImportBatchChangesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get beforeJson => $composableBuilder(
+    column: $table.beforeJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get afterJson => $composableBuilder(
+    column: $table.afterJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ImportBatchChangesTableAnnotationComposer
+    extends Composer<_$ZhixuDatabase, $ImportBatchChangesTable> {
+  $$ImportBatchChangesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get operation =>
+      $composableBuilder(column: $table.operation, builder: (column) => column);
+
+  GeneratedColumn<String> get beforeJson => $composableBuilder(
+    column: $table.beforeJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get afterJson =>
+      $composableBuilder(column: $table.afterJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ImportBatchChangesTableTableManager
+    extends
+        RootTableManager<
+          _$ZhixuDatabase,
+          $ImportBatchChangesTable,
+          ImportBatchChange,
+          $$ImportBatchChangesTableFilterComposer,
+          $$ImportBatchChangesTableOrderingComposer,
+          $$ImportBatchChangesTableAnnotationComposer,
+          $$ImportBatchChangesTableCreateCompanionBuilder,
+          $$ImportBatchChangesTableUpdateCompanionBuilder,
+          (
+            ImportBatchChange,
+            BaseReferences<
+              _$ZhixuDatabase,
+              $ImportBatchChangesTable,
+              ImportBatchChange
+            >,
+          ),
+          ImportBatchChange,
+          PrefetchHooks Function()
+        > {
+  $$ImportBatchChangesTableTableManager(
+    _$ZhixuDatabase db,
+    $ImportBatchChangesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ImportBatchChangesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ImportBatchChangesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ImportBatchChangesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> batchId = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> operation = const Value.absent(),
+                Value<String?> beforeJson = const Value.absent(),
+                Value<String?> afterJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ImportBatchChangesCompanion(
+                id: id,
+                batchId: batchId,
+                entityType: entityType,
+                entityId: entityId,
+                operation: operation,
+                beforeJson: beforeJson,
+                afterJson: afterJson,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String batchId,
+                required String entityType,
+                required String entityId,
+                required String operation,
+                Value<String?> beforeJson = const Value.absent(),
+                Value<String?> afterJson = const Value.absent(),
+                required DateTime createdAt,
+              }) => ImportBatchChangesCompanion.insert(
+                id: id,
+                batchId: batchId,
+                entityType: entityType,
+                entityId: entityId,
+                operation: operation,
+                beforeJson: beforeJson,
+                afterJson: afterJson,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ImportBatchChangesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ZhixuDatabase,
+      $ImportBatchChangesTable,
+      ImportBatchChange,
+      $$ImportBatchChangesTableFilterComposer,
+      $$ImportBatchChangesTableOrderingComposer,
+      $$ImportBatchChangesTableAnnotationComposer,
+      $$ImportBatchChangesTableCreateCompanionBuilder,
+      $$ImportBatchChangesTableUpdateCompanionBuilder,
+      (
+        ImportBatchChange,
+        BaseReferences<
+          _$ZhixuDatabase,
+          $ImportBatchChangesTable,
+          ImportBatchChange
+        >,
+      ),
+      ImportBatchChange,
       PrefetchHooks Function()
     >;
 typedef $$SyncOutboxTableCreateCompanionBuilder =
@@ -12891,8 +15024,12 @@ class $ZhixuDatabaseManager {
       $$RemindersTableTableManager(_db, _db.reminders);
   $$FocusSessionsTableTableManager get focusSessions =>
       $$FocusSessionsTableTableManager(_db, _db.focusSessions);
+  $$LifeEventsTableTableManager get lifeEvents =>
+      $$LifeEventsTableTableManager(_db, _db.lifeEvents);
   $$ImportBatchesTableTableManager get importBatches =>
       $$ImportBatchesTableTableManager(_db, _db.importBatches);
+  $$ImportBatchChangesTableTableManager get importBatchChanges =>
+      $$ImportBatchChangesTableTableManager(_db, _db.importBatchChanges);
   $$SyncOutboxTableTableManager get syncOutbox =>
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
   $$SyncCursorsTableTableManager get syncCursors =>

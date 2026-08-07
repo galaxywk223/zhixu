@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../services/backup_service.dart';
@@ -494,6 +495,12 @@ Future<void> _importTomato(BuildContext context, WidgetRef ref) async {
               const SizedBox(height: 8),
               Text('导出用户：${data.exportUser ?? '未知'}'),
               Text('记录数：${data.sessions.length}'),
+              Text(
+                '专注记录：${data.sessions.where((item) => item.durationMinutes > 0).length}',
+              ),
+              Text(
+                '生活事件：${data.sessions.where((item) => item.durationMinutes <= 0).length}',
+              ),
               Text('声明专注：${data.declaredMinutes ?? 0} 分钟'),
               const SizedBox(height: 14),
               const Text(
@@ -519,11 +526,38 @@ Future<void> _importTomato(BuildContext context, WidgetRef ref) async {
     final result = await service.confirm(ref.read(repositoryProvider), data);
     refreshCore(ref);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('导入完成'),
           content: Text(
-            '导入完成：新增 ${result.importedCount}，更新 ${result.updatedCount}，跳过 ${result.skippedCount}',
+            '创建任务 ${result.tasksCreatedCount} 项\n'
+            '新增专注 ${result.focusImportedCount} 条\n'
+            '新增生活事件 ${result.lifeEventImportedCount} 条\n'
+            '更新 ${result.updatedCount} 条，跳过 ${result.skippedCount} 条',
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('关闭'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                context.go('/sleep');
+              },
+              icon: const Icon(Icons.bedtime_outlined, size: 18),
+              label: const Text('查看睡眠'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                context.go('/focus');
+              },
+              icon: const Icon(Icons.timer_outlined, size: 18),
+              label: const Text('查看专注'),
+            ),
+          ],
         ),
       );
     }

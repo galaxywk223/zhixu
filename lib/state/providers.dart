@@ -40,6 +40,24 @@ final notesProvider = StreamProvider<List<Note>>((ref) {
   return ref.watch(repositoryProvider).watchNotes();
 });
 
+final focusSessionsProvider = StreamProvider<List<FocusSession>>((ref) {
+  return ref.watch(repositoryProvider).watchFocusSessions();
+});
+
+final lifeEventsProvider = StreamProvider<List<LifeEvent>>((ref) {
+  return ref.watch(repositoryProvider).watchLifeEvents();
+});
+
+final importBatchesProvider = StreamProvider<List<ImportBatche>>((ref) {
+  return ref.watch(repositoryProvider).watchImportBatches();
+});
+
+final sleepRecordsProvider = Provider<List<SleepRecord>>((ref) {
+  final events =
+      ref.watch(lifeEventsProvider).valueOrNull ?? const <LifeEvent>[];
+  return buildSleepRecords(events);
+});
+
 final todayTasksProvider = FutureProvider<List<Task>>((ref) {
   return ref.watch(repositoryProvider).tasksForDay(DateTime.now());
 });
@@ -61,4 +79,8 @@ void refreshCore(WidgetRef ref) {
   ref.invalidate(tasksProvider);
   ref.invalidate(projectsProvider);
   ref.invalidate(notesProvider);
+  ref.invalidate(focusSessionsProvider);
+  ref.invalidate(lifeEventsProvider);
+  ref.invalidate(importBatchesProvider);
+  ref.invalidate(sleepRecordsProvider);
 }
