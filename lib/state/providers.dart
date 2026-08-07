@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/database.dart';
 import '../data/repository.dart';
 import '../services/sync_service.dart';
+import '../services/update_service.dart';
 
 final databaseProvider = Provider<ZhixuDatabase>((ref) {
   throw StateError('databaseProvider must be overridden by main()');
@@ -18,9 +19,11 @@ final repositoryProvider = Provider<ZhixuRepository>((ref) {
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 
 final syncServiceProvider = ChangeNotifierProvider<SyncService>((ref) {
-  final service = SyncService(ref.watch(repositoryProvider));
-  ref.onDispose(service.dispose);
-  return service;
+  return SyncService(ref.watch(repositoryProvider));
+});
+
+final updateServiceProvider = ChangeNotifierProvider<UpdateService>((ref) {
+  return UpdateService();
 });
 
 final selectedNavigationProvider = StateProvider<int>((ref) => 0);

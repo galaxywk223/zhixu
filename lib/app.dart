@@ -13,11 +13,22 @@ import 'ui/pages/tasks_page.dart';
 import 'ui/pages/today_page.dart';
 import 'ui/shell.dart';
 
-class ZhixuApp extends ConsumerWidget {
+class ZhixuApp extends ConsumerStatefulWidget {
   const ZhixuApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ZhixuApp> createState() => _ZhixuAppState();
+}
+
+class _ZhixuAppState extends ConsumerState<ZhixuApp> {
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(ref.read(updateServiceProvider).autoCheck);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final mode = ref.watch(themeModeProvider);
     final router = GoRouter(
       initialLocation: '/today',

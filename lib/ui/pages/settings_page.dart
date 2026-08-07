@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../services/backup_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/tomato_import_service.dart';
+import '../../services/update_service.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 
@@ -18,6 +19,7 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(themeModeProvider);
     final sync = ref.watch(syncServiceProvider);
+    final update = ref.watch(updateServiceProvider);
     return PageFrame(
       title: '设置',
       subtitle: '管理账户、同步、外观与本地数据。',
@@ -35,7 +37,7 @@ class SettingsPage extends ConsumerWidget {
           final account = _AccountCard(sync: sync, ref: ref);
           final appearance = _AppearanceCard(theme: theme, ref: ref);
           final data = _DataCard(ref: ref);
-          final about = _AboutCard(sync: sync);
+          final about = _AboutCard(sync: sync, update: update);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -236,9 +238,10 @@ class _DataCard extends StatelessWidget {
 }
 
 class _AboutCard extends StatelessWidget {
-  const _AboutCard({required this.sync});
+  const _AboutCard({required this.sync, required this.update});
 
   final SyncService sync;
+  final UpdateService update;
 
   @override
   Widget build(BuildContext context) => SectionCard(
@@ -247,7 +250,10 @@ class _AboutCard extends StatelessWidget {
       children: [
         Text('关于知序', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 10),
-        const Text('知序 0.1.0', style: TextStyle(fontWeight: FontWeight.w700)),
+        Text(
+          '知序 ${update.currentVersion ?? '正在读取版本'}',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 5),
         const Text(
           '本地优先的任务与学习规划工作台。',
@@ -280,9 +286,130 @@ class _AboutCard extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 14),
+        const Divider(),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(
+              update.status == UpdateStatus.error
+                  ? Icons.error_outline
+                  : Icons.system_update_alt,
+              color: update.status == UpdateStatus.error
+                  ? ZhixuColors.danger
+                  : ZhixuColors.accent,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _updateText(update),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        if (update.availableRelease case final release?) ...[
+          const SizedBox(height: 8),
+          if (release.notes.isNotEmpty)
+            Text(
+              release.notes,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: ZhixuColors.muted, fontSize: 12),
+            ),
+        ],
+        if (update.status == UpdateStatus.downloading) ...[
+          const SizedBox(height: 10),
+          LinearProgressIndicator(value: update.downloadProgress),
+          const SizedBox(height: 5),
+          Text(
+            '已下载 ${(update.downloadProgress * 100).round()}%',
+            style: const TextStyle(color: ZhixuColors.muted, fontSize: 12),
+          ),
+        ],
+        if (update.errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            update.errorMessage!,
+            style: const TextStyle(color: ZhixuColors.danger, fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: update.busy ? null : update.checkForUpdate,
+              icon: update.status == UpdateStatus.checking
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh, size: 18),
+              label: const Text('检查更新'),
+            ),
+            if (update.availableRelease != null)
+              FilledButton.icon(
+                onPressed: update.busy
+                    ? null
+                    : () => _confirmInstallUpdate(context, update),
+                icon: const Icon(Icons.download, size: 18),
+                label: Text(
+                  update.status == UpdateStatus.downloading ? '下载中' : '下载并安装',
+                ),
+              ),
+            if (update.availableRelease != null)
+              IconButton(
+                tooltip: '打开版本说明',
+                onPressed: update.openReleasePage,
+                icon: const Icon(Icons.open_in_new, size: 18),
+              ),
+          ],
+        ),
       ],
     ),
   );
+}
+
+String _updateText(UpdateService update) => switch (update.status) {
+  UpdateStatus.idle => '尚未检查更新',
+  UpdateStatus.checking => '正在检查更新...',
+  UpdateStatus.upToDate => '当前已是最新版本',
+  UpdateStatus.available => '发现 ${update.availableRelease!.version}',
+  UpdateStatus.downloading => '正在下载安装包',
+  UpdateStatus.error => '更新检查失败',
+};
+
+Future<void> _confirmInstallUpdate(
+  BuildContext context,
+  UpdateService update,
+) async {
+  final release = update.availableRelease;
+  if (release == null) return;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('安装知序 ${release.version}'),
+      content: Text(
+        release.notes.isEmpty
+            ? '安装包下载并校验后将启动安装程序，知序会自动退出。'
+            : '${release.notes}\n\n安装包下载并校验后将启动安装程序，知序会自动退出。',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('下载并安装'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true) await update.downloadAndInstall();
 }
 
 String _syncText(SyncState state) => switch (state) {
