@@ -150,7 +150,7 @@ export function App(): React.JSX.Element {
   return (
     <FluentProvider
       theme={dark ? webDarkTheme : webLightTheme}
-      className={dark ? "theme-dark" : "theme-light"}
+      className={`app-provider ${dark ? "theme-dark" : "theme-light"}`}
     >
       <div
         className="drop-root"

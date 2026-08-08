@@ -134,7 +134,6 @@ async function createWindow(): Promise<void> {
     minWidth: 1080,
     minHeight: 680,
     show: false,
-    frame: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#171717" : "#f5f5f5",
     icon: existsSync(icon) ? icon : undefined,
     webPreferences: {

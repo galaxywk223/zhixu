@@ -58,7 +58,8 @@ button {
   --shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
   color: var(--text);
 }
-.fui-FluentProvider {
+/* Fluent copies provider class names to portals; only the root owns layout. */
+#root > .app-provider {
   width: 100%;
   height: 100%;
   background: var(--canvas);
@@ -99,52 +100,14 @@ button {
 .app-frame {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
-  grid-template-rows: 36px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   width: 100%;
   height: 100%;
   background: var(--canvas);
 }
-.titlebar {
-  grid-column: 1/-1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 36px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  user-select: none;
-}
-.titlebar-drag {
-  -webkit-app-region: drag;
-  flex: 1;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 12px;
-  font-size: 12px;
-}
-.titlebar-logo {
-  width: 18px;
-  height: 18px;
-}
-.window-controls {
-  -webkit-app-region: no-drag;
-  display: flex;
-  height: 100%;
-}
-.window-controls .fui-Button {
-  min-width: 46px;
-  height: 35px;
-  border-radius: 0;
-}
-.window-controls .close-button:hover {
-  background: #c42b1c;
-  color: white;
-}
 .sidebar {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   padding: 16px 10px 10px;
@@ -239,7 +202,7 @@ button {
 }
 .content {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
   overflow: auto;
   min-width: 0;
 }

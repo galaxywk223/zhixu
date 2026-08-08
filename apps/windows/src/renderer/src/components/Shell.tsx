@@ -11,7 +11,6 @@ import {
   Timer24Regular,
   WeatherMoon24Regular,
 } from "@fluentui/react-icons";
-import { TitleBar } from "./TitleBar";
 
 export type Route =
   | "today"
@@ -53,7 +52,6 @@ interface ShellProps {
 export function Shell(props: ShellProps): React.JSX.Element {
   return (
     <div className="app-frame">
-      <TitleBar />
       <aside className="sidebar">
         <div className="brand-block">
           <img src="/zhixu-mark-1024.png" alt="知序" />
