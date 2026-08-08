@@ -275,7 +275,7 @@ class ZhixuDatabase extends _$ZhixuDatabase {
   ZhixuDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -306,6 +306,14 @@ class ZhixuDatabase extends _$ZhixuDatabase {
           "DELETE FROM sync_cursors WHERE entity_type = 'project'",
         );
       }
+      if (from < 4) {
+        await customStatement(
+          "UPDATE focus_sessions SET linked_task_id = NULL WHERE source = 'tomatodo'",
+        );
+        await customStatement(
+          "UPDATE tasks SET is_archived = 1, deleted_at = COALESCE(deleted_at, updated_at) WHERE external_source = 'tomatodo'",
+        );
+      }
     },
   );
 
@@ -323,8 +331,20 @@ class ZhixuDatabase extends _$ZhixuDatabase {
   Future<void> rebuildSearchIndex() async {
     await transaction(() async {
       await customStatement('DELETE FROM search_index');
-      final taskRows = await select(tasks).get();
-      final noteRows = await select(notes).get();
+      final taskRows =
+          await (select(tasks)..where(
+                (row) =>
+                    row.deletedAt.isNull() &
+                    row.isArchived.equals(false) &
+                    row.externalSource.isNull(),
+              ))
+              .get();
+      final noteRows = await (select(
+        notes,
+      )..where((row) => row.deletedAt.isNull())).get();
+      final focusRows = await (select(
+        focusSessions,
+      )..where((row) => row.deletedAt.isNull())).get();
       for (final row in taskRows) {
         await customStatement(
           'INSERT INTO search_index(id, entity_type, title, body) VALUES (?, ?, ?, ?)',
@@ -335,6 +355,17 @@ class ZhixuDatabase extends _$ZhixuDatabase {
         await customStatement(
           'INSERT INTO search_index(id, entity_type, title, body) VALUES (?, ?, ?, ?)',
           [row.id, 'note', row.title, row.contentMd],
+        );
+      }
+      for (final row in focusRows) {
+        await customStatement(
+          'INSERT INTO search_index(id, entity_type, title, body) VALUES (?, ?, ?, ?)',
+          [
+            row.id,
+            'focus',
+            row.taskName,
+            '${row.status} ${row.reflection ?? ''}',
+          ],
         );
       }
     });

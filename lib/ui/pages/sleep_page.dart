@@ -317,7 +317,6 @@ class _SleepTimeline extends StatelessWidget {
             final start = record.start?.occurredAt.toLocal();
             final end = record.end?.occurredAt.toLocal();
             return ListTile(
-              dense: true,
               contentPadding: EdgeInsets.zero,
               leading: Icon(
                 record.isValid ? Icons.bedtime_outlined : Icons.warning_amber,
@@ -366,7 +365,6 @@ class _EventLog extends StatelessWidget {
               .take(40)
               .map(
                 (event) => ListTile(
-                  dense: true,
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
                     event.kind == 'sleep'

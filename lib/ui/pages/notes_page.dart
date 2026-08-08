@@ -21,6 +21,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   late final TextEditingController contentController;
   bool preview = false;
   bool dirty = false;
+  String query = '';
 
   @override
   void initState() {
@@ -69,6 +70,12 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   @override
   Widget build(BuildContext context) {
     final notes = ref.watch(notesProvider).valueOrNull ?? const <Note>[];
+    final visibleNotes = notes.where((note) {
+      final needle = query.trim().toLowerCase();
+      return needle.isEmpty ||
+          note.title.toLowerCase().contains(needle) ||
+          note.contentMd.toLowerCase().contains(needle);
+    }).toList();
     final selected = notes.where((note) => note.id == selectedId).firstOrNull;
     if (selected == null && notes.isNotEmpty && selectedId == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -112,14 +119,12 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                           prefixIcon: Icon(Icons.search, size: 18),
                           hintText: '搜索笔记...',
                         ),
-                        onChanged: (value) =>
-                            ref.read(searchQueryProvider.notifier).state =
-                                value,
+                        onChanged: (value) => setState(() => query = value),
                       ),
                     ),
                     const Divider(height: 1),
                     Expanded(
-                      child: notes.isEmpty
+                      child: visibleNotes.isEmpty
                           ? const EmptyState(
                               icon: Icons.edit_note_outlined,
                               title: '暂无笔记',
@@ -127,13 +132,13 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                             )
                           : ListView.separated(
                               padding: const EdgeInsets.all(10),
-                              itemCount: notes.length,
+                              itemCount: visibleNotes.length,
                               separatorBuilder: (_, _) =>
                                   const SizedBox(height: 6),
                               itemBuilder: (context, index) => _NoteListItem(
-                                note: notes[index],
-                                active: notes[index].id == selectedId,
-                                onTap: () => selectNote(notes[index]),
+                                note: visibleNotes[index],
+                                active: visibleNotes[index].id == selectedId,
+                                onTap: () => selectNote(visibleNotes[index]),
                               ),
                             ),
                     ),
@@ -219,7 +224,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                                   'Markdown',
                                   style: TextStyle(
                                     color: ZhixuColors.muted,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                   ),
                                 ),
                                 const Spacer(),
@@ -227,7 +232,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                                   '${contentController.text.length} 字符',
                                   style: const TextStyle(
                                     color: ZhixuColors.muted,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ],
@@ -262,7 +267,9 @@ class _NoteListItem extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: active ? ZhixuColors.accentSoft : Colors.transparent,
+        color: active
+            ? Theme.of(context).colorScheme.primaryContainer
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
         border: active
             ? Border.all(color: ZhixuColors.accent.withValues(alpha: .5))
@@ -295,12 +302,12 @@ class _NoteListItem extends StatelessWidget {
             note.contentMd.replaceAll('\n', ' '),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: ZhixuColors.muted, fontSize: 12),
+            style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
           ),
           const SizedBox(height: 7),
           Text(
             _relative(note.updatedAt),
-            style: const TextStyle(color: ZhixuColors.muted, fontSize: 11),
+            style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
           ),
         ],
       ),

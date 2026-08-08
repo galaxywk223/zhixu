@@ -4,7 +4,7 @@ import 'package:zhixu/data/database.dart';
 import 'package:zhixu/data/repository.dart';
 
 void main() {
-  test('schema v2 升级到 v3 删除专题模型并保留业务数据', () async {
+  test('schema v2 升级到 v4 删除专题并解耦番茄任务', () async {
     final database = ZhixuDatabase(
       NativeDatabase.memory(
         setup: (raw) {
@@ -122,6 +122,17 @@ void main() {
             [focusStart, focusEnd, focusStart, focusStart],
           );
           raw.execute(
+            "INSERT INTO tasks (id, title, external_source, created_at, updated_at, device_id) VALUES ('auto-task', 'vibe coding', 'tomatodo', ?, ?, 'old')",
+            [focusStart, focusStart],
+          );
+          raw.execute(
+            "INSERT INTO tasks (id, title, created_at, updated_at, device_id) VALUES ('manual-task', '人工任务', ?, ?, 'old')",
+            [focusStart, focusStart],
+          );
+          raw.execute(
+            "UPDATE focus_sessions SET linked_task_id = 'auto-task' WHERE id = 'focus'",
+          );
+          raw.execute(
             "INSERT INTO focus_sessions (id, source_key, start_at, end_at, task_name, duration_minutes, status, created_at, updated_at, device_id) VALUES ('wake', 'old-wake', ?, ?, 'w聧艩^', 0, '貌]艗[\u0010b', ?, ?, 'old')",
             [focusStart, focusStart, focusStart, focusStart],
           );
@@ -131,7 +142,14 @@ void main() {
     final repository = ZhixuRepository(database, deviceId: 'migration-test');
     await repository.reconcileLegacyTomatoData();
     expect(await repository.focusMinutes(), 13);
-    expect((await repository.watchTasks().first).single.status, 'done');
+    expect((await repository.watchTasks().first).single.title, '人工任务');
+    final migratedFocus = await repository.watchFocusSessions().first;
+    expect(migratedFocus.single.linkedTaskId, isNull);
+    final autoTask = await (database.select(
+      database.tasks,
+    )..where((row) => row.id.equals('auto-task'))).getSingle();
+    expect(autoTask.isArchived, isTrue);
+    expect(autoTask.deletedAt, isNotNull);
     expect((await repository.watchLifeEvents().first).single.title, '起床');
     final projectTable = await database
         .customSelect(

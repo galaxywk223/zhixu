@@ -44,14 +44,14 @@ class _FocusPageState extends ConsumerState<FocusPage> {
 
     return PageFrame(
       title: '专注',
-      subtitle: '查看番茄 TODO 导入的投入时间、任务关联和历史明细。',
+      subtitle: '独立统计番茄 TODO 的投入时间，不会创建或修改待办。',
       actions: [
         SizedBox(
           width: 230,
           child: TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search, size: 18),
-              hintText: '筛选任务...',
+              hintText: '筛选专注事项...',
             ),
             onChanged: (value) => setState(() => query = value),
           ),
@@ -160,11 +160,12 @@ class _FocusDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SectionCard(
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('专注明细', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         if (sessions.isEmpty)
           const EmptyState(
             icon: Icons.timer_outlined,
@@ -172,38 +173,70 @@ class _FocusDetails extends StatelessWidget {
             message: '从设置导入番茄 TODO 历史后，记录会显示在这里。',
           )
         else
-          ...sessions.map(
-            (row) => ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: SizedBox(
-                width: 46,
-                child: Text(
-                  '${row.durationMinutes}m',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: ZhixuColors.accent,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              title: Text(row.taskName),
-              subtitle: Text(
-                '${DateFormat('yyyy-MM-dd HH:mm').format(row.startAt.toLocal())}'
-                '${row.reflection == null ? '' : '  ${row.reflection}'}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Tooltip(
-                message: row.linkedTaskId == null ? '未关联任务' : '已关联任务',
-                child: Icon(
-                  row.linkedTaskId == null ? Icons.link_off : Icons.link,
-                  size: 18,
-                  color: row.linkedTaskId == null
-                      ? ZhixuColors.muted
-                      : ZhixuColors.success,
-                ),
-              ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowHeight: 44,
+              dataRowMinHeight: 54,
+              dataRowMaxHeight: 68,
+              horizontalMargin: 8,
+              columnSpacing: 24,
+              columns: const [
+                DataColumn(label: Text('时间')),
+                DataColumn(label: Text('专注事项')),
+                DataColumn(label: Text('时长')),
+                DataColumn(label: Text('状态')),
+                DataColumn(label: Text('心得')),
+              ],
+              rows: sessions
+                  .map(
+                    (row) => DataRow(
+                      cells: [
+                        DataCell(
+                          SizedBox(
+                            width: 128,
+                            child: Text(
+                              '${DateFormat('MM-dd HH:mm').format(row.startAt.toLocal())}\n'
+                              '至 ${DateFormat('HH:mm').format(row.endAt.toLocal())}',
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 180,
+                            child: Text(
+                              row.taskName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            '${row.durationMinutes} 分钟',
+                            style: const TextStyle(
+                              color: ZhixuColors.accent,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(row.status.isEmpty ? '未记录' : row.status)),
+                        DataCell(
+                          SizedBox(
+                            width: 210,
+                            child: Text(
+                              row.reflection?.trim().isNotEmpty == true
+                                  ? row.reflection!
+                                  : '—',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                  .toList(),
             ),
           ),
       ],
@@ -231,7 +264,6 @@ class _ImportHistory extends StatelessWidget {
               .take(8)
               .map(
                 (batch) => ListTile(
-                  dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     batch.fileName,

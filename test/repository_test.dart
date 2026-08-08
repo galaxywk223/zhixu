@@ -31,7 +31,7 @@ void main() {
     expect((await database.select(database.tasks).get()).single.status, 'done');
   });
 
-  test('番茄导入创建任务和生活事件、重复导入去重并支持整批撤销', () async {
+  test('番茄导入只写专注和生活事件、重复导入去重并支持整批撤销', () async {
     final sessions = [
       ImportedFocusSession(
         sourceKey: 'canonical-focus',
@@ -62,14 +62,12 @@ void main() {
     expect(first.importedCount, 2);
     expect(first.focusImportedCount, 1);
     expect(first.lifeEventImportedCount, 1);
-    expect(first.tasksCreatedCount, 1);
+    expect(first.tasksCreatedCount, 0);
     expect(await repository.focusMinutes(), 13);
-    final task = (await database.select(database.tasks).get()).single;
-    expect(task.title, 'vibe coding');
-    expect(task.status, 'done');
+    expect(await database.select(database.tasks).get(), isEmpty);
     expect(
       (await database.select(database.focusSessions).get()).single.linkedTaskId,
-      task.id,
+      isNull,
     );
     final event = (await database.select(database.lifeEvents).get()).single;
     expect(event.title, '起床');
@@ -121,7 +119,7 @@ void main() {
     expect(tasks.single.status, 'todo');
   });
 
-  test('累计导出按时间去重、覆盖改名并可撤销', () async {
+  test('累计导出按时间去重、覆盖专注事项改名并可撤销', () async {
     final sharedStart = DateTime(2026, 8, 7, 12, 49);
     final sharedEnd = DateTime(2026, 8, 7, 13, 2);
     final oldBatch = await repository.importFocusSessions(
@@ -137,11 +135,6 @@ void main() {
           status: '已完成',
         ),
       ],
-    );
-    final importedTask = (await repository.watchTasks().first).single;
-    await repository.updateTask(
-      importedTask.id,
-      const TaskDraft(title: '手工改名', priority: 3),
     );
 
     final sessions = [
@@ -203,14 +196,12 @@ void main() {
     expect(await repository.focusMinutes(), 277);
     expect(await repository.watchFocusSessions().first, hasLength(6));
     expect(await repository.watchLifeEvents().first, hasLength(1));
-    final tasks = await repository.watchTasks().first;
-    expect(
-      tasks.map((task) => task.title),
-      unorderedEquals(['项目开发', '保研机试复习']),
+    expect(await repository.watchTasks().first, isEmpty);
+    final renamed = (await repository.watchFocusSessions().first).singleWhere(
+      (row) => row.taskName == '项目开发' && row.durationMinutes == 13,
     );
-    final renamed = tasks.singleWhere((task) => task.id == importedTask.id);
-    expect(renamed.title, '项目开发');
-    expect(renamed.priority, 3);
+    expect(renamed.taskName, '项目开发');
+    expect(renamed.linkedTaskId, isNull);
 
     final repeated = await repository.importFocusSessions(
       fileName: 'new.xls',
@@ -224,11 +215,11 @@ void main() {
 
     await repository.rollbackImportBatch(renamedBatch.batchId);
     expect(await repository.focusMinutes(), 13);
-    expect((await repository.watchTasks().first).single.title, '手工改名');
+    expect(await repository.watchTasks().first, isEmpty);
     expect(oldBatch.batchId, isNotEmpty);
   });
 
-  test('旧乱码记录可迁移为规范任务和生活事件且迁移幂等', () async {
+  test('旧乱码记录可迁移为规范专注和生活事件且迁移幂等', () async {
     final now = DateTime.utc(2026, 8, 7, 13);
     await database
         .into(database.focusSessions)
@@ -271,12 +262,12 @@ void main() {
     )..where((row) => row.deletedAt.isNull())).get();
     expect(focus, hasLength(1));
     expect(focus.single.status, '已完成');
-    expect(focus.single.linkedTaskId, isNotNull);
+    expect(focus.single.linkedTaskId, isNull);
     final events = await database.select(database.lifeEvents).get();
     expect(events, hasLength(1));
     expect(events.single.title, '起床');
     expect(events.single.kind, 'wake');
-    expect(await database.select(database.tasks).get(), hasLength(1));
+    expect(await database.select(database.tasks).get(), isEmpty);
   });
 
   test('睡眠配对覆盖跨日、午睡、孤立事件和超长异常', () async {

@@ -23,7 +23,7 @@ class SettingsPage extends ConsumerWidget {
     final update = ref.watch(updateServiceProvider);
     return PageFrame(
       title: '设置',
-      subtitle: '管理账户、同步、外观与本地数据。',
+      subtitle: '管理同步、外观、本地数据、桌面行为与应用更新。',
       actions: [
         if (sync.configured)
           FilledButton.icon(
@@ -133,7 +133,7 @@ class _AccountCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             sync.errorMessage!,
-            style: const TextStyle(color: ZhixuColors.danger, fontSize: 12),
+            style: const TextStyle(color: ZhixuColors.danger, fontSize: 13),
           ),
         ],
       ],
@@ -155,7 +155,7 @@ class _AppearanceCard extends StatelessWidget {
         Text('主题外观', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
         const Text(
-          '深色主题作为主设计，同时支持浅色和跟随系统。',
+          '默认跟随系统，也可固定使用浅色或深色主题。',
           style: TextStyle(color: ZhixuColors.muted),
         ),
         const SizedBox(height: 16),
@@ -179,7 +179,18 @@ class _AppearanceCard extends StatelessWidget {
           ],
           selected: {theme},
           onSelectionChanged: (value) =>
-              ref.read(themeModeProvider.notifier).state = value.first,
+              ref.read(themeModeProvider.notifier).setMode(value.first),
+        ),
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 12),
+        const Row(
+          children: [
+            Icon(Icons.move_to_inbox_outlined, size: 20),
+            SizedBox(width: 10),
+            Expanded(child: Text('关闭窗口后驻留系统托盘')),
+            Icon(Icons.check_circle, color: ZhixuColors.success, size: 20),
+          ],
         ),
       ],
     ),
@@ -199,7 +210,7 @@ class _DataCard extends StatelessWidget {
         Text('数据与备份', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
         const Text(
-          '本地数据库是事实源，备份文件可在设备间迁移。',
+          '本地数据库是事实源；番茄记录仅写入专注和生活事件，不创建待办。',
           style: TextStyle(color: ZhixuColors.muted),
         ),
         const SizedBox(height: 14),
@@ -257,7 +268,7 @@ class _AboutCard extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         const Text(
-          '本地优先的任务与学习规划工作台。',
+          '本地优先的个人任务与记录工作台。',
           style: TextStyle(color: ZhixuColors.muted),
         ),
         const SizedBox(height: 15),
@@ -317,7 +328,7 @@ class _AboutCard extends StatelessWidget {
               release.notes,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: ZhixuColors.muted, fontSize: 12),
+              style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
             ),
         ],
         if (update.status == UpdateStatus.downloading) ...[
@@ -326,14 +337,14 @@ class _AboutCard extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             '已下载 ${(update.downloadProgress * 100).round()}%',
-            style: const TextStyle(color: ZhixuColors.muted, fontSize: 12),
+            style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
           ),
         ],
         if (update.errorMessage != null) ...[
           const SizedBox(height: 8),
           Text(
             update.errorMessage!,
-            style: const TextStyle(color: ZhixuColors.danger, fontSize: 12),
+            style: const TextStyle(color: ZhixuColors.danger, fontSize: 13),
           ),
         ],
         const SizedBox(height: 12),
@@ -504,7 +515,7 @@ Future<void> _importTomato(BuildContext context, WidgetRef ref) async {
               Text('声明专注：${data.declaredMinutes ?? 0} 分钟'),
               const SizedBox(height: 14),
               const Text(
-                '重复记录会自动跳过，零分钟记录会保留但不计入时长统计。',
+                '专注与待办完全独立。重复记录会自动跳过，零分钟记录会保留但不计入时长统计。',
                 style: TextStyle(color: ZhixuColors.muted),
               ),
             ],
@@ -531,7 +542,7 @@ Future<void> _importTomato(BuildContext context, WidgetRef ref) async {
         builder: (dialogContext) => AlertDialog(
           title: const Text('导入完成'),
           content: Text(
-            '创建任务 ${result.tasksCreatedCount} 项\n'
+            '未创建待办\n'
             '新增专注 ${result.focusImportedCount} 条\n'
             '新增生活事件 ${result.lifeEventImportedCount} 条\n'
             '更新 ${result.updatedCount} 条，跳过 ${result.skippedCount} 条',

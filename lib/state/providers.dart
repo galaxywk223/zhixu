@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/database.dart';
 import '../data/repository.dart';
@@ -16,7 +17,36 @@ final repositoryProvider = Provider<ZhixuRepository>((ref) {
   return repository;
 });
 
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
+class ThemeModeController extends StateNotifier<ThemeMode> {
+  ThemeModeController() : super(ThemeMode.system) {
+    _load();
+  }
+
+  static const _preferenceKey = 'theme_mode';
+
+  Future<void> _load() async {
+    final value = (await SharedPreferences.getInstance()).getString(
+      _preferenceKey,
+    );
+    state = switch (value) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+  }
+
+  Future<void> setMode(ThemeMode mode) async {
+    state = mode;
+    await (await SharedPreferences.getInstance()).setString(
+      _preferenceKey,
+      mode.name,
+    );
+  }
+}
+
+final themeModeProvider = StateNotifierProvider<ThemeModeController, ThemeMode>(
+  (ref) => ThemeModeController(),
+);
 
 final syncServiceProvider = ChangeNotifierProvider<SyncService>((ref) {
   return SyncService(ref.watch(repositoryProvider));
@@ -62,6 +92,14 @@ final focusMinutesProvider = FutureProvider<int>((ref) {
   return ref.watch(repositoryProvider).focusMinutes();
 });
 
+final todayFocusMinutesProvider = FutureProvider<int>((ref) {
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month, now.day);
+  return ref
+      .watch(repositoryProvider)
+      .focusMinutes(start: start, end: start.add(const Duration(days: 1)));
+});
+
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
 final searchResultsProvider = FutureProvider<List<SearchHit>>((ref) {
@@ -72,6 +110,7 @@ final searchResultsProvider = FutureProvider<List<SearchHit>>((ref) {
 void refreshCore(WidgetRef ref) {
   ref.invalidate(todayTasksProvider);
   ref.invalidate(focusMinutesProvider);
+  ref.invalidate(todayFocusMinutesProvider);
   ref.invalidate(tasksProvider);
   ref.invalidate(notesProvider);
   ref.invalidate(focusSessionsProvider);

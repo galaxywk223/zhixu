@@ -15,7 +15,7 @@ class TodayPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(todayTasksProvider);
     final allTasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
-    final focus = ref.watch(focusMinutesProvider).valueOrNull ?? 0;
+    final focus = ref.watch(todayFocusMinutesProvider).valueOrNull ?? 0;
     final done = allTasks.where((item) => item.status == 'done').length;
     final todayDone = (tasks.valueOrNull ?? const <Task>[])
         .where((item) => item.status == 'done')
@@ -24,20 +24,8 @@ class TodayPage extends ConsumerWidget {
     final date = DateTime.now();
     return PageFrame(
       title: '今天 / ${DateFormat('M月d日 EEEE', 'zh_CN').format(date)}',
-      subtitle: '聚焦最重要的事，慢慢来，会很棒。',
+      subtitle: '查看今天的手动待办、截止安排和独立专注统计。',
       actions: [
-        SizedBox(
-          width: 260,
-          child: TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search, size: 19),
-              hintText: '搜索任务、笔记...',
-            ),
-            onChanged: (value) =>
-                ref.read(searchQueryProvider.notifier).state = value,
-          ),
-        ),
-        const SizedBox(width: 10),
         FilledButton.icon(
           onPressed: () => showTaskEditor(context, ref),
           icon: const Icon(Icons.add, size: 18),
@@ -65,13 +53,13 @@ class TodayPage extends ConsumerWidget {
                     color: ZhixuColors.accent,
                   ),
                   MetricCard(
-                    label: '已完成任务',
+                    label: '累计完成',
                     value: '$done',
                     icon: Icons.task_alt,
                     color: ZhixuColors.success,
                   ),
                   MetricCard(
-                    label: '导入专注',
+                    label: '今日专注',
                     value: '$focus 分钟',
                     icon: Icons.timer_outlined,
                     color: ZhixuColors.warning,
@@ -224,7 +212,9 @@ class _ProgressCard extends StatelessWidget {
                   CircularProgressIndicator(
                     value: progress,
                     strokeWidth: 8,
-                    backgroundColor: ZhixuColors.border,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     color: ZhixuColors.accent,
                   ),
                   Text(
@@ -251,7 +241,7 @@ class _ProgressCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '已导入专注 $focus 分钟',
+                    '今日专注 $focus 分钟',
                     style: const TextStyle(color: ZhixuColors.muted),
                   ),
                   const SizedBox(height: 12),
@@ -319,7 +309,7 @@ class _Upcoming extends StatelessWidget {
                     DateFormat('M/d HH:mm').format(task.dueAt!.toLocal()),
                     style: const TextStyle(
                       color: ZhixuColors.muted,
-                      fontSize: 12,
+                      fontSize: 13,
                     ),
                   ),
                 ],

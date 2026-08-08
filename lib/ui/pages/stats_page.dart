@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../data/database.dart';
@@ -12,13 +13,15 @@ class StatsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
-    final focus = ref.watch(focusMinutesProvider).valueOrNull ?? 0;
+    final sessions =
+        ref.watch(focusSessionsProvider).valueOrNull ?? const <FocusSession>[];
     final done = tasks.where((item) => item.status == 'done').length;
     final progress = tasks.isEmpty ? 0.0 : done / tasks.length;
     final estimated = tasks.fold(0, (sum, item) => sum + item.estimatedMinutes);
+    final focus = sessions.fold(0, (sum, item) => sum + item.durationMinutes);
     return PageFrame(
       title: '统计',
-      subtitle: '从任务完成与导入专注记录中观察投入结构。',
+      subtitle: '任务完成情况与专注投入分开统计，避免混淆两种业务口径。',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -27,24 +30,24 @@ class StatsPage extends ConsumerWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: constraints.maxWidth > 900 ? 3 : 1,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.25,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: constraints.maxWidth > 900 ? 2.5 : 4.5,
               children: [
                 MetricCard(
                   label: '任务完成率',
                   value: '${(progress * 100).round()}%',
-                  icon: Icons.task_alt,
+                  icon: Icons.task_alt_outlined,
                   color: ZhixuColors.success,
                 ),
                 MetricCard(
-                  label: '导入专注时长',
+                  label: '专注累计',
                   value: '$focus 分钟',
                   icon: Icons.timer_outlined,
                   color: ZhixuColors.warning,
                 ),
                 MetricCard(
-                  label: '预计工作量',
+                  label: '待办预计工作量',
                   value: '${(estimated / 60).toStringAsFixed(1)} 小时',
                   icon: Icons.schedule_outlined,
                   color: ZhixuColors.accent,
@@ -52,8 +55,30 @@ class StatsPage extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          SectionCard(child: _CompletionChart(tasks: tasks)),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final taskPanel = SectionCard(
+                child: _CompletionChart(tasks: tasks),
+              );
+              final focusPanel = SectionCard(
+                child: _FocusTrend(sessions: sessions),
+              );
+              if (constraints.maxWidth > 960) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: taskPanel),
+                    const SizedBox(width: 16),
+                    Expanded(child: focusPanel),
+                  ],
+                );
+              }
+              return Column(
+                children: [taskPanel, const SizedBox(height: 16), focusPanel],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -81,7 +106,9 @@ class _CompletionChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('任务状态分布', style: Theme.of(context).textTheme.titleLarge),
+        Text('任务状态', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 6),
+        Text('仅统计手动创建的待办', style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 22),
         ...groups.entries.map((entry) {
           final color = switch (entry.key) {
@@ -90,41 +117,102 @@ class _CompletionChart extends StatelessWidget {
             '受阻' => ZhixuColors.danger,
             _ => ZhixuColors.muted,
           };
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 54,
-                  child: Text(
-                    entry.key,
-                    style: const TextStyle(
-                      color: ZhixuColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: entry.value / max,
-                      minHeight: 10,
-                      color: color,
-                      backgroundColor: ZhixuColors.border,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  '${entry.value}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
+          return _BarRow(
+            label: entry.key,
+            value: entry.value,
+            fraction: entry.value / max,
+            color: color,
           );
         }),
       ],
     );
   }
+}
+
+class _FocusTrend extends StatelessWidget {
+  const _FocusTrend({required this.sessions});
+
+  final List<FocusSession> sessions;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final days = List.generate(7, (index) {
+      final day = DateUtils.dateOnly(now.subtract(Duration(days: 6 - index)));
+      final minutes = sessions
+          .where((row) => DateUtils.isSameDay(row.startAt.toLocal(), day))
+          .fold(0, (sum, row) => sum + row.durationMinutes);
+      return (day, minutes);
+    });
+    final max = days.map((row) => row.$2).fold(1, (a, b) => a > b ? a : b);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('近 7 天专注', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 6),
+        Text('按番茄记录的开始日期汇总', style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 22),
+        ...days.map(
+          (row) => _BarRow(
+            label: DateFormat('E', 'zh_CN').format(row.$1),
+            value: row.$2,
+            suffix: '分钟',
+            fraction: row.$2 / max,
+            color: ZhixuColors.warning,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BarRow extends StatelessWidget {
+  const _BarRow({
+    required this.label,
+    required this.value,
+    required this.fraction,
+    required this.color,
+    this.suffix = '',
+  });
+
+  final String label;
+  final int value;
+  final double fraction;
+  final Color color;
+  final String suffix;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 15),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 9,
+              color: color,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 68,
+          child: Text(
+            '$value${suffix.isEmpty ? '' : ' $suffix'}',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
 }

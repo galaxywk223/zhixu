@@ -25,7 +25,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
     return PageFrame(
       title: '日历',
-      subtitle: '按月查看安排，按周规划专注节奏。',
+      subtitle: '按月查看任务截止时间，按周规划独立时间块。',
       actions: [
         SegmentedButton<String>(
           segments: const [
@@ -162,7 +162,7 @@ class _MonthPanel extends StatelessWidget {
                           day,
                           style: const TextStyle(
                             color: ZhixuColors.muted,
-                            fontSize: 12,
+                            fontSize: 13,
                           ),
                         ),
                       ),
@@ -263,7 +263,7 @@ class _DayCell extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: selected
-              ? ZhixuColors.accentSoft.withValues(alpha: .45)
+              ? Theme.of(context).colorScheme.primaryContainer
               : null,
           border: Border(
             left: selected
@@ -296,7 +296,7 @@ class _DayCell extends StatelessWidget {
             if (tasks.isNotEmpty)
               Text(
                 '${tasks.length} 项任务',
-                style: const TextStyle(color: ZhixuColors.muted, fontSize: 11),
+                style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
               ),
             const SizedBox(height: 3),
             ...tasks
@@ -442,7 +442,7 @@ class _WeekDayRow extends StatelessWidget {
                 if (tasks.isEmpty && blocks.isEmpty)
                   const Text(
                     '无安排',
-                    style: TextStyle(color: ZhixuColors.muted, fontSize: 12),
+                    style: TextStyle(color: ZhixuColors.muted, fontSize: 13),
                   ),
                 ...blocks.map((block) => _BlockRow(block: block)),
                 ...tasks.map(
@@ -458,7 +458,7 @@ class _WeekDayRow extends StatelessWidget {
                             DateFormat('HH:mm').format(task.dueAt!.toLocal()),
                             style: const TextStyle(
                               color: ZhixuColors.muted,
-                              fontSize: 12,
+                              fontSize: 13,
                             ),
                           ),
                       ],
@@ -496,7 +496,7 @@ class _BlockRow extends StatelessWidget {
         children: [
           Text(
             '${DateFormat('HH:mm').format(block.startAt.toLocal())}-${DateFormat('HH:mm').format(block.endAt.toLocal())}',
-            style: const TextStyle(color: ZhixuColors.accent, fontSize: 12),
+            style: const TextStyle(color: ZhixuColors.accent, fontSize: 13),
           ),
           const SizedBox(width: 12),
           Text(block.title),

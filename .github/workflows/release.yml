@@ -91,7 +91,7 @@ jobs:
           download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${installer}"
           jq -n \
             --arg version "${VERSION}" \
-            --arg notes "知序 v${VERSION} Windows 预览版。番茄 TODO 历史改为按时间区间去重，支持任务改名和混合中文编码修复；专题功能已移除。云同步安全凭据和代码签名仍待正式验收。" \
+            --arg notes "知序 v${VERSION} Windows 预览版。专注记录与手动待办已完全分离；历史自动番茄任务会软删除。新增托盘驻留、Windows 单实例、Noto Sans SC 字体和统一桌面界面。云同步安全凭据和代码签名仍待正式验收。" \
             --arg releaseUrl "${release_url}" \
             --arg fileName "${installer}" \
             --arg downloadUrl "${download_url}" \
@@ -107,9 +107,10 @@ jobs:
           body: |
             ## 预览版说明
 
-            - 番茄 TODO 记录改为按开始和结束时间去重，待办改名不再重复累计专注时长。
-            - 修复旧版 `.xls` 中混合中文、ASCII 和 NUL 字节的解码。
-            - 移除专题页面、关联字段和同步数据模型。
+            - 专注记录与手动待办完全分离，番茄导入不再创建、修改或关联待办。
+            - 历史自动番茄任务会软删除，已有专注和生活事件继续保留。
+            - 新增系统托盘驻留和 Windows 单实例，重复启动会激活已有窗口。
+            - 内置 Noto Sans SC，统一重构侧栏、排版、列表、统计和全局搜索。
             - 云同步与系统安全凭据存储尚未完成正式验收，当前版本默认使用本地模式。
             - Windows 安装包暂未代码签名，SmartScreen 可能显示未知发布者。
           files: release-assets/*

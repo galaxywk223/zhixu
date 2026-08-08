@@ -17,22 +17,34 @@ class TasksPage extends ConsumerStatefulWidget {
 class _TasksPageState extends ConsumerState<TasksPage> {
   String filter = 'active';
   String query = '';
+  String sortOrder = 'updated';
 
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
-    final visible = tasks.where((task) {
-      final matchesFilter =
-          filter == 'all' ||
-          (filter == 'active' ? task.status != 'done' : task.status == filter);
-      final matchesQuery =
-          query.trim().isEmpty ||
-          task.title.toLowerCase().contains(query.toLowerCase());
-      return matchesFilter && matchesQuery;
-    }).toList();
+    final visible =
+        tasks.where((task) {
+          final matchesFilter =
+              filter == 'all' ||
+              (filter == 'active'
+                  ? task.status != 'done'
+                  : task.status == filter);
+          final matchesQuery =
+              query.trim().isEmpty ||
+              task.title.toLowerCase().contains(query.toLowerCase());
+          return matchesFilter && matchesQuery;
+        }).toList()..sort(
+          (a, b) => switch (sortOrder) {
+            'priority' => b.priority.compareTo(a.priority),
+            'due' => (a.dueAt ?? DateTime(9999)).compareTo(
+              b.dueAt ?? DateTime(9999),
+            ),
+            _ => b.updatedAt.compareTo(a.updatedAt),
+          },
+        );
     return PageFrame(
-      title: '任务管理',
-      subtitle: '集中查看、分类整理、快速推进所有任务。',
+      title: '任务',
+      subtitle: '手动创建、安排并完成待办；专注记录不会出现在此处。',
       actions: [
         SizedBox(
           width: 250,
@@ -54,41 +66,70 @@ class _TasksPageState extends ConsumerState<TasksPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FilterButton(
-                label: '待处理',
-                count: tasks.where((item) => item.status != 'done').length,
-                active: filter == 'active',
-                onTap: () => setState(() => filter = 'active'),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _FilterButton(
+                      label: '待处理',
+                      count: tasks
+                          .where((item) => item.status != 'done')
+                          .length,
+                      active: filter == 'active',
+                      onTap: () => setState(() => filter = 'active'),
+                    ),
+                    _FilterButton(
+                      label: '待完成',
+                      count: tasks
+                          .where((item) => item.status == 'todo')
+                          .length,
+                      active: filter == 'todo',
+                      onTap: () => setState(() => filter = 'todo'),
+                    ),
+                    _FilterButton(
+                      label: '进行中',
+                      count: tasks
+                          .where((item) => item.status == 'in_progress')
+                          .length,
+                      active: filter == 'in_progress',
+                      onTap: () => setState(() => filter = 'in_progress'),
+                    ),
+                    _FilterButton(
+                      label: '已完成',
+                      count: tasks
+                          .where((item) => item.status == 'done')
+                          .length,
+                      active: filter == 'done',
+                      onTap: () => setState(() => filter = 'done'),
+                    ),
+                    _FilterButton(
+                      label: '全部',
+                      count: tasks.length,
+                      active: filter == 'all',
+                      onTap: () => setState(() => filter = 'all'),
+                    ),
+                  ],
+                ),
               ),
-              _FilterButton(
-                label: '待完成',
-                count: tasks.where((item) => item.status == 'todo').length,
-                active: filter == 'todo',
-                onTap: () => setState(() => filter = 'todo'),
-              ),
-              _FilterButton(
-                label: '进行中',
-                count: tasks
-                    .where((item) => item.status == 'in_progress')
-                    .length,
-                active: filter == 'in_progress',
-                onTap: () => setState(() => filter = 'in_progress'),
-              ),
-              _FilterButton(
-                label: '已完成',
-                count: tasks.where((item) => item.status == 'done').length,
-                active: filter == 'done',
-                onTap: () => setState(() => filter = 'done'),
-              ),
-              _FilterButton(
-                label: '全部',
-                count: tasks.length,
-                active: filter == 'all',
-                onTap: () => setState(() => filter = 'all'),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 150,
+                child: DropdownButtonFormField<String>(
+                  initialValue: sortOrder,
+                  decoration: const InputDecoration(labelText: '排序'),
+                  items: const [
+                    DropdownMenuItem(value: 'updated', child: Text('最近更新')),
+                    DropdownMenuItem(value: 'due', child: Text('截止时间')),
+                    DropdownMenuItem(value: 'priority', child: Text('优先级')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => sortOrder = value);
+                  },
+                ),
               ),
             ],
           ),
@@ -153,7 +194,9 @@ class _FilterButton extends StatelessWidget {
   Widget build(BuildContext context) => OutlinedButton(
     onPressed: onTap,
     style: OutlinedButton.styleFrom(
-      backgroundColor: active ? ZhixuColors.accentSoft : null,
+      backgroundColor: active
+          ? Theme.of(context).colorScheme.primaryContainer
+          : null,
       side: BorderSide(
         color: active ? ZhixuColors.accent : Theme.of(context).dividerColor,
       ),
