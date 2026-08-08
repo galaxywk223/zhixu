@@ -18,10 +18,23 @@ class _TasksPageState extends ConsumerState<TasksPage> {
   String filter = 'active';
   String query = '';
   String sortOrder = 'updated';
+  String categoryFilter = 'all';
+  String tagFilter = 'all';
 
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(tasksProvider).valueOrNull ?? const <Task>[];
+    final categories =
+        ref.watch(taskCategoriesProvider).valueOrNull ?? const <TaskCategory>[];
+    final tags = ref.watch(tagsProvider).valueOrNull ?? const <Tag>[];
+    final tagLinks =
+        ref.watch(taskTagLinksProvider).valueOrNull ?? const <TagLink>[];
+    final categoryById = {for (final item in categories) item.id: item};
+    final tagById = {for (final item in tags) item.id: item};
+    final tagIdsByTask = <String, Set<String>>{};
+    for (final link in tagLinks) {
+      tagIdsByTask.putIfAbsent(link.entityId, () => {}).add(link.tagId);
+    }
     final visible =
         tasks.where((task) {
           final matchesFilter =
@@ -31,8 +44,24 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                   : task.status == filter);
           final matchesQuery =
               query.trim().isEmpty ||
-              task.title.toLowerCase().contains(query.toLowerCase());
-          return matchesFilter && matchesQuery;
+              task.title.toLowerCase().contains(query.toLowerCase()) ||
+              (categoryById[task.categoryId]?.name.toLowerCase().contains(
+                    query.toLowerCase(),
+                  ) ??
+                  false) ||
+              (tagIdsByTask[task.id] ?? const <String>{}).any(
+                (id) =>
+                    tagById[id]?.name.toLowerCase().contains(
+                      query.toLowerCase(),
+                    ) ??
+                    false,
+              );
+          final matchesCategory =
+              categoryFilter == 'all' || task.categoryId == categoryFilter;
+          final matchesTag =
+              tagFilter == 'all' ||
+              (tagIdsByTask[task.id] ?? const <String>{}).contains(tagFilter);
+          return matchesFilter && matchesQuery && matchesCategory && matchesTag;
         }).toList()..sort(
           (a, b) => switch (sortOrder) {
             'priority' => b.priority.compareTo(a.priority),
@@ -117,6 +146,44 @@ class _TasksPageState extends ConsumerState<TasksPage> {
               ),
               const SizedBox(width: 12),
               SizedBox(
+                width: 170,
+                child: DropdownButtonFormField<String>(
+                  initialValue: categoryFilter,
+                  decoration: const InputDecoration(labelText: '分类'),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('全部分类')),
+                    for (final category in categories)
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(
+                          category.isArchived
+                              ? '${category.name} · 历史'
+                              : category.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => categoryFilter = value ?? 'all'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 150,
+                child: DropdownButtonFormField<String>(
+                  initialValue: tagFilter,
+                  decoration: const InputDecoration(labelText: '标签'),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('全部标签')),
+                    for (final tag in tags)
+                      DropdownMenuItem(value: tag.id, child: Text(tag.name)),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => tagFilter = value ?? 'all'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
                 width: 150,
                 child: DropdownButtonFormField<String>(
                   initialValue: sortOrder,
@@ -148,6 +215,14 @@ class _TasksPageState extends ConsumerState<TasksPage> {
                             children: [
                               TaskTile(
                                 task: task,
+                                category: categoryById[task.categoryId],
+                                tags:
+                                    (tagIdsByTask[task.id] ?? const <String>{})
+                                        .map((id) => tagById[id])
+                                        .whereType<Tag>()
+                                        .toList(),
+                                onEdit: () =>
+                                    showTaskEditor(context, ref, task: task),
                                 onToggle: () async {
                                   await ref
                                       .read(repositoryProvider)

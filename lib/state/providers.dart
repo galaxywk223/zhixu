@@ -62,6 +62,18 @@ final tasksProvider = StreamProvider<List<Task>>((ref) {
   return ref.watch(repositoryProvider).watchTasks();
 });
 
+final taskCategoriesProvider = StreamProvider<List<TaskCategory>>((ref) {
+  return ref.watch(repositoryProvider).watchTaskCategories();
+});
+
+final tagsProvider = StreamProvider<List<Tag>>((ref) {
+  return ref.watch(repositoryProvider).watchTags();
+});
+
+final taskTagLinksProvider = StreamProvider<List<TagLink>>((ref) {
+  return ref.watch(repositoryProvider).watchTaskTagLinks();
+});
+
 final notesProvider = StreamProvider<List<Note>>((ref) {
   return ref.watch(repositoryProvider).watchNotes();
 });
@@ -112,6 +124,9 @@ void refreshCore(WidgetRef ref) {
   ref.invalidate(focusMinutesProvider);
   ref.invalidate(todayFocusMinutesProvider);
   ref.invalidate(tasksProvider);
+  ref.invalidate(taskCategoriesProvider);
+  ref.invalidate(tagsProvider);
+  ref.invalidate(taskTagLinksProvider);
   ref.invalidate(notesProvider);
   ref.invalidate(focusSessionsProvider);
   ref.invalidate(lifeEventsProvider);

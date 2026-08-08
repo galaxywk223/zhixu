@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zhixu/core/legacy_text.dart';
 import 'package:zhixu/data/database.dart';
 import 'package:zhixu/data/repository.dart';
+import 'package:zhixu/services/sync_service.dart';
 
 void main() {
   late ZhixuDatabase database;
@@ -136,6 +137,14 @@ void main() {
         ),
       ],
     );
+    final oldCategory = (await repository.watchTaskCategories().first).single;
+    final manualTaskId = await repository.createTask(
+      TaskDraft(
+        title: '开发知序分类功能',
+        categoryId: oldCategory.id,
+        estimatedMinutes: 120,
+      ),
+    );
 
     final sessions = [
       ImportedFocusSession(
@@ -196,7 +205,18 @@ void main() {
     expect(await repository.focusMinutes(), 277);
     expect(await repository.watchFocusSessions().first, hasLength(6));
     expect(await repository.watchLifeEvents().first, hasLength(1));
-    expect(await repository.watchTasks().first, isEmpty);
+    final migratedTask = (await repository.watchTasks().first).single;
+    expect(migratedTask.id, manualTaskId);
+    expect(migratedTask.title, '开发知序分类功能');
+    final renamedCategories = await repository.watchTaskCategories().first;
+    expect(
+      renamedCategories
+          .singleWhere((item) => item.id == migratedTask.categoryId)
+          .name,
+      '项目开发',
+    );
+    expect(renamedCategories.any((item) => item.name == '保研机试复习'), isTrue);
+    expect(renamedCategories.any((item) => item.name == '起床'), isFalse);
     final renamed = (await repository.watchFocusSessions().first).singleWhere(
       (row) => row.taskName == '项目开发' && row.durationMinutes == 13,
     );
@@ -215,8 +235,180 @@ void main() {
 
     await repository.rollbackImportBatch(renamedBatch.batchId);
     expect(await repository.focusMinutes(), 13);
-    expect(await repository.watchTasks().first, isEmpty);
+    final restoredTask = (await repository.watchTasks().first).single;
+    expect(restoredTask.title, '开发知序分类功能');
+    expect(
+      (await repository.watchTaskCategories().first)
+          .singleWhere((item) => item.id == restoredTask.categoryId)
+          .name,
+      'vibe coding',
+    );
     expect(oldBatch.batchId, isNotEmpty);
+  });
+
+  test('任务支持多标签、标签改名删除和 v5 备份数据', () async {
+    final studyTag = await repository.createTag('学习', '#175CD3');
+    final urgentTag = await repository.createTag('紧急', '#B42318');
+    final taskId = await repository.createTask(
+      TaskDraft(
+        title: '完成机试复习',
+        tagIds: {studyTag, urgentTag},
+        estimatedMinutes: 90,
+        dueAt: DateTime(2026, 8, 9, 18),
+      ),
+    );
+    expect(await repository.tagIdsForTask(taskId), {studyTag, urgentTag});
+
+    await repository.updateTag(studyTag, '课程学习', '#067647');
+    expect(
+      (await repository.watchTags().first)
+          .singleWhere((item) => item.id == studyTag)
+          .name,
+      '课程学习',
+    );
+    await repository.deleteTag(urgentTag);
+    expect(await repository.tagIdsForTask(taskId), {studyTag});
+
+    final payload = await repository.exportPayload();
+    expect(payload['schema_version'], 5);
+    expect(payload['tags'], hasLength(2));
+    expect(payload['tag_links'], hasLength(2));
+    expect((payload['tasks'] as List).single['estimated_minutes'], 90);
+  });
+
+  test('v1 至 v5 备份恢复保留任务并按版本恢复分类标签', () async {
+    final imported = await repository.importFocusSessions(
+      fileName: 'history.xls',
+      fileHash: 'backup-category',
+      sessions: [
+        ImportedFocusSession(
+          sourceKey: 'backup-focus',
+          startAt: DateTime(2026, 8, 8, 9),
+          endAt: DateTime(2026, 8, 8, 10),
+          taskName: '项目开发',
+          durationMinutes: 60,
+          status: '已完成',
+        ),
+      ],
+    );
+    expect(imported.focusImportedCount, 1);
+    final category = (await repository.taskCategories()).single;
+    final tagId = await repository.createTag('重要', '#B42318');
+    await repository.createTask(
+      TaskDraft(
+        title: '备份兼容任务',
+        categoryId: category.id,
+        tagIds: {tagId},
+        estimatedMinutes: 45,
+        dueAt: DateTime.utc(2026, 8, 10, 12),
+      ),
+    );
+    final current = await repository.exportPayload();
+
+    for (var version = 1; version <= 5; version++) {
+      final payload = Map<String, dynamic>.from(current)
+        ..['schema_version'] = version;
+      if (version < 5) {
+        payload.remove('task_categories');
+        payload.remove('tags');
+        payload.remove('tag_links');
+        payload['tasks'] = (payload['tasks'] as List)
+            .map(
+              (raw) =>
+                  Map<String, dynamic>.from(raw as Map)..remove('category_id'),
+            )
+            .toList();
+      }
+
+      await repository.restorePayload(payload);
+      final restored = (await repository.watchTasks().first).single;
+      expect(restored.title, '备份兼容任务', reason: 'schema v$version');
+      expect(restored.estimatedMinutes, 45, reason: 'schema v$version');
+      if (version == 5) {
+        expect(restored.categoryId, category.id);
+        expect(await repository.tagIdsForTask(restored.id), {tagId});
+      } else {
+        expect(restored.categoryId, isNull);
+        expect(await repository.tagIdsForTask(restored.id), isEmpty);
+      }
+    }
+  });
+
+  test('全局搜索匹配任务分类和标签名称', () async {
+    await repository.importFocusSessions(
+      fileName: 'history.xls',
+      fileHash: 'search-category',
+      sessions: [
+        ImportedFocusSession(
+          sourceKey: 'search-focus',
+          startAt: DateTime(2026, 8, 8, 9),
+          endAt: DateTime(2026, 8, 8, 10),
+          taskName: '项目开发',
+          durationMinutes: 60,
+          status: '已完成',
+        ),
+      ],
+    );
+    final category = (await repository.taskCategories()).single;
+    final tagId = await repository.createTag('客户端', '#175CD3');
+    await repository.createTask(
+      TaskDraft(title: '实现详情面板', categoryId: category.id, tagIds: {tagId}),
+    );
+
+    expect(
+      (await repository.search(
+        '项目开发',
+      )).singleWhere((hit) => hit.entityType == 'task').title,
+      '实现详情面板',
+    );
+    expect(
+      (await repository.search(
+        '客户端',
+      )).singleWhere((hit) => hit.entityType == 'task').title,
+      '实现详情面板',
+    );
+  });
+
+  test('同步顺序和分类标签任务关联 payload 保持依赖契约', () async {
+    expect(syncEntityPullOrder.take(4), [
+      'task_category',
+      'tag',
+      'task',
+      'tag_link',
+    ]);
+    expect(syncTableName('task_category'), 'task_categories');
+    expect(syncTableName('tag_link'), 'tag_links');
+
+    await repository.importFocusSessions(
+      fileName: 'history.xls',
+      fileHash: 'sync-category',
+      sessions: [
+        ImportedFocusSession(
+          sourceKey: 'sync-focus',
+          startAt: DateTime(2026, 8, 8, 9),
+          endAt: DateTime(2026, 8, 8, 10),
+          taskName: '项目开发',
+          durationMinutes: 60,
+          status: '已完成',
+        ),
+      ],
+    );
+    final category = (await repository.taskCategories()).single;
+    final tagId = await repository.createTag('同步标签', '#067647');
+    final taskId = await repository.createTask(
+      TaskDraft(title: '同步任务', categoryId: category.id, tagIds: {tagId}),
+    );
+    final link = (await repository.watchTaskTagLinks().first).single;
+
+    expect(
+      (await repository.taskCategoryPayload(category.id))?['name'],
+      '项目开发',
+    );
+    expect((await repository.tagPayload(tagId))?['normalized_name'], '同步标签');
+    expect((await repository.taskPayload(taskId))?['category_id'], category.id);
+    final linkPayload = await repository.tagLinkPayload(link.id);
+    expect(linkPayload?['tag_id'], tagId);
+    expect(linkPayload?['entity_id'], taskId);
   });
 
   test('旧乱码记录可迁移为规范专注和生活事件且迁移幂等', () async {

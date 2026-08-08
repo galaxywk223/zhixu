@@ -253,18 +253,25 @@ class TaskTile extends StatelessWidget {
   const TaskTile({
     required this.task,
     required this.onToggle,
+    this.category,
+    this.tags = const [],
+    this.onEdit,
     this.onDelete,
     super.key,
   });
 
   final Task task;
+  final TaskCategory? category;
+  final List<Tag> tags;
   final VoidCallback onToggle;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final done = task.status == 'done';
     return ListTile(
+      onTap: onEdit,
       minTileHeight: 56,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
       leading: Checkbox(value: done, onChanged: (_) => onToggle()),
@@ -285,6 +292,20 @@ class TaskTile extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             PriorityPill(priority: task.priority),
+            if (category != null)
+              _MetadataPill(
+                label: category!.isArchived
+                    ? '${category!.name} · 历史'
+                    : category!.name,
+                color: _metadataColor(category!.colorHex),
+                icon: Icons.folder_outlined,
+              ),
+            for (final tag in tags.take(3))
+              _MetadataPill(
+                label: tag.name,
+                color: _metadataColor(tag.colorHex),
+                icon: Icons.label_outline,
+              ),
             if (task.dueAt != null)
               Text(
                 _dateLabel(task.dueAt!),
@@ -302,6 +323,12 @@ class TaskTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           StatusPill(status: task.status),
+          if (onEdit != null)
+            IconButton(
+              tooltip: '编辑',
+              icon: const Icon(Icons.edit_outlined, size: 19),
+              onPressed: onEdit,
+            ),
           if (onDelete != null)
             IconButton(
               tooltip: '删除',
@@ -313,6 +340,46 @@ class TaskTile extends StatelessWidget {
     );
   }
 }
+
+class _MetadataPill extends StatelessWidget {
+  const _MetadataPill({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(5),
+      border: Border.all(color: color.withValues(alpha: .3)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Color _metadataColor(String value) =>
+    Color(int.parse('FF${value.replaceFirst('#', '')}', radix: 16));
 
 String _dateLabel(DateTime value) =>
     '${value.month}/${value.day} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';

@@ -132,6 +132,17 @@ class _TodayTaskList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final categories =
+        ref.watch(taskCategoriesProvider).valueOrNull ?? const <TaskCategory>[];
+    final tags = ref.watch(tagsProvider).valueOrNull ?? const <Tag>[];
+    final links =
+        ref.watch(taskTagLinksProvider).valueOrNull ?? const <TagLink>[];
+    final categoryById = {for (final item in categories) item.id: item};
+    final tagById = {for (final item in tags) item.id: item};
+    final tagIdsByTask = <String, Set<String>>{};
+    for (final link in links) {
+      tagIdsByTask.putIfAbsent(link.entityId, () => {}).add(link.tagId);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -162,6 +173,12 @@ class _TodayTaskList extends ConsumerWidget {
           ...tasks.map(
             (task) => TaskTile(
               task: task,
+              category: categoryById[task.categoryId],
+              tags: (tagIdsByTask[task.id] ?? const <String>{})
+                  .map((id) => tagById[id])
+                  .whereType<Tag>()
+                  .toList(),
+              onEdit: () => showTaskEditor(context, ref, task: task),
               onToggle: () async {
                 await ref
                     .read(repositoryProvider)

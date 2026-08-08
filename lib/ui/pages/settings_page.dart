@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../data/database.dart';
 import '../../services/backup_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/tomato_import_service.dart';
 import '../../services/update_service.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/dialogs.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -21,6 +23,7 @@ class SettingsPage extends ConsumerWidget {
     final theme = ref.watch(themeModeProvider);
     final sync = ref.watch(syncServiceProvider);
     final update = ref.watch(updateServiceProvider);
+    final tags = ref.watch(tagsProvider).valueOrNull ?? const <Tag>[];
     return PageFrame(
       title: '设置',
       subtitle: '管理同步、外观、本地数据、桌面行为与应用更新。',
@@ -57,6 +60,8 @@ class SettingsPage extends ConsumerWidget {
                 appearance,
               ],
               const SizedBox(height: 14),
+              _TagManagementCard(tags: tags, ref: ref),
+              const SizedBox(height: 14),
               if (wide)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,6 +82,101 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _TagManagementCard extends StatelessWidget {
+  const _TagManagementCard({required this.tags, required this.ref});
+
+  final List<Tag> tags;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) => SectionCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('标签管理', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 5),
+                  const Text(
+                    '标签用于跨分类标记任务，可在任务编辑器中多选。',
+                    style: TextStyle(color: ZhixuColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => showTagEditor(context, ref),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('新建标签'),
+            ),
+          ],
+        ),
+        if (tags.isEmpty) ...[
+          const SizedBox(height: 14),
+          const Text('暂无标签', style: TextStyle(color: ZhixuColors.muted)),
+        ] else ...[
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          for (final tag in tags) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.label,
+                color: colorFromHex(tag.colorHex),
+                size: 20,
+              ),
+              title: Text(tag.name),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: '编辑标签',
+                    onPressed: () => showTagEditor(context, ref, tag: tag),
+                    icon: const Icon(Icons.edit_outlined, size: 19),
+                  ),
+                  IconButton(
+                    tooltip: '删除标签',
+                    onPressed: () => _deleteTag(context, ref, tag),
+                    icon: const Icon(Icons.delete_outline, size: 19),
+                  ),
+                ],
+              ),
+            ),
+            if (tag != tags.last) const Divider(height: 1),
+          ],
+        ],
+      ],
+    ),
+  );
+}
+
+Future<void> _deleteTag(BuildContext context, WidgetRef ref, Tag tag) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('删除标签'),
+      content: Text('删除“${tag.name}”后，它会从所有任务中移除，任务本身不会删除。'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('删除'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  await ref.read(repositoryProvider).deleteTag(tag.id);
+  refreshCore(ref);
 }
 
 class _AccountCard extends StatelessWidget {
@@ -210,7 +310,7 @@ class _DataCard extends StatelessWidget {
         Text('数据与备份', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
         const Text(
-          '本地数据库是事实源；番茄记录仅写入专注和生活事件，不创建待办。',
+          '本地数据库是事实源；番茄记录写入专注、生活事件和可选分类，不创建待办。',
           style: TextStyle(color: ZhixuColors.muted),
         ),
         const SizedBox(height: 14),
@@ -515,7 +615,7 @@ Future<void> _importTomato(BuildContext context, WidgetRef ref) async {
               Text('声明专注：${data.declaredMinutes ?? 0} 分钟'),
               const SizedBox(height: 14),
               const Text(
-                '专注与待办完全独立。重复记录会自动跳过，零分钟记录会保留但不计入时长统计。',
+                '专注与待办保持独立。正时长事项会生成任务分类，重复记录自动跳过，零分钟记录不会生成分类。',
                 style: TextStyle(color: ZhixuColors.muted),
               ),
             ],

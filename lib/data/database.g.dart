@@ -80,6 +80,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _repeatRuleMeta = const VerificationMeta(
     'repeatRule',
   );
@@ -226,6 +237,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     priority,
     dueAt,
     estimatedMinutes,
+    categoryId,
     repeatRule,
     parentTaskId,
     externalSource,
@@ -298,6 +310,12 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
           data['estimated_minutes']!,
           _estimatedMinutesMeta,
         ),
+      );
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
       );
     }
     if (data.containsKey('repeat_rule')) {
@@ -433,6 +451,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.int,
         data['${effectivePrefix}estimated_minutes'],
       )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
       repeatRule: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}repeat_rule'],
@@ -498,6 +520,7 @@ class Task extends DataClass implements Insertable<Task> {
   final int priority;
   final DateTime? dueAt;
   final int estimatedMinutes;
+  final String? categoryId;
   final String? repeatRule;
   final String? parentTaskId;
   final String? externalSource;
@@ -518,6 +541,7 @@ class Task extends DataClass implements Insertable<Task> {
     required this.priority,
     this.dueAt,
     required this.estimatedMinutes,
+    this.categoryId,
     this.repeatRule,
     this.parentTaskId,
     this.externalSource,
@@ -545,6 +569,9 @@ class Task extends DataClass implements Insertable<Task> {
       map['due_at'] = Variable<DateTime>(dueAt);
     }
     map['estimated_minutes'] = Variable<int>(estimatedMinutes);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
     if (!nullToAbsent || repeatRule != null) {
       map['repeat_rule'] = Variable<String>(repeatRule);
     }
@@ -589,6 +616,9 @@ class Task extends DataClass implements Insertable<Task> {
           ? const Value.absent()
           : Value(dueAt),
       estimatedMinutes: Value(estimatedMinutes),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
       repeatRule: repeatRule == null && nullToAbsent
           ? const Value.absent()
           : Value(repeatRule),
@@ -631,6 +661,7 @@ class Task extends DataClass implements Insertable<Task> {
       priority: serializer.fromJson<int>(json['priority']),
       dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
       estimatedMinutes: serializer.fromJson<int>(json['estimatedMinutes']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
       repeatRule: serializer.fromJson<String?>(json['repeatRule']),
       parentTaskId: serializer.fromJson<String?>(json['parentTaskId']),
       externalSource: serializer.fromJson<String?>(json['externalSource']),
@@ -658,6 +689,7 @@ class Task extends DataClass implements Insertable<Task> {
       'priority': serializer.toJson<int>(priority),
       'dueAt': serializer.toJson<DateTime?>(dueAt),
       'estimatedMinutes': serializer.toJson<int>(estimatedMinutes),
+      'categoryId': serializer.toJson<String?>(categoryId),
       'repeatRule': serializer.toJson<String?>(repeatRule),
       'parentTaskId': serializer.toJson<String?>(parentTaskId),
       'externalSource': serializer.toJson<String?>(externalSource),
@@ -683,6 +715,7 @@ class Task extends DataClass implements Insertable<Task> {
     int? priority,
     Value<DateTime?> dueAt = const Value.absent(),
     int? estimatedMinutes,
+    Value<String?> categoryId = const Value.absent(),
     Value<String?> repeatRule = const Value.absent(),
     Value<String?> parentTaskId = const Value.absent(),
     Value<String?> externalSource = const Value.absent(),
@@ -705,6 +738,7 @@ class Task extends DataClass implements Insertable<Task> {
     priority: priority ?? this.priority,
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
     estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
     repeatRule: repeatRule.present ? repeatRule.value : this.repeatRule,
     parentTaskId: parentTaskId.present ? parentTaskId.value : this.parentTaskId,
     externalSource: externalSource.present
@@ -735,6 +769,9 @@ class Task extends DataClass implements Insertable<Task> {
       estimatedMinutes: data.estimatedMinutes.present
           ? data.estimatedMinutes.value
           : this.estimatedMinutes,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
       repeatRule: data.repeatRule.present
           ? data.repeatRule.value
           : this.repeatRule,
@@ -776,6 +813,7 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('priority: $priority, ')
           ..write('dueAt: $dueAt, ')
           ..write('estimatedMinutes: $estimatedMinutes, ')
+          ..write('categoryId: $categoryId, ')
           ..write('repeatRule: $repeatRule, ')
           ..write('parentTaskId: $parentTaskId, ')
           ..write('externalSource: $externalSource, ')
@@ -801,6 +839,7 @@ class Task extends DataClass implements Insertable<Task> {
     priority,
     dueAt,
     estimatedMinutes,
+    categoryId,
     repeatRule,
     parentTaskId,
     externalSource,
@@ -825,6 +864,7 @@ class Task extends DataClass implements Insertable<Task> {
           other.priority == this.priority &&
           other.dueAt == this.dueAt &&
           other.estimatedMinutes == this.estimatedMinutes &&
+          other.categoryId == this.categoryId &&
           other.repeatRule == this.repeatRule &&
           other.parentTaskId == this.parentTaskId &&
           other.externalSource == this.externalSource &&
@@ -847,6 +887,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<int> priority;
   final Value<DateTime?> dueAt;
   final Value<int> estimatedMinutes;
+  final Value<String?> categoryId;
   final Value<String?> repeatRule;
   final Value<String?> parentTaskId;
   final Value<String?> externalSource;
@@ -868,6 +909,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.priority = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.estimatedMinutes = const Value.absent(),
+    this.categoryId = const Value.absent(),
     this.repeatRule = const Value.absent(),
     this.parentTaskId = const Value.absent(),
     this.externalSource = const Value.absent(),
@@ -890,6 +932,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.priority = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.estimatedMinutes = const Value.absent(),
+    this.categoryId = const Value.absent(),
     this.repeatRule = const Value.absent(),
     this.parentTaskId = const Value.absent(),
     this.externalSource = const Value.absent(),
@@ -916,6 +959,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<int>? priority,
     Expression<DateTime>? dueAt,
     Expression<int>? estimatedMinutes,
+    Expression<String>? categoryId,
     Expression<String>? repeatRule,
     Expression<String>? parentTaskId,
     Expression<String>? externalSource,
@@ -938,6 +982,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (priority != null) 'priority': priority,
       if (dueAt != null) 'due_at': dueAt,
       if (estimatedMinutes != null) 'estimated_minutes': estimatedMinutes,
+      if (categoryId != null) 'category_id': categoryId,
       if (repeatRule != null) 'repeat_rule': repeatRule,
       if (parentTaskId != null) 'parent_task_id': parentTaskId,
       if (externalSource != null) 'external_source': externalSource,
@@ -963,6 +1008,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<int>? priority,
     Value<DateTime?>? dueAt,
     Value<int>? estimatedMinutes,
+    Value<String?>? categoryId,
     Value<String?>? repeatRule,
     Value<String?>? parentTaskId,
     Value<String?>? externalSource,
@@ -985,6 +1031,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
       priority: priority ?? this.priority,
       dueAt: dueAt ?? this.dueAt,
       estimatedMinutes: estimatedMinutes ?? this.estimatedMinutes,
+      categoryId: categoryId ?? this.categoryId,
       repeatRule: repeatRule ?? this.repeatRule,
       parentTaskId: parentTaskId ?? this.parentTaskId,
       externalSource: externalSource ?? this.externalSource,
@@ -1025,6 +1072,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     }
     if (estimatedMinutes.present) {
       map['estimated_minutes'] = Variable<int>(estimatedMinutes.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
     }
     if (repeatRule.present) {
       map['repeat_rule'] = Variable<String>(repeatRule.value);
@@ -1080,12 +1130,727 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('priority: $priority, ')
           ..write('dueAt: $dueAt, ')
           ..write('estimatedMinutes: $estimatedMinutes, ')
+          ..write('categoryId: $categoryId, ')
           ..write('repeatRule: $repeatRule, ')
           ..write('parentTaskId: $parentTaskId, ')
           ..write('externalSource: $externalSource, ')
           ..write('externalKey: $externalKey, ')
           ..write('createdByImportBatchId: $createdByImportBatchId, ')
           ..write('completedAt: $completedAt, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TaskCategoriesTable extends TaskCategories
+    with TableInfo<$TaskCategoriesTable, TaskCategory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _normalizedNameMeta = const VerificationMeta(
+    'normalizedName',
+  );
+  @override
+  late final GeneratedColumn<String> normalizedName = GeneratedColumn<String>(
+    'normalized_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _colorHexMeta = const VerificationMeta(
+    'colorHex',
+  );
+  @override
+  late final GeneratedColumn<String> colorHex = GeneratedColumn<String>(
+    'color_hex',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('#175CD3'),
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('tomatodo'),
+  );
+  static const VerificationMeta _lastSeenAtMeta = const VerificationMeta(
+    'lastSeenAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSeenAt = GeneratedColumn<DateTime>(
+    'last_seen_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverRevisionMeta = const VerificationMeta(
+    'serverRevision',
+  );
+  @override
+  late final GeneratedColumn<int> serverRevision = GeneratedColumn<int>(
+    'server_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    normalizedName,
+    colorHex,
+    source,
+    lastSeenAt,
+    isArchived,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    deviceId,
+    serverRevision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskCategory> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('normalized_name')) {
+      context.handle(
+        _normalizedNameMeta,
+        normalizedName.isAcceptableOrUnknown(
+          data['normalized_name']!,
+          _normalizedNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_normalizedNameMeta);
+    }
+    if (data.containsKey('color_hex')) {
+      context.handle(
+        _colorHexMeta,
+        colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('last_seen_at')) {
+      context.handle(
+        _lastSeenAtMeta,
+        lastSeenAt.isAcceptableOrUnknown(
+          data['last_seen_at']!,
+          _lastSeenAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('server_revision')) {
+      context.handle(
+        _serverRevisionMeta,
+        serverRevision.isAcceptableOrUnknown(
+          data['server_revision']!,
+          _serverRevisionMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TaskCategory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskCategory(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      normalizedName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}normalized_name'],
+      )!,
+      colorHex: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color_hex'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      lastSeenAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_seen_at'],
+      ),
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      serverRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_revision'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskCategoriesTable createAlias(String alias) {
+    return $TaskCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskCategory extends DataClass implements Insertable<TaskCategory> {
+  final String id;
+  final String name;
+  final String normalizedName;
+  final String colorHex;
+  final String source;
+  final DateTime? lastSeenAt;
+  final bool isArchived;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final String deviceId;
+  final int serverRevision;
+  const TaskCategory({
+    required this.id,
+    required this.name,
+    required this.normalizedName,
+    required this.colorHex,
+    required this.source,
+    this.lastSeenAt,
+    required this.isArchived,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.deviceId,
+    required this.serverRevision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['normalized_name'] = Variable<String>(normalizedName);
+    map['color_hex'] = Variable<String>(colorHex);
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || lastSeenAt != null) {
+      map['last_seen_at'] = Variable<DateTime>(lastSeenAt);
+    }
+    map['is_archived'] = Variable<bool>(isArchived);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['device_id'] = Variable<String>(deviceId);
+    map['server_revision'] = Variable<int>(serverRevision);
+    return map;
+  }
+
+  TaskCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return TaskCategoriesCompanion(
+      id: Value(id),
+      name: Value(name),
+      normalizedName: Value(normalizedName),
+      colorHex: Value(colorHex),
+      source: Value(source),
+      lastSeenAt: lastSeenAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSeenAt),
+      isArchived: Value(isArchived),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      deviceId: Value(deviceId),
+      serverRevision: Value(serverRevision),
+    );
+  }
+
+  factory TaskCategory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskCategory(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      normalizedName: serializer.fromJson<String>(json['normalizedName']),
+      colorHex: serializer.fromJson<String>(json['colorHex']),
+      source: serializer.fromJson<String>(json['source']),
+      lastSeenAt: serializer.fromJson<DateTime?>(json['lastSeenAt']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      serverRevision: serializer.fromJson<int>(json['serverRevision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'normalizedName': serializer.toJson<String>(normalizedName),
+      'colorHex': serializer.toJson<String>(colorHex),
+      'source': serializer.toJson<String>(source),
+      'lastSeenAt': serializer.toJson<DateTime?>(lastSeenAt),
+      'isArchived': serializer.toJson<bool>(isArchived),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'serverRevision': serializer.toJson<int>(serverRevision),
+    };
+  }
+
+  TaskCategory copyWith({
+    String? id,
+    String? name,
+    String? normalizedName,
+    String? colorHex,
+    String? source,
+    Value<DateTime?> lastSeenAt = const Value.absent(),
+    bool? isArchived,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? deviceId,
+    int? serverRevision,
+  }) => TaskCategory(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    normalizedName: normalizedName ?? this.normalizedName,
+    colorHex: colorHex ?? this.colorHex,
+    source: source ?? this.source,
+    lastSeenAt: lastSeenAt.present ? lastSeenAt.value : this.lastSeenAt,
+    isArchived: isArchived ?? this.isArchived,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    deviceId: deviceId ?? this.deviceId,
+    serverRevision: serverRevision ?? this.serverRevision,
+  );
+  TaskCategory copyWithCompanion(TaskCategoriesCompanion data) {
+    return TaskCategory(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      normalizedName: data.normalizedName.present
+          ? data.normalizedName.value
+          : this.normalizedName,
+      colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
+      source: data.source.present ? data.source.value : this.source,
+      lastSeenAt: data.lastSeenAt.present
+          ? data.lastSeenAt.value
+          : this.lastSeenAt,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      serverRevision: data.serverRevision.present
+          ? data.serverRevision.value
+          : this.serverRevision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskCategory(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('normalizedName: $normalizedName, ')
+          ..write('colorHex: $colorHex, ')
+          ..write('source: $source, ')
+          ..write('lastSeenAt: $lastSeenAt, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    normalizedName,
+    colorHex,
+    source,
+    lastSeenAt,
+    isArchived,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    deviceId,
+    serverRevision,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskCategory &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.normalizedName == this.normalizedName &&
+          other.colorHex == this.colorHex &&
+          other.source == this.source &&
+          other.lastSeenAt == this.lastSeenAt &&
+          other.isArchived == this.isArchived &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.deviceId == this.deviceId &&
+          other.serverRevision == this.serverRevision);
+}
+
+class TaskCategoriesCompanion extends UpdateCompanion<TaskCategory> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> normalizedName;
+  final Value<String> colorHex;
+  final Value<String> source;
+  final Value<DateTime?> lastSeenAt;
+  final Value<bool> isArchived;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<String> deviceId;
+  final Value<int> serverRevision;
+  final Value<int> rowid;
+  const TaskCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.normalizedName = const Value.absent(),
+    this.colorHex = const Value.absent(),
+    this.source = const Value.absent(),
+    this.lastSeenAt = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.serverRevision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskCategoriesCompanion.insert({
+    required String id,
+    required String name,
+    required String normalizedName,
+    this.colorHex = const Value.absent(),
+    this.source = const Value.absent(),
+    this.lastSeenAt = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    required String deviceId,
+    this.serverRevision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       normalizedName = Value(normalizedName),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       deviceId = Value(deviceId);
+  static Insertable<TaskCategory> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? normalizedName,
+    Expression<String>? colorHex,
+    Expression<String>? source,
+    Expression<DateTime>? lastSeenAt,
+    Expression<bool>? isArchived,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<String>? deviceId,
+    Expression<int>? serverRevision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (normalizedName != null) 'normalized_name': normalizedName,
+      if (colorHex != null) 'color_hex': colorHex,
+      if (source != null) 'source': source,
+      if (lastSeenAt != null) 'last_seen_at': lastSeenAt,
+      if (isArchived != null) 'is_archived': isArchived,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (deviceId != null) 'device_id': deviceId,
+      if (serverRevision != null) 'server_revision': serverRevision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? normalizedName,
+    Value<String>? colorHex,
+    Value<String>? source,
+    Value<DateTime?>? lastSeenAt,
+    Value<bool>? isArchived,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<String>? deviceId,
+    Value<int>? serverRevision,
+    Value<int>? rowid,
+  }) {
+    return TaskCategoriesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      normalizedName: normalizedName ?? this.normalizedName,
+      colorHex: colorHex ?? this.colorHex,
+      source: source ?? this.source,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      isArchived: isArchived ?? this.isArchived,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deviceId: deviceId ?? this.deviceId,
+      serverRevision: serverRevision ?? this.serverRevision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (normalizedName.present) {
+      map['normalized_name'] = Variable<String>(normalizedName.value);
+    }
+    if (colorHex.present) {
+      map['color_hex'] = Variable<String>(colorHex.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (lastSeenAt.present) {
+      map['last_seen_at'] = Variable<DateTime>(lastSeenAt.value);
+    }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (serverRevision.present) {
+      map['server_revision'] = Variable<int>(serverRevision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('normalizedName: $normalizedName, ')
+          ..write('colorHex: $colorHex, ')
+          ..write('source: $source, ')
+          ..write('lastSeenAt: $lastSeenAt, ')
           ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -3902,6 +4667,18 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _normalizedNameMeta = const VerificationMeta(
+    'normalizedName',
+  );
+  @override
+  late final GeneratedColumn<String> normalizedName = GeneratedColumn<String>(
+    'normalized_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _colorHexMeta = const VerificationMeta(
     'colorHex',
   );
@@ -3913,6 +4690,21 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('#38BDF8'),
+  );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -3958,15 +4750,30 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _serverRevisionMeta = const VerificationMeta(
+    'serverRevision',
+  );
+  @override
+  late final GeneratedColumn<int> serverRevision = GeneratedColumn<int>(
+    'server_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     name,
+    normalizedName,
     colorHex,
+    isArchived,
     createdAt,
     updatedAt,
     deletedAt,
     deviceId,
+    serverRevision,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3993,10 +4800,25 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('normalized_name')) {
+      context.handle(
+        _normalizedNameMeta,
+        normalizedName.isAcceptableOrUnknown(
+          data['normalized_name']!,
+          _normalizedNameMeta,
+        ),
+      );
+    }
     if (data.containsKey('color_hex')) {
       context.handle(
         _colorHexMeta,
         colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta),
+      );
+    }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -4029,6 +4851,15 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     } else if (isInserting) {
       context.missing(_deviceIdMeta);
     }
+    if (data.containsKey('server_revision')) {
+      context.handle(
+        _serverRevisionMeta,
+        serverRevision.isAcceptableOrUnknown(
+          data['server_revision']!,
+          _serverRevisionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4046,9 +4877,17 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      normalizedName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}normalized_name'],
+      )!,
       colorHex: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}color_hex'],
+      )!,
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
       )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -4066,6 +4905,10 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      serverRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_revision'],
+      )!,
     );
   }
 
@@ -4078,32 +4921,41 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
 class Tag extends DataClass implements Insertable<Tag> {
   final String id;
   final String name;
+  final String normalizedName;
   final String colorHex;
+  final bool isArchived;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
   final String deviceId;
+  final int serverRevision;
   const Tag({
     required this.id,
     required this.name,
+    required this.normalizedName,
     required this.colorHex,
+    required this.isArchived,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
     required this.deviceId,
+    required this.serverRevision,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
+    map['normalized_name'] = Variable<String>(normalizedName);
     map['color_hex'] = Variable<String>(colorHex);
+    map['is_archived'] = Variable<bool>(isArchived);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
     map['device_id'] = Variable<String>(deviceId);
+    map['server_revision'] = Variable<int>(serverRevision);
     return map;
   }
 
@@ -4111,13 +4963,16 @@ class Tag extends DataClass implements Insertable<Tag> {
     return TagsCompanion(
       id: Value(id),
       name: Value(name),
+      normalizedName: Value(normalizedName),
       colorHex: Value(colorHex),
+      isArchived: Value(isArchived),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
       deviceId: Value(deviceId),
+      serverRevision: Value(serverRevision),
     );
   }
 
@@ -4129,11 +4984,14 @@ class Tag extends DataClass implements Insertable<Tag> {
     return Tag(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      normalizedName: serializer.fromJson<String>(json['normalizedName']),
       colorHex: serializer.fromJson<String>(json['colorHex']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      serverRevision: serializer.fromJson<int>(json['serverRevision']),
     );
   }
   @override
@@ -4142,40 +5000,58 @@ class Tag extends DataClass implements Insertable<Tag> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
+      'normalizedName': serializer.toJson<String>(normalizedName),
       'colorHex': serializer.toJson<String>(colorHex),
+      'isArchived': serializer.toJson<bool>(isArchived),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'deviceId': serializer.toJson<String>(deviceId),
+      'serverRevision': serializer.toJson<int>(serverRevision),
     };
   }
 
   Tag copyWith({
     String? id,
     String? name,
+    String? normalizedName,
     String? colorHex,
+    bool? isArchived,
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
     String? deviceId,
+    int? serverRevision,
   }) => Tag(
     id: id ?? this.id,
     name: name ?? this.name,
+    normalizedName: normalizedName ?? this.normalizedName,
     colorHex: colorHex ?? this.colorHex,
+    isArchived: isArchived ?? this.isArchived,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     deviceId: deviceId ?? this.deviceId,
+    serverRevision: serverRevision ?? this.serverRevision,
   );
   Tag copyWithCompanion(TagsCompanion data) {
     return Tag(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      normalizedName: data.normalizedName.present
+          ? data.normalizedName.value
+          : this.normalizedName,
       colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      serverRevision: data.serverRevision.present
+          ? data.serverRevision.value
+          : this.serverRevision,
     );
   }
 
@@ -4184,11 +5060,14 @@ class Tag extends DataClass implements Insertable<Tag> {
     return (StringBuffer('Tag(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('normalizedName: $normalizedName, ')
           ..write('colorHex: $colorHex, ')
+          ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
-          ..write('deviceId: $deviceId')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision')
           ..write(')'))
         .toString();
   }
@@ -4197,11 +5076,14 @@ class Tag extends DataClass implements Insertable<Tag> {
   int get hashCode => Object.hash(
     id,
     name,
+    normalizedName,
     colorHex,
+    isArchived,
     createdAt,
     updatedAt,
     deletedAt,
     deviceId,
+    serverRevision,
   );
   @override
   bool operator ==(Object other) =>
@@ -4209,40 +5091,52 @@ class Tag extends DataClass implements Insertable<Tag> {
       (other is Tag &&
           other.id == this.id &&
           other.name == this.name &&
+          other.normalizedName == this.normalizedName &&
           other.colorHex == this.colorHex &&
+          other.isArchived == this.isArchived &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
-          other.deviceId == this.deviceId);
+          other.deviceId == this.deviceId &&
+          other.serverRevision == this.serverRevision);
 }
 
 class TagsCompanion extends UpdateCompanion<Tag> {
   final Value<String> id;
   final Value<String> name;
+  final Value<String> normalizedName;
   final Value<String> colorHex;
+  final Value<bool> isArchived;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
   final Value<String> deviceId;
+  final Value<int> serverRevision;
   final Value<int> rowid;
   const TagsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.normalizedName = const Value.absent(),
     this.colorHex = const Value.absent(),
+    this.isArchived = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.serverRevision = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TagsCompanion.insert({
     required String id,
     required String name,
+    this.normalizedName = const Value.absent(),
     this.colorHex = const Value.absent(),
+    this.isArchived = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deletedAt = const Value.absent(),
     required String deviceId,
+    this.serverRevision = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -4252,21 +5146,27 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   static Insertable<Tag> custom({
     Expression<String>? id,
     Expression<String>? name,
+    Expression<String>? normalizedName,
     Expression<String>? colorHex,
+    Expression<bool>? isArchived,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
     Expression<String>? deviceId,
+    Expression<int>? serverRevision,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (normalizedName != null) 'normalized_name': normalizedName,
       if (colorHex != null) 'color_hex': colorHex,
+      if (isArchived != null) 'is_archived': isArchived,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (deviceId != null) 'device_id': deviceId,
+      if (serverRevision != null) 'server_revision': serverRevision,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4274,21 +5174,27 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   TagsCompanion copyWith({
     Value<String>? id,
     Value<String>? name,
+    Value<String>? normalizedName,
     Value<String>? colorHex,
+    Value<bool>? isArchived,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
     Value<String>? deviceId,
+    Value<int>? serverRevision,
     Value<int>? rowid,
   }) {
     return TagsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      normalizedName: normalizedName ?? this.normalizedName,
       colorHex: colorHex ?? this.colorHex,
+      isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
       deviceId: deviceId ?? this.deviceId,
+      serverRevision: serverRevision ?? this.serverRevision,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4302,8 +5208,14 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (normalizedName.present) {
+      map['normalized_name'] = Variable<String>(normalizedName.value);
+    }
     if (colorHex.present) {
       map['color_hex'] = Variable<String>(colorHex.value);
+    }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -4317,6 +5229,9 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (serverRevision.present) {
+      map['server_revision'] = Variable<int>(serverRevision.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4328,11 +5243,14 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     return (StringBuffer('TagsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('normalizedName: $normalizedName, ')
           ..write('colorHex: $colorHex, ')
+          ..write('isArchived: $isArchived, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4384,8 +5302,77 @@ class $TagLinksTable extends TagLinks with TableInfo<$TagLinksTable, TagLink> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, tagId, entityType, entityId];
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('legacy'),
+  );
+  static const VerificationMeta _serverRevisionMeta = const VerificationMeta(
+    'serverRevision',
+  );
+  @override
+  late final GeneratedColumn<int> serverRevision = GeneratedColumn<int>(
+    'server_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    tagId,
+    entityType,
+    entityId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    deviceId,
+    serverRevision,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4427,6 +5414,39 @@ class $TagLinksTable extends TagLinks with TableInfo<$TagLinksTable, TagLink> {
     } else if (isInserting) {
       context.missing(_entityIdMeta);
     }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('server_revision')) {
+      context.handle(
+        _serverRevisionMeta,
+        serverRevision.isAcceptableOrUnknown(
+          data['server_revision']!,
+          _serverRevisionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4452,6 +5472,26 @@ class $TagLinksTable extends TagLinks with TableInfo<$TagLinksTable, TagLink> {
         DriftSqlType.string,
         data['${effectivePrefix}entity_id'],
       )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      serverRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_revision'],
+      )!,
     );
   }
 
@@ -4466,11 +5506,21 @@ class TagLink extends DataClass implements Insertable<TagLink> {
   final String tagId;
   final String entityType;
   final String entityId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final String deviceId;
+  final int serverRevision;
   const TagLink({
     required this.id,
     required this.tagId,
     required this.entityType,
     required this.entityId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.deviceId,
+    required this.serverRevision,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4479,6 +5529,13 @@ class TagLink extends DataClass implements Insertable<TagLink> {
     map['tag_id'] = Variable<String>(tagId);
     map['entity_type'] = Variable<String>(entityType);
     map['entity_id'] = Variable<String>(entityId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['device_id'] = Variable<String>(deviceId);
+    map['server_revision'] = Variable<int>(serverRevision);
     return map;
   }
 
@@ -4488,6 +5545,13 @@ class TagLink extends DataClass implements Insertable<TagLink> {
       tagId: Value(tagId),
       entityType: Value(entityType),
       entityId: Value(entityId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      deviceId: Value(deviceId),
+      serverRevision: Value(serverRevision),
     );
   }
 
@@ -4501,6 +5565,11 @@ class TagLink extends DataClass implements Insertable<TagLink> {
       tagId: serializer.fromJson<String>(json['tagId']),
       entityType: serializer.fromJson<String>(json['entityType']),
       entityId: serializer.fromJson<String>(json['entityId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      serverRevision: serializer.fromJson<int>(json['serverRevision']),
     );
   }
   @override
@@ -4511,6 +5580,11 @@ class TagLink extends DataClass implements Insertable<TagLink> {
       'tagId': serializer.toJson<String>(tagId),
       'entityType': serializer.toJson<String>(entityType),
       'entityId': serializer.toJson<String>(entityId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'serverRevision': serializer.toJson<int>(serverRevision),
     };
   }
 
@@ -4519,11 +5593,21 @@ class TagLink extends DataClass implements Insertable<TagLink> {
     String? tagId,
     String? entityType,
     String? entityId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? deviceId,
+    int? serverRevision,
   }) => TagLink(
     id: id ?? this.id,
     tagId: tagId ?? this.tagId,
     entityType: entityType ?? this.entityType,
     entityId: entityId ?? this.entityId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    deviceId: deviceId ?? this.deviceId,
+    serverRevision: serverRevision ?? this.serverRevision,
   );
   TagLink copyWithCompanion(TagLinksCompanion data) {
     return TagLink(
@@ -4533,6 +5617,13 @@ class TagLink extends DataClass implements Insertable<TagLink> {
           ? data.entityType.value
           : this.entityType,
       entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      serverRevision: data.serverRevision.present
+          ? data.serverRevision.value
+          : this.serverRevision,
     );
   }
 
@@ -4542,13 +5633,28 @@ class TagLink extends DataClass implements Insertable<TagLink> {
           ..write('id: $id, ')
           ..write('tagId: $tagId, ')
           ..write('entityType: $entityType, ')
-          ..write('entityId: $entityId')
+          ..write('entityId: $entityId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, tagId, entityType, entityId);
+  int get hashCode => Object.hash(
+    id,
+    tagId,
+    entityType,
+    entityId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    deviceId,
+    serverRevision,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4556,7 +5662,12 @@ class TagLink extends DataClass implements Insertable<TagLink> {
           other.id == this.id &&
           other.tagId == this.tagId &&
           other.entityType == this.entityType &&
-          other.entityId == this.entityId);
+          other.entityId == this.entityId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.deviceId == this.deviceId &&
+          other.serverRevision == this.serverRevision);
 }
 
 class TagLinksCompanion extends UpdateCompanion<TagLink> {
@@ -4564,12 +5675,22 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
   final Value<String> tagId;
   final Value<String> entityType;
   final Value<String> entityId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<String> deviceId;
+  final Value<int> serverRevision;
   final Value<int> rowid;
   const TagLinksCompanion({
     this.id = const Value.absent(),
     this.tagId = const Value.absent(),
     this.entityType = const Value.absent(),
     this.entityId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.serverRevision = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TagLinksCompanion.insert({
@@ -4577,6 +5698,11 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
     required String tagId,
     required String entityType,
     required String entityId,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.serverRevision = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        tagId = Value(tagId),
@@ -4587,6 +5713,11 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
     Expression<String>? tagId,
     Expression<String>? entityType,
     Expression<String>? entityId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<String>? deviceId,
+    Expression<int>? serverRevision,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4594,6 +5725,11 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
       if (tagId != null) 'tag_id': tagId,
       if (entityType != null) 'entity_type': entityType,
       if (entityId != null) 'entity_id': entityId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (deviceId != null) 'device_id': deviceId,
+      if (serverRevision != null) 'server_revision': serverRevision,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4603,6 +5739,11 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
     Value<String>? tagId,
     Value<String>? entityType,
     Value<String>? entityId,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<String>? deviceId,
+    Value<int>? serverRevision,
     Value<int>? rowid,
   }) {
     return TagLinksCompanion(
@@ -4610,6 +5751,11 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
       tagId: tagId ?? this.tagId,
       entityType: entityType ?? this.entityType,
       entityId: entityId ?? this.entityId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deviceId: deviceId ?? this.deviceId,
+      serverRevision: serverRevision ?? this.serverRevision,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4629,6 +5775,21 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
     if (entityId.present) {
       map['entity_id'] = Variable<String>(entityId.value);
     }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (serverRevision.present) {
+      map['server_revision'] = Variable<int>(serverRevision.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4642,6 +5803,11 @@ class TagLinksCompanion extends UpdateCompanion<TagLink> {
           ..write('tagId: $tagId, ')
           ..write('entityType: $entityType, ')
           ..write('entityId: $entityId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('serverRevision: $serverRevision, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9121,6 +10287,7 @@ abstract class _$ZhixuDatabase extends GeneratedDatabase {
   _$ZhixuDatabase(QueryExecutor e) : super(e);
   $ZhixuDatabaseManager get managers => $ZhixuDatabaseManager(this);
   late final $TasksTable tasks = $TasksTable(this);
+  late final $TaskCategoriesTable taskCategories = $TaskCategoriesTable(this);
   late final $TaskItemsTable taskItems = $TaskItemsTable(this);
   late final $ScheduleBlocksTable scheduleBlocks = $ScheduleBlocksTable(this);
   late final $NotebooksTable notebooks = $NotebooksTable(this);
@@ -9142,6 +10309,7 @@ abstract class _$ZhixuDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     tasks,
+    taskCategories,
     taskItems,
     scheduleBlocks,
     notebooks,
@@ -9168,6 +10336,7 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<int> priority,
       Value<DateTime?> dueAt,
       Value<int> estimatedMinutes,
+      Value<String?> categoryId,
       Value<String?> repeatRule,
       Value<String?> parentTaskId,
       Value<String?> externalSource,
@@ -9191,6 +10360,7 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<int> priority,
       Value<DateTime?> dueAt,
       Value<int> estimatedMinutes,
+      Value<String?> categoryId,
       Value<String?> repeatRule,
       Value<String?> parentTaskId,
       Value<String?> externalSource,
@@ -9247,6 +10417,11 @@ class $$TasksTableFilterComposer
 
   ColumnFilters<int> get estimatedMinutes => $composableBuilder(
     column: $table.estimatedMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9355,6 +10530,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get repeatRule => $composableBuilder(
     column: $table.repeatRule,
     builder: (column) => ColumnOrderings(column),
@@ -9450,6 +10630,11 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get repeatRule => $composableBuilder(
     column: $table.repeatRule,
     builder: (column) => column,
@@ -9538,6 +10723,7 @@ class $$TasksTableTableManager
                 Value<int> priority = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> estimatedMinutes = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
                 Value<String?> externalSource = const Value.absent(),
@@ -9559,6 +10745,7 @@ class $$TasksTableTableManager
                 priority: priority,
                 dueAt: dueAt,
                 estimatedMinutes: estimatedMinutes,
+                categoryId: categoryId,
                 repeatRule: repeatRule,
                 parentTaskId: parentTaskId,
                 externalSource: externalSource,
@@ -9582,6 +10769,7 @@ class $$TasksTableTableManager
                 Value<int> priority = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> estimatedMinutes = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
                 Value<String?> repeatRule = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
                 Value<String?> externalSource = const Value.absent(),
@@ -9603,6 +10791,7 @@ class $$TasksTableTableManager
                 priority: priority,
                 dueAt: dueAt,
                 estimatedMinutes: estimatedMinutes,
+                categoryId: categoryId,
                 repeatRule: repeatRule,
                 parentTaskId: parentTaskId,
                 externalSource: externalSource,
@@ -9637,6 +10826,349 @@ typedef $$TasksTableProcessedTableManager =
       $$TasksTableUpdateCompanionBuilder,
       (Task, BaseReferences<_$ZhixuDatabase, $TasksTable, Task>),
       Task,
+      PrefetchHooks Function()
+    >;
+typedef $$TaskCategoriesTableCreateCompanionBuilder =
+    TaskCategoriesCompanion Function({
+      required String id,
+      required String name,
+      required String normalizedName,
+      Value<String> colorHex,
+      Value<String> source,
+      Value<DateTime?> lastSeenAt,
+      Value<bool> isArchived,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      required String deviceId,
+      Value<int> serverRevision,
+      Value<int> rowid,
+    });
+typedef $$TaskCategoriesTableUpdateCompanionBuilder =
+    TaskCategoriesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> normalizedName,
+      Value<String> colorHex,
+      Value<String> source,
+      Value<DateTime?> lastSeenAt,
+      Value<bool> isArchived,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> deviceId,
+      Value<int> serverRevision,
+      Value<int> rowid,
+    });
+
+class $$TaskCategoriesTableFilterComposer
+    extends Composer<_$ZhixuDatabase, $TaskCategoriesTable> {
+  $$TaskCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get normalizedName => $composableBuilder(
+    column: $table.normalizedName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get colorHex => $composableBuilder(
+    column: $table.colorHex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskCategoriesTableOrderingComposer
+    extends Composer<_$ZhixuDatabase, $TaskCategoriesTable> {
+  $$TaskCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get normalizedName => $composableBuilder(
+    column: $table.normalizedName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get colorHex => $composableBuilder(
+    column: $table.colorHex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskCategoriesTableAnnotationComposer
+    extends Composer<_$ZhixuDatabase, $TaskCategoriesTable> {
+  $$TaskCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get normalizedName => $composableBuilder(
+    column: $table.normalizedName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get colorHex =>
+      $composableBuilder(column: $table.colorHex, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSeenAt => $composableBuilder(
+    column: $table.lastSeenAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => column,
+  );
+}
+
+class $$TaskCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$ZhixuDatabase,
+          $TaskCategoriesTable,
+          TaskCategory,
+          $$TaskCategoriesTableFilterComposer,
+          $$TaskCategoriesTableOrderingComposer,
+          $$TaskCategoriesTableAnnotationComposer,
+          $$TaskCategoriesTableCreateCompanionBuilder,
+          $$TaskCategoriesTableUpdateCompanionBuilder,
+          (
+            TaskCategory,
+            BaseReferences<_$ZhixuDatabase, $TaskCategoriesTable, TaskCategory>,
+          ),
+          TaskCategory,
+          PrefetchHooks Function()
+        > {
+  $$TaskCategoriesTableTableManager(
+    _$ZhixuDatabase db,
+    $TaskCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> normalizedName = const Value.absent(),
+                Value<String> colorHex = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<DateTime?> lastSeenAt = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskCategoriesCompanion(
+                id: id,
+                name: name,
+                normalizedName: normalizedName,
+                colorHex: colorHex,
+                source: source,
+                lastSeenAt: lastSeenAt,
+                isArchived: isArchived,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                deviceId: deviceId,
+                serverRevision: serverRevision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String normalizedName,
+                Value<String> colorHex = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<DateTime?> lastSeenAt = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                required String deviceId,
+                Value<int> serverRevision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskCategoriesCompanion.insert(
+                id: id,
+                name: name,
+                normalizedName: normalizedName,
+                colorHex: colorHex,
+                source: source,
+                lastSeenAt: lastSeenAt,
+                isArchived: isArchived,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                deviceId: deviceId,
+                serverRevision: serverRevision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ZhixuDatabase,
+      $TaskCategoriesTable,
+      TaskCategory,
+      $$TaskCategoriesTableFilterComposer,
+      $$TaskCategoriesTableOrderingComposer,
+      $$TaskCategoriesTableAnnotationComposer,
+      $$TaskCategoriesTableCreateCompanionBuilder,
+      $$TaskCategoriesTableUpdateCompanionBuilder,
+      (
+        TaskCategory,
+        BaseReferences<_$ZhixuDatabase, $TaskCategoriesTable, TaskCategory>,
+      ),
+      TaskCategory,
       PrefetchHooks Function()
     >;
 typedef $$TaskItemsTableCreateCompanionBuilder =
@@ -11025,22 +12557,28 @@ typedef $$TagsTableCreateCompanionBuilder =
     TagsCompanion Function({
       required String id,
       required String name,
+      Value<String> normalizedName,
       Value<String> colorHex,
+      Value<bool> isArchived,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<DateTime?> deletedAt,
       required String deviceId,
+      Value<int> serverRevision,
       Value<int> rowid,
     });
 typedef $$TagsTableUpdateCompanionBuilder =
     TagsCompanion Function({
       Value<String> id,
       Value<String> name,
+      Value<String> normalizedName,
       Value<String> colorHex,
+      Value<bool> isArchived,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
       Value<String> deviceId,
+      Value<int> serverRevision,
       Value<int> rowid,
     });
 
@@ -11062,8 +12600,18 @@ class $$TagsTableFilterComposer extends Composer<_$ZhixuDatabase, $TagsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get normalizedName => $composableBuilder(
+    column: $table.normalizedName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get colorHex => $composableBuilder(
     column: $table.colorHex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11084,6 +12632,11 @@ class $$TagsTableFilterComposer extends Composer<_$ZhixuDatabase, $TagsTable> {
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11107,8 +12660,18 @@ class $$TagsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get normalizedName => $composableBuilder(
+    column: $table.normalizedName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get colorHex => $composableBuilder(
     column: $table.colorHex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -11131,6 +12694,11 @@ class $$TagsTableOrderingComposer
     column: $table.deviceId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TagsTableAnnotationComposer
@@ -11148,8 +12716,18 @@ class $$TagsTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
+  GeneratedColumn<String> get normalizedName => $composableBuilder(
+    column: $table.normalizedName,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get colorHex =>
       $composableBuilder(column: $table.colorHex, builder: (column) => column);
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11162,6 +12740,11 @@ class $$TagsTableAnnotationComposer
 
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => column,
+  );
 }
 
 class $$TagsTableTableManager
@@ -11194,40 +12777,52 @@ class $$TagsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String> normalizedName = const Value.absent(),
                 Value<String> colorHex = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagsCompanion(
                 id: id,
                 name: name,
+                normalizedName: normalizedName,
                 colorHex: colorHex,
+                isArchived: isArchived,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
                 deviceId: deviceId,
+                serverRevision: serverRevision,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
                 required String name,
+                Value<String> normalizedName = const Value.absent(),
                 Value<String> colorHex = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
                 required String deviceId,
+                Value<int> serverRevision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagsCompanion.insert(
                 id: id,
                 name: name,
+                normalizedName: normalizedName,
                 colorHex: colorHex,
+                isArchived: isArchived,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
                 deviceId: deviceId,
+                serverRevision: serverRevision,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -11258,6 +12853,11 @@ typedef $$TagLinksTableCreateCompanionBuilder =
       required String tagId,
       required String entityType,
       required String entityId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> deviceId,
+      Value<int> serverRevision,
       Value<int> rowid,
     });
 typedef $$TagLinksTableUpdateCompanionBuilder =
@@ -11266,6 +12866,11 @@ typedef $$TagLinksTableUpdateCompanionBuilder =
       Value<String> tagId,
       Value<String> entityType,
       Value<String> entityId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> deviceId,
+      Value<int> serverRevision,
       Value<int> rowid,
     });
 
@@ -11295,6 +12900,31 @@ class $$TagLinksTableFilterComposer
 
   ColumnFilters<String> get entityId => $composableBuilder(
     column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11327,6 +12957,31 @@ class $$TagLinksTableOrderingComposer
     column: $table.entityId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TagLinksTableAnnotationComposer
@@ -11351,6 +13006,23 @@ class $$TagLinksTableAnnotationComposer
 
   GeneratedColumn<String> get entityId =>
       $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => column,
+  );
 }
 
 class $$TagLinksTableTableManager
@@ -11385,12 +13057,22 @@ class $$TagLinksTableTableManager
                 Value<String> tagId = const Value.absent(),
                 Value<String> entityType = const Value.absent(),
                 Value<String> entityId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagLinksCompanion(
                 id: id,
                 tagId: tagId,
                 entityType: entityType,
                 entityId: entityId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                deviceId: deviceId,
+                serverRevision: serverRevision,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11399,12 +13081,22 @@ class $$TagLinksTableTableManager
                 required String tagId,
                 required String entityType,
                 required String entityId,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TagLinksCompanion.insert(
                 id: id,
                 tagId: tagId,
                 entityType: entityType,
                 entityId: entityId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                deviceId: deviceId,
+                serverRevision: serverRevision,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -13606,6 +15298,8 @@ class $ZhixuDatabaseManager {
   $ZhixuDatabaseManager(this._db);
   $$TasksTableTableManager get tasks =>
       $$TasksTableTableManager(_db, _db.tasks);
+  $$TaskCategoriesTableTableManager get taskCategories =>
+      $$TaskCategoriesTableTableManager(_db, _db.taskCategories);
   $$TaskItemsTableTableManager get taskItems =>
       $$TaskItemsTableTableManager(_db, _db.taskItems);
   $$ScheduleBlocksTableTableManager get scheduleBlocks =>

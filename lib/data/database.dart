@@ -18,12 +18,31 @@ class Tasks extends Table {
   IntColumn get priority => integer().withDefault(const Constant(1))();
   DateTimeColumn get dueAt => dateTime().nullable()();
   IntColumn get estimatedMinutes => integer().withDefault(const Constant(0))();
+  TextColumn get categoryId => text().nullable()();
   TextColumn get repeatRule => text().nullable()();
   TextColumn get parentTaskId => text().nullable()();
   TextColumn get externalSource => text().nullable()();
   TextColumn get externalKey => text().nullable()();
   TextColumn get createdByImportBatchId => text().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  TextColumn get deviceId => text()();
+  IntColumn get serverRevision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class TaskCategories extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get normalizedName => text()();
+  TextColumn get colorHex => text().withDefault(const Constant('#175CD3'))();
+  TextColumn get source => text().withDefault(const Constant('tomatodo'))();
+  DateTimeColumn get lastSeenAt => dateTime().nullable()();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -113,11 +132,14 @@ class NoteVersions extends Table {
 class Tags extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
+  TextColumn get normalizedName => text().withDefault(const Constant(''))();
   TextColumn get colorHex => text().withDefault(const Constant('#38BDF8'))();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get deviceId => text()();
+  IntColumn get serverRevision => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -128,6 +150,11 @@ class TagLinks extends Table {
   TextColumn get tagId => text()();
   TextColumn get entityType => text()();
   TextColumn get entityId => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  TextColumn get deviceId => text().withDefault(const Constant('legacy'))();
+  IntColumn get serverRevision => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -255,6 +282,7 @@ class SyncCursors extends Table {
 @DriftDatabase(
   tables: [
     Tasks,
+    TaskCategories,
     TaskItems,
     ScheduleBlocks,
     Notebooks,
@@ -275,7 +303,7 @@ class ZhixuDatabase extends _$ZhixuDatabase {
   ZhixuDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -284,6 +312,7 @@ class ZhixuDatabase extends _$ZhixuDatabase {
       await customStatement(
         'CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(id UNINDEXED, entity_type UNINDEXED, title, body)',
       );
+      await _createV5Indexes();
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
@@ -314,8 +343,36 @@ class ZhixuDatabase extends _$ZhixuDatabase {
           "UPDATE tasks SET is_archived = 1, deleted_at = COALESCE(deleted_at, updated_at) WHERE external_source = 'tomatodo'",
         );
       }
+      if (from < 5) {
+        await m.createTable(taskCategories);
+        await m.addColumn(tasks, tasks.categoryId);
+        await m.addColumn(tags, tags.normalizedName);
+        await m.addColumn(tags, tags.isArchived);
+        await m.addColumn(tags, tags.serverRevision);
+        await m.addColumn(tagLinks, tagLinks.createdAt);
+        await m.addColumn(tagLinks, tagLinks.updatedAt);
+        await m.addColumn(tagLinks, tagLinks.deletedAt);
+        await m.addColumn(tagLinks, tagLinks.deviceId);
+        await m.addColumn(tagLinks, tagLinks.serverRevision);
+        await customStatement(
+          "UPDATE tags SET normalized_name = lower(trim(name)) WHERE normalized_name = ''",
+        );
+        await _createV5Indexes();
+      }
     },
   );
+
+  Future<void> _createV5Indexes() async {
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS task_categories_active_name_idx ON task_categories(source, normalized_name) WHERE deleted_at IS NULL',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS tags_active_name_idx ON tags(normalized_name) WHERE deleted_at IS NULL',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS tag_links_active_entity_idx ON tag_links(tag_id, entity_type, entity_id) WHERE deleted_at IS NULL',
+    );
+  }
 
   static Future<ZhixuDatabase> open() async {
     final dir = await getApplicationSupportDirectory();

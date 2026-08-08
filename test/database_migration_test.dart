@@ -4,7 +4,7 @@ import 'package:zhixu/data/database.dart';
 import 'package:zhixu/data/repository.dart';
 
 void main() {
-  test('schema v2 升级到 v4 删除专题并解耦番茄任务', () async {
+  test('schema v2 升级到 v5 保留任务并生成番茄分类', () async {
     final database = ZhixuDatabase(
       NativeDatabase.memory(
         setup: (raw) {
@@ -68,6 +68,20 @@ void main() {
               import_batch_id TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
               deleted_at INTEGER, device_id TEXT NOT NULL,
               server_revision INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+          raw.execute('''
+            CREATE TABLE tags (
+              id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
+              color_hex TEXT NOT NULL DEFAULT '#38BDF8',
+              created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+              deleted_at INTEGER, device_id TEXT NOT NULL
+            )
+          ''');
+          raw.execute('''
+            CREATE TABLE tag_links (
+              id TEXT PRIMARY KEY NOT NULL, tag_id TEXT NOT NULL,
+              entity_type TEXT NOT NULL, entity_id TEXT NOT NULL
             )
           ''');
           raw.execute('''
@@ -151,6 +165,10 @@ void main() {
     expect(autoTask.isArchived, isTrue);
     expect(autoTask.deletedAt, isNotNull);
     expect((await repository.watchLifeEvents().first).single.title, '起床');
+    final categories = await repository.watchTaskCategories().first;
+    expect(categories, hasLength(1));
+    expect(categories.single.name, 'vibe coding');
+    expect(categories.single.isArchived, isFalse);
     final projectTable = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'",
@@ -166,6 +184,20 @@ void main() {
         isNot(contains('project_id')),
       );
     }
+    final taskColumns = await database
+        .customSelect('PRAGMA table_info(tasks)')
+        .get();
+    expect(
+      taskColumns.map((row) => row.read<String>('name')),
+      contains('category_id'),
+    );
+    final tagColumns = await database
+        .customSelect('PRAGMA table_info(tags)')
+        .get();
+    expect(
+      tagColumns.map((row) => row.read<String>('name')),
+      containsAll(['normalized_name', 'is_archived', 'server_revision']),
+    );
     await database.close();
   });
 }

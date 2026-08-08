@@ -9,10 +9,11 @@ import 'package:zhixu/ui/pages/settings_page.dart';
 void main() {
   testWidgets('设置页展示完整的更新状态和动态版本', (tester) async {
     final service = _TestUpdateService();
+    final database = ZhixuDatabase.memory();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          databaseProvider.overrideWithValue(ZhixuDatabase.memory()),
+          databaseProvider.overrideWithValue(database),
           updateServiceProvider.overrideWith((ref) => service),
         ],
         child: const MaterialApp(home: Scaffold(body: SettingsPage())),
@@ -50,6 +51,8 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
+    await tester.pump(Duration.zero);
+    await database.close();
   });
 }
 

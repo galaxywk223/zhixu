@@ -16,6 +16,8 @@ class TaskDraft {
     this.dueAt,
     this.estimatedMinutes = 0,
     this.repeatRule,
+    this.categoryId,
+    this.tagIds = const {},
   });
 
   final String title;
@@ -24,6 +26,8 @@ class TaskDraft {
   final DateTime? dueAt;
   final int estimatedMinutes;
   final String? repeatRule;
+  final String? categoryId;
+  final Set<String> tagIds;
 }
 
 class NoteDraft {
@@ -152,6 +156,66 @@ class ZhixuRepository {
     return query.watch();
   }
 
+  Stream<List<TaskCategory>> watchTaskCategories({
+    bool includeArchived = true,
+  }) {
+    final query = db.select(db.taskCategories)
+      ..where(
+        (row) =>
+            row.deletedAt.isNull() &
+            (includeArchived
+                ? const Constant(true)
+                : row.isArchived.equals(false)),
+      )
+      ..orderBy([
+        (row) => OrderingTerm(expression: row.isArchived),
+        (row) => OrderingTerm(expression: row.name),
+      ]);
+    return query.watch();
+  }
+
+  Stream<List<Tag>> watchTags() =>
+      (db.select(db.tags)
+            ..where(
+              (row) => row.deletedAt.isNull() & row.isArchived.equals(false),
+            )
+            ..orderBy([(row) => OrderingTerm(expression: row.name)]))
+          .watch();
+
+  Stream<List<TagLink>> watchTaskTagLinks() =>
+      (db.select(db.tagLinks)..where(
+            (row) => row.deletedAt.isNull() & row.entityType.equals('task'),
+          ))
+          .watch();
+
+  Future<List<TaskCategory>> taskCategories() =>
+      (db.select(db.taskCategories)
+            ..where((row) => row.deletedAt.isNull())
+            ..orderBy([
+              (row) => OrderingTerm(expression: row.isArchived),
+              (row) => OrderingTerm(expression: row.name),
+            ]))
+          .get();
+
+  Future<List<Tag>> activeTags() =>
+      (db.select(db.tags)
+            ..where(
+              (row) => row.deletedAt.isNull() & row.isArchived.equals(false),
+            )
+            ..orderBy([(row) => OrderingTerm(expression: row.name)]))
+          .get();
+
+  Future<Set<String>> tagIdsForTask(String taskId) async =>
+      (await (db.select(db.tagLinks)..where(
+                (row) =>
+                    row.deletedAt.isNull() &
+                    row.entityType.equals('task') &
+                    row.entityId.equals(taskId),
+              ))
+              .get())
+          .map((row) => row.tagId)
+          .toSet();
+
   Stream<List<Note>> watchNotes() =>
       (db.select(db.notes)..where((row) => row.deletedAt.isNull())).watch();
 
@@ -222,42 +286,68 @@ class ZhixuRepository {
   Future<String> createTask(TaskDraft draft) async {
     final now = DateTime.now().toUtc();
     final id = db.newId();
-    await db
-        .into(db.tasks)
-        .insert(
-          TasksCompanion.insert(
-            id: id,
-            title: draft.title.trim(),
-            descriptionMd: Value(draft.descriptionMd),
-            priority: Value(draft.priority),
-            dueAt: Value(draft.dueAt?.toUtc()),
-            estimatedMinutes: Value(draft.estimatedMinutes),
-            repeatRule: Value(draft.repeatRule),
-            createdAt: now,
-            updatedAt: now,
-            deviceId: deviceId,
-          ),
-        );
+    final changedLinks = <String>{};
+    await db.transaction(() async {
+      await db
+          .into(db.tasks)
+          .insert(
+            TasksCompanion.insert(
+              id: id,
+              title: draft.title.trim(),
+              descriptionMd: Value(draft.descriptionMd),
+              priority: Value(draft.priority),
+              dueAt: Value(draft.dueAt?.toUtc()),
+              estimatedMinutes: Value(draft.estimatedMinutes),
+              categoryId: Value(draft.categoryId),
+              repeatRule: Value(draft.repeatRule),
+              createdAt: now,
+              updatedAt: now,
+              deviceId: deviceId,
+            ),
+          );
+      await _setTaskTags(id, draft.tagIds, now, changedLinks);
+    });
     await _enqueue('task', id, 'upsert', await taskPayload(id));
+    for (final linkId in changedLinks) {
+      await _enqueue(
+        'tag_link',
+        linkId,
+        'upsert',
+        await tagLinkPayload(linkId),
+      );
+    }
     await db.rebuildSearchIndex();
     return id;
   }
 
   Future<void> updateTask(String id, TaskDraft draft) async {
     final now = DateTime.now().toUtc();
-    await (db.update(db.tasks)..where((row) => row.id.equals(id))).write(
-      TasksCompanion(
-        title: Value(draft.title.trim()),
-        descriptionMd: Value(draft.descriptionMd),
-        priority: Value(draft.priority),
-        dueAt: Value(draft.dueAt?.toUtc()),
-        estimatedMinutes: Value(draft.estimatedMinutes),
-        repeatRule: Value(draft.repeatRule),
-        updatedAt: Value(now),
-        deviceId: Value(deviceId),
-      ),
-    );
+    final changedLinks = <String>{};
+    await db.transaction(() async {
+      await (db.update(db.tasks)..where((row) => row.id.equals(id))).write(
+        TasksCompanion(
+          title: Value(draft.title.trim()),
+          descriptionMd: Value(draft.descriptionMd),
+          priority: Value(draft.priority),
+          dueAt: Value(draft.dueAt?.toUtc()),
+          estimatedMinutes: Value(draft.estimatedMinutes),
+          categoryId: Value(draft.categoryId),
+          repeatRule: Value(draft.repeatRule),
+          updatedAt: Value(now),
+          deviceId: Value(deviceId),
+        ),
+      );
+      await _setTaskTags(id, draft.tagIds, now, changedLinks);
+    });
     await _enqueue('task', id, 'upsert', await taskPayload(id));
+    for (final linkId in changedLinks) {
+      await _enqueue(
+        'tag_link',
+        linkId,
+        'upsert',
+        await tagLinkPayload(linkId),
+      );
+    }
     await db.rebuildSearchIndex();
   }
 
@@ -285,6 +375,159 @@ class ZhixuRepository {
     );
     await _enqueue('task', id, 'delete', await taskPayload(id));
     await db.rebuildSearchIndex();
+  }
+
+  Future<String> createTag(String name, String colorHex) async {
+    final normalized = _normalizeLabel(name);
+    if (normalized.isEmpty) throw ArgumentError('标签名称不能为空');
+    final existing =
+        await (db.select(db.tags)..where(
+              (row) =>
+                  row.deletedAt.isNull() &
+                  row.normalizedName.equals(normalized),
+            ))
+            .getSingleOrNull();
+    if (existing != null) return existing.id;
+    final id = db.newId();
+    final now = DateTime.now().toUtc();
+    await db
+        .into(db.tags)
+        .insert(
+          TagsCompanion.insert(
+            id: id,
+            name: name.trim(),
+            normalizedName: Value(normalized),
+            colorHex: Value(colorHex),
+            createdAt: now,
+            updatedAt: now,
+            deviceId: deviceId,
+          ),
+        );
+    await _enqueue('tag', id, 'upsert', await tagPayload(id));
+    return id;
+  }
+
+  Future<void> updateTag(String id, String name, String colorHex) async {
+    final normalized = _normalizeLabel(name);
+    if (normalized.isEmpty) throw ArgumentError('标签名称不能为空');
+    final duplicate =
+        await (db.select(db.tags)..where(
+              (row) =>
+                  row.id.equals(id).not() &
+                  row.deletedAt.isNull() &
+                  row.normalizedName.equals(normalized),
+            ))
+            .getSingleOrNull();
+    if (duplicate != null) throw StateError('已存在同名标签');
+    await (db.update(db.tags)..where((row) => row.id.equals(id))).write(
+      TagsCompanion(
+        name: Value(name.trim()),
+        normalizedName: Value(normalized),
+        colorHex: Value(colorHex),
+        updatedAt: Value(DateTime.now().toUtc()),
+        deviceId: Value(deviceId),
+      ),
+    );
+    await _enqueue('tag', id, 'upsert', await tagPayload(id));
+  }
+
+  Future<void> deleteTag(String id) async {
+    final now = DateTime.now().toUtc();
+    final changedLinks = <String>{};
+    await db.transaction(() async {
+      await (db.update(db.tags)..where((row) => row.id.equals(id))).write(
+        TagsCompanion(
+          isArchived: const Value(true),
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          deviceId: Value(deviceId),
+        ),
+      );
+      final links = await (db.select(
+        db.tagLinks,
+      )..where((row) => row.tagId.equals(id) & row.deletedAt.isNull())).get();
+      for (final link in links) {
+        await (db.update(
+          db.tagLinks,
+        )..where((row) => row.id.equals(link.id))).write(
+          TagLinksCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            deviceId: Value(deviceId),
+          ),
+        );
+        changedLinks.add(link.id);
+      }
+    });
+    await _enqueue('tag', id, 'delete', await tagPayload(id));
+    for (final linkId in changedLinks) {
+      await _enqueue(
+        'tag_link',
+        linkId,
+        'delete',
+        await tagLinkPayload(linkId),
+      );
+    }
+  }
+
+  Future<void> _setTaskTags(
+    String taskId,
+    Set<String> desired,
+    DateTime now,
+    Set<String> changed,
+  ) async {
+    final links =
+        await (db.select(db.tagLinks)..where(
+              (row) =>
+                  row.entityType.equals('task') & row.entityId.equals(taskId),
+            ))
+            .get();
+    final byTag = {for (final link in links) link.tagId: link};
+    for (final link in links.where(
+      (item) => item.deletedAt == null && !desired.contains(item.tagId),
+    )) {
+      await (db.update(
+        db.tagLinks,
+      )..where((row) => row.id.equals(link.id))).write(
+        TagLinksCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          deviceId: Value(deviceId),
+        ),
+      );
+      changed.add(link.id);
+    }
+    for (final tagId in desired) {
+      final existing = byTag[tagId];
+      if (existing == null) {
+        final id = db.newId();
+        await db
+            .into(db.tagLinks)
+            .insert(
+              TagLinksCompanion.insert(
+                id: id,
+                tagId: tagId,
+                entityType: 'task',
+                entityId: taskId,
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                deviceId: Value(deviceId),
+              ),
+            );
+        changed.add(id);
+      } else if (existing.deletedAt != null) {
+        await (db.update(
+          db.tagLinks,
+        )..where((row) => row.id.equals(existing.id))).write(
+          TagLinksCompanion(
+            deletedAt: const Value(null),
+            updatedAt: Value(now),
+            deviceId: Value(deviceId),
+          ),
+        );
+        changed.add(existing.id);
+      }
+    }
   }
 
   Future<String> createNote(NoteDraft draft) async {
@@ -412,6 +655,9 @@ class ZhixuRepository {
     final now = DateTime.now().toUtc();
     final changedFocus = <String>{};
     final changedLifeEvents = <String>{};
+    final changedCategories = <String>{};
+    final changedTasks = <String>{};
+    final renamedFocusItems = <(String, String)>{};
     await db.transaction(() async {
       await db
           .into(db.importBatches)
@@ -432,6 +678,12 @@ class ZhixuRepository {
       for (final session in sessions.where(
         (item) => item.durationMinutes > 0,
       )) {
+        final beforeMatches = await _matchingFocusSessions(session);
+        final oldName = _firstOrNull(
+          beforeMatches
+              .where((row) => row.deletedAt == null)
+              .map((row) => row.taskName),
+        );
         final outcome = await _upsertImportedFocus(
           batchId: batchId,
           session: session,
@@ -445,6 +697,10 @@ class ZhixuRepository {
           updated++;
         } else {
           skipped++;
+        }
+        if (oldName != null &&
+            _normalizeLabel(oldName) != _normalizeLabel(session.taskName)) {
+          renamedFocusItems.add((oldName, session.taskName));
         }
         if (outcome.$2 != null) changedFocus.add(outcome.$2!);
       }
@@ -468,6 +724,13 @@ class ZhixuRepository {
         }
         if (outcome.$2 != null) changedLifeEvents.add(outcome.$2!);
       }
+      await _reconcileTomatoCategories(
+        now: now,
+        batchId: batchId,
+        renamePairs: renamedFocusItems,
+        changedCategoryIds: changedCategories,
+        changedTaskIds: changedTasks,
+      );
       await (db.update(
         db.importBatches,
       )..where((row) => row.id.equals(batchId))).write(
@@ -482,6 +745,17 @@ class ZhixuRepository {
     }
     for (final id in changedLifeEvents) {
       await _enqueue('life_event', id, 'upsert', await lifeEventPayload(id));
+    }
+    for (final id in changedCategories) {
+      await _enqueue(
+        'task_category',
+        id,
+        'upsert',
+        await taskCategoryPayload(id),
+      );
+    }
+    for (final id in changedTasks) {
+      await _enqueue('task', id, 'upsert', await taskPayload(id));
     }
     await db.rebuildSearchIndex();
     return ImportResult(
@@ -589,6 +863,18 @@ class ZhixuRepository {
               );
               syncChanges.add(('task', change.entityId, 'delete'));
             }
+          } else if (change.entityType == 'task_category') {
+            await (db.update(
+              db.taskCategories,
+            )..where((row) => row.id.equals(change.entityId))).write(
+              TaskCategoriesCompanion(
+                isArchived: const Value(true),
+                deletedAt: Value(now),
+                updatedAt: Value(now),
+                deviceId: Value(deviceId),
+              ),
+            );
+            syncChanges.add(('task_category', change.entityId, 'delete'));
           }
         } else if (change.beforeJson != null) {
           final before = jsonDecode(change.beforeJson!) as Map<String, dynamic>;
@@ -607,6 +893,22 @@ class ZhixuRepository {
                 .into(db.tasks)
                 .insertOnConflictUpdate(_taskCompanion(before));
             syncChanges.add(('task', change.entityId, 'upsert'));
+          } else if (change.entityType == 'task_category') {
+            await db.taskCategories.insertOnConflictUpdate(
+              _taskCategoryCompanion(before),
+            );
+            syncChanges.add(('task_category', change.entityId, 'upsert'));
+          } else if (change.entityType == 'task_category_assignment') {
+            await (db.update(
+              db.tasks,
+            )..where((row) => row.id.equals(change.entityId))).write(
+              TasksCompanion(
+                categoryId: Value(before['category_id'] as String?),
+                updatedAt: Value(now),
+                deviceId: Value(deviceId),
+              ),
+            );
+            syncChanges.add(('task', change.entityId, 'upsert'));
           }
         }
       }
@@ -621,6 +923,7 @@ class ZhixuRepository {
         'task' => await taskPayload(change.$2),
         'focus_session' => await focusPayload(change.$2),
         'life_event' => await lifeEventPayload(change.$2),
+        'task_category' => await taskCategoryPayload(change.$2),
         _ => null,
       };
       await _enqueue(change.$1, change.$2, change.$3, payload);
@@ -929,10 +1232,251 @@ class ZhixuRepository {
         ),
       );
 
+  Future<void> _reconcileTomatoCategories({
+    required DateTime now,
+    required Set<String> changedCategoryIds,
+    required Set<String> changedTaskIds,
+    String? batchId,
+    Set<(String, String)> renamePairs = const {},
+  }) async {
+    final focusRows =
+        await (db.select(db.focusSessions)..where(
+              (row) =>
+                  row.source.equals('tomatodo') &
+                  row.deletedAt.isNull() &
+                  row.durationMinutes.isBiggerThanValue(0),
+            ))
+            .get();
+    final active = <String, List<FocusSession>>{};
+    for (final row in focusRows) {
+      active.putIfAbsent(_normalizeLabel(row.taskName), () => []).add(row);
+    }
+    for (final rows in active.values) {
+      rows.sort((a, b) => b.startAt.compareTo(a.startAt));
+    }
+
+    var categories =
+        await (db.select(db.taskCategories)..where(
+              (row) => row.source.equals('tomatodo') & row.deletedAt.isNull(),
+            ))
+            .get();
+    for (final pair in renamePairs) {
+      final oldKey = _normalizeLabel(pair.$1);
+      final newKey = _normalizeLabel(pair.$2);
+      if (oldKey == newKey || active.containsKey(oldKey)) continue;
+      final oldCategory = _firstOrNull(
+        categories.where((item) => item.normalizedName == oldKey),
+      );
+      if (oldCategory == null || !active.containsKey(newKey)) continue;
+      final target = _firstOrNull(
+        categories.where(
+          (item) => item.id != oldCategory.id && item.normalizedName == newKey,
+        ),
+      );
+      if (target == null) {
+        final before = _taskCategoryJson(oldCategory);
+        await (db.update(
+          db.taskCategories,
+        )..where((row) => row.id.equals(oldCategory.id))).write(
+          TaskCategoriesCompanion(
+            name: Value(active[newKey]!.first.taskName.trim()),
+            normalizedName: Value(newKey),
+            lastSeenAt: Value(active[newKey]!.first.startAt),
+            isArchived: const Value(false),
+            updatedAt: Value(now),
+            deviceId: Value(deviceId),
+          ),
+        );
+        final after = await (db.select(
+          db.taskCategories,
+        )..where((row) => row.id.equals(oldCategory.id))).getSingle();
+        if (batchId != null) {
+          await _recordImportChange(
+            batchId,
+            'task_category',
+            oldCategory.id,
+            'update',
+            before,
+            _taskCategoryJson(after),
+            now,
+          );
+        }
+        changedCategoryIds.add(oldCategory.id);
+      } else {
+        final tasks =
+            await (db.select(db.tasks)..where(
+                  (row) =>
+                      row.deletedAt.isNull() &
+                      row.categoryId.equals(oldCategory.id),
+                ))
+                .get();
+        for (final task in tasks) {
+          if (batchId != null) {
+            await _recordImportChange(
+              batchId,
+              'task_category_assignment',
+              task.id,
+              'update',
+              {'category_id': oldCategory.id},
+              {'category_id': target.id},
+              now,
+            );
+          }
+          await (db.update(
+            db.tasks,
+          )..where((row) => row.id.equals(task.id))).write(
+            TasksCompanion(
+              categoryId: Value(target.id),
+              updatedAt: Value(now),
+              deviceId: Value(deviceId),
+            ),
+          );
+          changedTaskIds.add(task.id);
+        }
+        final before = _taskCategoryJson(oldCategory);
+        await (db.update(
+          db.taskCategories,
+        )..where((row) => row.id.equals(oldCategory.id))).write(
+          TaskCategoriesCompanion(
+            isArchived: const Value(true),
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            deviceId: Value(deviceId),
+          ),
+        );
+        final after = await (db.select(
+          db.taskCategories,
+        )..where((row) => row.id.equals(oldCategory.id))).getSingle();
+        if (batchId != null) {
+          await _recordImportChange(
+            batchId,
+            'task_category',
+            oldCategory.id,
+            'update',
+            before,
+            _taskCategoryJson(after),
+            now,
+          );
+        }
+        changedCategoryIds.add(oldCategory.id);
+      }
+      categories =
+          await (db.select(db.taskCategories)..where(
+                (row) => row.source.equals('tomatodo') & row.deletedAt.isNull(),
+              ))
+              .get();
+    }
+
+    for (final entry in active.entries) {
+      final existing = _firstOrNull(
+        categories.where((item) => item.normalizedName == entry.key),
+      );
+      final latest = entry.value.first;
+      if (existing == null) {
+        final id = db.newId();
+        await db
+            .into(db.taskCategories)
+            .insert(
+              TaskCategoriesCompanion.insert(
+                id: id,
+                name: latest.taskName.trim(),
+                normalizedName: entry.key,
+                colorHex: Value(_categoryColor(entry.key)),
+                lastSeenAt: Value(latest.startAt),
+                createdAt: now,
+                updatedAt: now,
+                deviceId: deviceId,
+              ),
+            );
+        final inserted = await (db.select(
+          db.taskCategories,
+        )..where((row) => row.id.equals(id))).getSingle();
+        if (batchId != null) {
+          await _recordImportChange(
+            batchId,
+            'task_category',
+            id,
+            'insert',
+            null,
+            _taskCategoryJson(inserted),
+            now,
+          );
+        }
+        changedCategoryIds.add(id);
+      } else if (existing.name != latest.taskName.trim() ||
+          existing.lastSeenAt != latest.startAt ||
+          existing.isArchived) {
+        final before = _taskCategoryJson(existing);
+        await (db.update(
+          db.taskCategories,
+        )..where((row) => row.id.equals(existing.id))).write(
+          TaskCategoriesCompanion(
+            name: Value(latest.taskName.trim()),
+            lastSeenAt: Value(latest.startAt),
+            isArchived: const Value(false),
+            updatedAt: Value(now),
+            deviceId: Value(deviceId),
+          ),
+        );
+        final after = await (db.select(
+          db.taskCategories,
+        )..where((row) => row.id.equals(existing.id))).getSingle();
+        if (batchId != null) {
+          await _recordImportChange(
+            batchId,
+            'task_category',
+            existing.id,
+            'update',
+            before,
+            _taskCategoryJson(after),
+            now,
+          );
+        }
+        changedCategoryIds.add(existing.id);
+      }
+    }
+
+    categories =
+        await (db.select(db.taskCategories)..where(
+              (row) => row.source.equals('tomatodo') & row.deletedAt.isNull(),
+            ))
+            .get();
+    for (final category in categories.where(
+      (item) => !active.containsKey(item.normalizedName) && !item.isArchived,
+    )) {
+      final before = _taskCategoryJson(category);
+      await (db.update(
+        db.taskCategories,
+      )..where((row) => row.id.equals(category.id))).write(
+        TaskCategoriesCompanion(
+          isArchived: const Value(true),
+          updatedAt: Value(now),
+          deviceId: Value(deviceId),
+        ),
+      );
+      final after = await (db.select(
+        db.taskCategories,
+      )..where((row) => row.id.equals(category.id))).getSingle();
+      if (batchId != null) {
+        await _recordImportChange(
+          batchId,
+          'task_category',
+          category.id,
+          'update',
+          before,
+          _taskCategoryJson(after),
+          now,
+        );
+      }
+      changedCategoryIds.add(category.id);
+    }
+  }
+
   Future<void> reconcileLegacyTomatoData() async {
     final changedTasks = <String>{};
     final changedFocus = <String>{};
     final changedLifeEvents = <String>{};
+    final changedCategories = <String>{};
     await db.transaction(() async {
       final now = DateTime.now().toUtc();
       final existingRows =
@@ -1180,6 +1724,11 @@ class ZhixuRepository {
         );
         changedTasks.add(task.id);
       }
+      await _reconcileTomatoCategories(
+        now: now,
+        changedCategoryIds: changedCategories,
+        changedTaskIds: changedTasks,
+      );
     });
     for (final id in changedTasks) {
       await _enqueue('task', id, 'upsert', await taskPayload(id));
@@ -1189,6 +1738,14 @@ class ZhixuRepository {
     }
     for (final id in changedLifeEvents) {
       await _enqueue('life_event', id, 'upsert', await lifeEventPayload(id));
+    }
+    for (final id in changedCategories) {
+      await _enqueue(
+        'task_category',
+        id,
+        'upsert',
+        await taskCategoryPayload(id),
+      );
     }
     await db.rebuildSearchIndex();
   }
@@ -1279,13 +1836,21 @@ class ZhixuRepository {
     final rows = await db
         .customSelect(
           '''SELECT 'task' AS entity_type, id, title FROM tasks
-             WHERE deleted_at IS NULL AND external_source IS NULL AND (title LIKE ? OR description_md LIKE ?)
+             WHERE deleted_at IS NULL AND external_source IS NULL AND (
+               title LIKE ? OR description_md LIKE ? OR
+               EXISTS (SELECT 1 FROM task_categories c WHERE c.id = tasks.category_id AND c.name LIKE ?) OR
+               EXISTS (SELECT 1 FROM tag_links l JOIN tags t ON t.id = l.tag_id
+                 WHERE l.entity_type = 'task' AND l.entity_id = tasks.id
+                   AND l.deleted_at IS NULL AND t.deleted_at IS NULL AND t.name LIKE ?)
+             )
          UNION ALL SELECT 'note', id, title FROM notes
              WHERE deleted_at IS NULL AND (title LIKE ? OR content_md LIKE ?)
          UNION ALL SELECT 'focus', id, task_name FROM focus_sessions
              WHERE deleted_at IS NULL AND (task_name LIKE ? OR reflection LIKE ?)
          LIMIT 40''',
           variables: [
+            Variable.withString(needle),
+            Variable.withString(needle),
             Variable.withString(needle),
             Variable.withString(needle),
             Variable.withString(needle),
@@ -1308,9 +1873,16 @@ class ZhixuRepository {
 
   Future<Map<String, dynamic>> exportPayload() async {
     return {
-      'schema_version': 4,
+      'schema_version': 5,
       'exported_at': DateTime.now().toUtc().toIso8601String(),
       'tasks': (await db.select(db.tasks).get()).map(_taskJson).toList(),
+      'task_categories': (await db.select(db.taskCategories).get())
+          .map(_taskCategoryJson)
+          .toList(),
+      'tags': (await db.select(db.tags).get()).map(_tagJson).toList(),
+      'tag_links': (await db.select(db.tagLinks).get())
+          .map(_tagLinkJson)
+          .toList(),
       'schedule_blocks': (await db.select(db.scheduleBlocks).get())
           .map(_scheduleJson)
           .toList(),
@@ -1338,13 +1910,27 @@ class ZhixuRepository {
       await db.delete(db.noteVersions).go();
       await db.delete(db.notes).go();
       await db.delete(db.scheduleBlocks).go();
+      await db.delete(db.tagLinks).go();
       await db.delete(db.tasks).go();
+      await db.delete(db.tags).go();
+      await db.delete(db.taskCategories).go();
       await db.delete(db.focusSessions).go();
       await db.delete(db.lifeEvents).go();
       await db.delete(db.importBatchChanges).go();
       await db.delete(db.importBatches).go();
+      for (final raw in (payload['task_categories'] as List? ?? const [])) {
+        await db
+            .into(db.taskCategories)
+            .insert(_taskCategoryCompanion(raw as Map));
+      }
+      for (final raw in (payload['tags'] as List? ?? const [])) {
+        await db.into(db.tags).insert(_tagCompanion(raw as Map));
+      }
       for (final raw in (payload['tasks'] as List? ?? const [])) {
         await db.into(db.tasks).insert(_taskCompanion(raw as Map));
+      }
+      for (final raw in (payload['tag_links'] as List? ?? const [])) {
+        await db.into(db.tagLinks).insert(_tagLinkCompanion(raw as Map));
       }
       for (final raw in (payload['schedule_blocks'] as List? ?? const [])) {
         await db.into(db.scheduleBlocks).insert(_scheduleCompanion(raw as Map));
@@ -1381,6 +1967,27 @@ class ZhixuRepository {
       db.tasks,
     )..where((item) => item.id.equals(id))).getSingleOrNull();
     return row == null ? null : _taskJson(row);
+  }
+
+  Future<Map<String, dynamic>?> taskCategoryPayload(String id) async {
+    final row = await (db.select(
+      db.taskCategories,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _taskCategoryJson(row);
+  }
+
+  Future<Map<String, dynamic>?> tagPayload(String id) async {
+    final row = await (db.select(
+      db.tags,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _tagJson(row);
+  }
+
+  Future<Map<String, dynamic>?> tagLinkPayload(String id) async {
+    final row = await (db.select(
+      db.tagLinks,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _tagLinkJson(row);
   }
 
   Future<Map<String, dynamic>?> notePayload(String id) async {
@@ -1443,6 +2050,14 @@ class ZhixuRepository {
     switch (entityType) {
       case 'task':
         await db.into(db.tasks).insertOnConflictUpdate(_taskCompanion(raw));
+      case 'task_category':
+        await db.taskCategories.insertOnConflictUpdate(
+          _taskCategoryCompanion(raw),
+        );
+      case 'tag':
+        await db.tags.insertOnConflictUpdate(_tagCompanion(raw));
+      case 'tag_link':
+        await db.tagLinks.insertOnConflictUpdate(_tagLinkCompanion(raw));
       case 'note':
         await db.into(db.notes).insertOnConflictUpdate(_noteCompanion(raw));
       case 'schedule_block':
@@ -1488,6 +2103,7 @@ Map<String, dynamic> _taskJson(Task row) => {
   'priority': row.priority,
   'due_at': row.dueAt?.toIso8601String(),
   'estimated_minutes': row.estimatedMinutes,
+  'category_id': row.categoryId,
   'repeat_rule': row.repeatRule,
   'parent_task_id': row.parentTaskId,
   'external_source': row.externalSource,
@@ -1495,6 +2111,46 @@ Map<String, dynamic> _taskJson(Task row) => {
   'created_by_import_batch_id': row.createdByImportBatchId,
   'completed_at': row.completedAt?.toIso8601String(),
   'is_archived': row.isArchived,
+  'created_at': row.createdAt.toIso8601String(),
+  'updated_at': row.updatedAt.toIso8601String(),
+  'deleted_at': row.deletedAt?.toIso8601String(),
+  'device_id': row.deviceId,
+  'server_revision': row.serverRevision,
+};
+
+Map<String, dynamic> _taskCategoryJson(TaskCategory row) => {
+  'id': row.id,
+  'name': row.name,
+  'normalized_name': row.normalizedName,
+  'color_hex': row.colorHex,
+  'source': row.source,
+  'last_seen_at': row.lastSeenAt?.toIso8601String(),
+  'is_archived': row.isArchived,
+  'created_at': row.createdAt.toIso8601String(),
+  'updated_at': row.updatedAt.toIso8601String(),
+  'deleted_at': row.deletedAt?.toIso8601String(),
+  'device_id': row.deviceId,
+  'server_revision': row.serverRevision,
+};
+
+Map<String, dynamic> _tagJson(Tag row) => {
+  'id': row.id,
+  'name': row.name,
+  'normalized_name': row.normalizedName,
+  'color_hex': row.colorHex,
+  'is_archived': row.isArchived,
+  'created_at': row.createdAt.toIso8601String(),
+  'updated_at': row.updatedAt.toIso8601String(),
+  'deleted_at': row.deletedAt?.toIso8601String(),
+  'device_id': row.deviceId,
+  'server_revision': row.serverRevision,
+};
+
+Map<String, dynamic> _tagLinkJson(TagLink row) => {
+  'id': row.id,
+  'tag_id': row.tagId,
+  'entity_type': row.entityType,
+  'entity_id': row.entityId,
   'created_at': row.createdAt.toIso8601String(),
   'updated_at': row.updatedAt.toIso8601String(),
   'deleted_at': row.deletedAt?.toIso8601String(),
@@ -1604,6 +2260,28 @@ Map<String, dynamic> _batchChangeJson(ImportBatchChange row) => {
   'created_at': row.createdAt.toIso8601String(),
 };
 
+String _normalizeLabel(dynamic value) =>
+    (value as String).trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
+T? _firstOrNull<T>(Iterable<T> values) {
+  for (final value in values) {
+    return value;
+  }
+  return null;
+}
+
+String _categoryColor(String normalizedName) {
+  const colors = [
+    '#175CD3',
+    '#067647',
+    '#B54708',
+    '#6941C6',
+    '#0E7090',
+    '#C11574',
+  ];
+  return colors[normalizedName.hashCode.abs() % colors.length];
+}
+
 DateTime? _date(dynamic value) =>
     value == null ? null : DateTime.parse(value as String);
 
@@ -1615,6 +2293,7 @@ TasksCompanion _taskCompanion(Map raw) => TasksCompanion.insert(
   priority: Value(raw['priority'] as int? ?? 1),
   dueAt: Value(_date(raw['due_at'])),
   estimatedMinutes: Value(raw['estimated_minutes'] as int? ?? 0),
+  categoryId: Value(raw['category_id'] as String?),
   repeatRule: Value(raw['repeat_rule'] as String?),
   parentTaskId: Value(raw['parent_task_id'] as String?),
   externalSource: Value(raw['external_source'] as String?),
@@ -1626,6 +2305,50 @@ TasksCompanion _taskCompanion(Map raw) => TasksCompanion.insert(
   updatedAt: DateTime.parse(raw['updated_at'] as String),
   deletedAt: Value(_date(raw['deleted_at'])),
   deviceId: raw['device_id'] as String? ?? 'restore',
+  serverRevision: Value(raw['server_revision'] as int? ?? 0),
+);
+
+TaskCategoriesCompanion _taskCategoryCompanion(Map raw) =>
+    TaskCategoriesCompanion.insert(
+      id: raw['id'] as String,
+      name: raw['name'] as String,
+      normalizedName:
+          raw['normalized_name'] as String? ?? _normalizeLabel(raw['name']),
+      colorHex: Value(raw['color_hex'] as String? ?? '#175CD3'),
+      source: Value(raw['source'] as String? ?? 'tomatodo'),
+      lastSeenAt: Value(_date(raw['last_seen_at'])),
+      isArchived: Value(raw['is_archived'] as bool? ?? false),
+      createdAt: DateTime.parse(raw['created_at'] as String),
+      updatedAt: DateTime.parse(raw['updated_at'] as String),
+      deletedAt: Value(_date(raw['deleted_at'])),
+      deviceId: raw['device_id'] as String? ?? 'restore',
+      serverRevision: Value(raw['server_revision'] as int? ?? 0),
+    );
+
+TagsCompanion _tagCompanion(Map raw) => TagsCompanion.insert(
+  id: raw['id'] as String,
+  name: raw['name'] as String,
+  normalizedName: Value(
+    raw['normalized_name'] as String? ?? _normalizeLabel(raw['name']),
+  ),
+  colorHex: Value(raw['color_hex'] as String? ?? '#38BDF8'),
+  isArchived: Value(raw['is_archived'] as bool? ?? false),
+  createdAt: DateTime.parse(raw['created_at'] as String),
+  updatedAt: DateTime.parse(raw['updated_at'] as String),
+  deletedAt: Value(_date(raw['deleted_at'])),
+  deviceId: raw['device_id'] as String? ?? 'restore',
+  serverRevision: Value(raw['server_revision'] as int? ?? 0),
+);
+
+TagLinksCompanion _tagLinkCompanion(Map raw) => TagLinksCompanion.insert(
+  id: raw['id'] as String,
+  tagId: raw['tag_id'] as String,
+  entityType: raw['entity_type'] as String,
+  entityId: raw['entity_id'] as String,
+  createdAt: Value(_date(raw['created_at']) ?? DateTime.now().toUtc()),
+  updatedAt: Value(_date(raw['updated_at']) ?? DateTime.now().toUtc()),
+  deletedAt: Value(_date(raw['deleted_at'])),
+  deviceId: Value(raw['device_id'] as String? ?? 'restore'),
   serverRevision: Value(raw['server_revision'] as int? ?? 0),
 );
 

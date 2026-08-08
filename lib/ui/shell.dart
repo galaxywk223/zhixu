@@ -131,21 +131,14 @@ class _Brand extends StatelessWidget {
           ? MainAxisAlignment.center
           : MainAxisAlignment.start,
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            '序',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+        ClipRRect(
+          key: const Key('zhixu-brand-mark'),
+          borderRadius: BorderRadius.circular(7),
+          child: Image.asset(
+            'assets/branding/zhixu-mark-1024.png',
+            width: 36,
+            height: 36,
+            filterQuality: FilterQuality.medium,
           ),
         ),
         if (!compact) ...[

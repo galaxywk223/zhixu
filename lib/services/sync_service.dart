@@ -10,6 +10,29 @@ const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 enum SyncState { unavailable, signedOut, idle, syncing, error }
 
+const syncEntityPullOrder = [
+  'task_category',
+  'tag',
+  'task',
+  'tag_link',
+  'note',
+  'schedule_block',
+  'focus_session',
+  'life_event',
+];
+
+String syncTableName(String entityType) => switch (entityType) {
+  'task_category' => 'task_categories',
+  'tag' => 'tags',
+  'task' => 'tasks',
+  'tag_link' => 'tag_links',
+  'note' => 'notes',
+  'schedule_block' => 'schedule_blocks',
+  'focus_session' => 'focus_sessions',
+  'life_event' => 'life_events',
+  _ => throw StateError('不支持的同步实体: $entityType'),
+};
+
 class SyncService extends ChangeNotifier {
   SyncService(this.repository);
 
@@ -84,19 +107,13 @@ class SyncService extends ChangeNotifier {
         }
         final body = Map<String, dynamic>.from(payload)
           ..['user_id'] = currentUser.id;
-        final table = _tableName(item.entityType);
+        final table = syncTableName(item.entityType);
         await client.from(table).upsert(body, onConflict: 'id');
         await repository.removeOutbox(item.id);
       }
-      for (final type in const [
-        'task',
-        'note',
-        'schedule_block',
-        'focus_session',
-        'life_event',
-      ]) {
+      for (final type in syncEntityPullOrder) {
         final cursor = await repository.syncCursor(type);
-        final table = _tableName(type);
+        final table = syncTableName(type);
         var query = client.from(table).select().eq('user_id', currentUser.id);
         if (cursor != null) {
           query = query.gt('updated_at', cursor.toUtc().toIso8601String());
@@ -125,13 +142,4 @@ class SyncService extends ChangeNotifier {
     }
     notifyListeners();
   }
-
-  String _tableName(String entityType) => switch (entityType) {
-    'task' => 'tasks',
-    'note' => 'notes',
-    'schedule_block' => 'schedule_blocks',
-    'focus_session' => 'focus_sessions',
-    'life_event' => 'life_events',
-    _ => throw StateError('不支持的同步实体: $entityType'),
-  };
 }
