@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,18 +76,20 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('任务页展示分类标签并开放完整编辑字段', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1500, 950));
+  testWidgets('任务管理页支持分组筛选、完成切换和完整编辑', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1586, 992));
     final database = ZhixuDatabase.memory();
     final repository = ZhixuRepository(database, deviceId: 'widget-test');
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     await repository.importFocusSessions(
       fileName: 'history.xls',
       fileHash: 'widget-hash',
       sessions: [
         ImportedFocusSession(
           sourceKey: 'focus-category',
-          startAt: DateTime(2026, 8, 8, 9),
-          endAt: DateTime(2026, 8, 8, 10),
+          startAt: today.add(const Duration(hours: 9)),
+          endAt: today.add(const Duration(hours: 10)),
           taskName: '项目开发',
           durationMinutes: 60,
           status: '已完成',
@@ -95,39 +98,161 @@ void main() {
     );
     final category = (await repository.taskCategories()).single;
     final tagId = await repository.createTag('重要', '#B42318');
-    await repository.createTask(
+    final todayTaskId = await repository.createTask(
       TaskDraft(
         title: '实现分类筛选',
         categoryId: category.id,
         tagIds: {tagId},
         estimatedMinutes: 60,
-        dueAt: DateTime(2026, 8, 9, 18),
+        dueAt: today.add(const Duration(hours: 18)),
       ),
     );
+    final tomorrowTaskId = await repository.createTask(
+      TaskDraft(
+        title: '整理明日计划',
+        estimatedMinutes: 30,
+        dueAt: today.add(const Duration(days: 1, hours: 9)),
+      ),
+    );
+    final completedTaskId = await repository.createTask(
+      const TaskDraft(title: '已归档的完成事项'),
+    );
+    await repository.setTaskStatus(completedTaskId, 'done');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [databaseProvider.overrideWithValue(database)],
-        child: const MaterialApp(home: Scaffold(body: TasksPage())),
+        child: MaterialApp(
+          theme: buildZhixuTheme(brightness: Brightness.light),
+          home: const Scaffold(body: TasksPage()),
+        ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('实现分类筛选'), findsOneWidget);
+    expect(find.text('任务管理'), findsOneWidget);
+    expect(find.text('任务总数'), findsOneWidget);
+    expect(find.text('今日到期'), findsOneWidget);
+    expect(find.text('本周完成'), findsOneWidget);
+    expect(find.byKey(const Key('task-table')), findsOneWidget);
+    expect(find.byKey(const Key('task-view-active')), findsOneWidget);
+    expect(find.byKey(Key('task-row-$todayTaskId')), findsOneWidget);
+    expect(find.byKey(Key('task-row-$completedTaskId')), findsNothing);
     expect(find.text('项目开发'), findsWidgets);
     expect(find.text('重要'), findsWidgets);
-    expect(find.byTooltip('编辑'), findsOneWidget);
+    expect(find.text('今天'), findsWidgets);
+    expect(find.text('明天'), findsWidgets);
 
-    await tester.tap(find.byTooltip('编辑'));
+    await tester.tap(find.byKey(const Key('task-filter-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('task-filter-panel')), findsOneWidget);
+    expect(find.text('重置筛选'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('task-view-all')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(Key('task-row-$completedTaskId')), findsOneWidget);
+
+    await tester.tap(find.byKey(Key('task-category-${category.id}')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(Key('task-row-$todayTaskId')), findsOneWidget);
+    expect(find.text('整理明日计划'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('task-category-all')));
+    await tester.tap(find.byKey(Key('task-tag-$tagId')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(Key('task-row-$todayTaskId')), findsOneWidget);
+    expect(find.text('整理明日计划'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('task-tag-all')));
+    await tester.enterText(
+      find.byKey(const Key('task-search-field')),
+      '整理明日计划',
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(Key('task-row-$tomorrowTaskId')), findsOneWidget);
+    expect(find.text('实现分类筛选'), findsNothing);
+    await tester.enterText(find.byKey(const Key('task-search-field')), '');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(Key('task-complete-$todayTaskId')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<Checkbox>(find.byKey(Key('task-complete-$todayTaskId')))
+          .value,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(Key('task-row-$todayTaskId')));
     await tester.pumpAndSettle();
     expect(find.text('编辑任务'), findsOneWidget);
     expect(find.text('组织'), findsOneWidget);
     expect(find.text('计划'), findsOneWidget);
     expect(find.text('新建标签'), findsOneWidget);
     expect(find.text('15 分钟'), findsOneWidget);
-    expect(find.text('到期时间'), findsOneWidget);
+    expect(find.text('到期时间'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
     await database.close();
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('任务管理页在目标桌面尺寸下不产生布局异常', (tester) async {
+    final database = ZhixuDatabase.memory();
+    final router = GoRouter(
+      initialLocation: '/tasks',
+      routes: [
+        GoRoute(
+          path: '/tasks',
+          builder: (_, _) => const AppShell(child: TasksPage()),
+        ),
+      ],
+    );
+    await database
+        .into(database.tasks)
+        .insert(
+          TasksCompanion.insert(
+            id: 'responsive-task',
+            title: '用于检查任务表格列宽和响应式折叠的长任务标题',
+            descriptionMd: const Value('响应式布局测试'),
+            priority: const Value(3),
+            dueAt: Value(DateTime.now().add(const Duration(hours: 2))),
+            estimatedMinutes: const Value(120),
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            deviceId: 'widget-test',
+          ),
+        );
+
+    for (final brightness in Brightness.values) {
+      for (final size in const [
+        Size(1366, 768),
+        Size(1586, 992),
+        Size(1920, 1080),
+      ]) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [databaseProvider.overrideWithValue(database)],
+            child: MaterialApp.router(
+              theme: buildZhixuTheme(brightness: brightness),
+              routerConfig: router,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${brightness.name} ${size.width}x${size.height}',
+        );
+        expect(find.byKey(const Key('task-table')), findsOneWidget);
+      }
+    }
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await database.close();
+    router.dispose();
     await tester.binding.setSurfaceSize(null);
   });
 }
