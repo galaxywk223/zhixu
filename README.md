@@ -1,59 +1,46 @@
 # 知序 Zhixu
 
-知序是本地优先的个人任务与记录工作台，首发 Windows，支持手动任务、日历、Markdown 笔记、专注、睡眠统计和番茄 TODO 历史导入。专注记录用于独立统计，不会自动创建或修改任务。
+知序是本地优先的个人任务与记录工作台。仓库采用多端单仓结构，各客户端遵循平台规范独立实现，共享数据契约、业务验收夹具、Supabase 定义和番茄 TODO 解析核心。
 
-项目仓库：<https://github.com/galaxywk223/zhixu>
+## 仓库结构
 
-许可证：MIT，详见 [LICENSE](LICENSE)。
-
-## 开发环境
-
-- Flutter 3.41 / Dart 3.11
-- Rust stable（用于旧版 `.xls` 解析器）
-- Windows 10/11、Visual Studio C++ 桌面工具链
-
-## 本地运行
-
-```powershell
-flutter pub get
-powershell -File tool/build_native.ps1 -Release
-flutter run -d windows
+```text
+apps/windows/            Electron + React Windows 客户端
+shared/contracts/        跨端 TypeScript 类型与 JSON Schema
+shared/fixtures/         跨语言业务验收夹具
+native/tomatodo_importer Rust 番茄 TODO 解析核心与 CLI
+supabase/                数据库迁移与同步协议
 ```
 
-`build_native.ps1` 会将 `calamine` 解析器复制到 `assets/native/`，桌面端无需安装 Excel 即可导入番茄 TODO 导出的 `.xls`。
+Android 客户端将在 `apps/android` 中独立实现，当前版本不包含 Android 业务代码。
 
-## 验证
+## Windows 开发
+
+环境要求：Node.js 24、pnpm 10、Rust stable、Windows 10/11 x64。
 
 ```powershell
-flutter analyze --no-pub
-flutter test --no-pub
+pnpm install
+pnpm lint
+pnpm typecheck
+pnpm test
 cargo test --manifest-path native/tomatodo_importer/Cargo.toml
-flutter build windows --release
+pnpm build:windows
+pnpm package:windows
+pnpm self-test:windows
 ```
 
-Supabase 未配置时，应用保持本地模式；登录和同步服务在设置页中按需启用。
+`pnpm dev:windows` 会启动图形界面，仅应在允许本机 GUI 检查时运行。
 
-## Windows 预览版发布
+`pnpm package:windows` 生成 `Zhixu-Setup-<version>.exe`、`latest.yml` 和兼容旧 Flutter 更新器的 `update-manifest.json`。`pnpm self-test:windows` 使用隔离的临时数据目录运行解包版命令行自检，不创建应用窗口。
 
-发布流程由 GitHub Actions 的 `v*.*.*` 标签工作流执行。版本号必须与
-`pubspec.yaml` 的 `version` 字段一致，当前预览版本为 `0.1.6+7`。
+## 数据目录
 
-```powershell
-git tag v0.1.6
-git push origin v0.1.6
-```
+- 旧 Flutter 数据库：`%APPDATA%\GalaxyWK\Zhixu\Zhixu\zhixu.sqlite`
+- Electron 数据库：`%LOCALAPPDATA%\Zhixu\Data\zhixu.sqlite`
+- 迁移备份：`%LOCALAPPDATA%\Zhixu\MigrationBackups`
 
-工作流生成当前用户安装器 `Zhixu-Setup-<version>.exe`、对应的
-`.sha256` 摘要文件和 `update-manifest.json`。应用通过 GitHub Releases API
-读取包含预发布版本的清单，严格校验仓库、HTTPS 地址、文件名、大小和
-SHA-256 后才启动安装器。SQLite 数据位于安装目录外，升级只覆盖
-`%LOCALAPPDATA%\Programs\Zhixu`，不会删除业务数据。
+首次启动只读取旧数据库，并在独立副本上执行 schema 6 迁移。旧数据库和旧客户端不会自动删除。
 
-## 预览版限制
+## 发布边界
 
-- 番茄 TODO 导入支持旧版 `.xls` 中文恢复、时间区间去重、专注明细和睡眠事件分类。
-- Windows 关闭按钮会隐藏到系统托盘；托盘菜单可恢复窗口或明确退出应用。
-- Noto Sans SC 字体按照 SIL Open Font License 1.1 随应用分发，许可证位于 `assets/fonts/OFL.txt`。
-- 应用图标复用 Microsoft Fluent System Icons 的 `Flow 24 Filled`，按照 MIT License 分发，来源和许可证见 `THIRD_PARTY_NOTICES.md`。
-- 云同步及系统安全凭据存储尚未完成正式验收，首版默认本地模式。
-- Windows 安装包暂未代码签名，首次运行可能显示 SmartScreen 未知发布者提示。
+Windows 预览版使用独立 NSIS 安装目录和应用数据目录。正式版本接入代码签名前，构建产物仅作为未签名预览包使用。CI 只上传构建产物，不创建 GitHub Release。

@@ -1,48 +1,41 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# Local legacy snapshots
+.legacy/
+.dart_tool/
+.flutter-plugins-dependencies
+/assets/
+/build/
+/windows/
 
-# IntelliJ related
+# Node / Electron
+node_modules/
+.pnpm-store/
+out/
+dist/
+release/
+coverage/
+*.log
+*.tsbuildinfo
+apps/windows/.vite/
+apps/windows/build/
+apps/windows/public/
+
+# Native build output
+native/tomatodo_importer/target/
+
+# IDE and operating system files
+.idea/
+.vscode/
 *.iml
 *.ipr
 *.iws
-.idea/
+.DS_Store
+Thumbs.db
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-/dist/
-native/tomatodo_importer/target/
-assets/native/*.exe
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+MigrationBackups/

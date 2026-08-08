@@ -1,0 +1,18 @@
+{
+  "name": "zhixu-monorepo",
+  "version": "0.2.0",
+  "private": true,
+  "packageManager": "pnpm@10.10.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev:windows": "pnpm --filter @zhixu/windows dev",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive test",
+    "build:windows": "pnpm --filter @zhixu/windows build",
+    "package:windows": "cargo build --release --manifest-path native/tomatodo_importer/Cargo.toml && pnpm --filter @zhixu/windows package",
+    "self-test:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-packaged-self-test.ps1"
+  }
+}

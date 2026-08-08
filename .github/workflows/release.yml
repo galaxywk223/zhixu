@@ -1,116 +1,73 @@
-name: Release
+name: Validate and package Windows
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.value }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: version
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
-          test -n "$version"
-          test "${GITHUB_REF_NAME}" = "v${version}"
-          echo "value=$version" >> "$GITHUB_OUTPUT"
-      - name: Validate public release configuration
-        run: |
-          test "${GITHUB_REPOSITORY}" = "galaxywk223/zhixu"
-
   windows:
-    needs: validate
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: pnpm/action-setup@v4
         with:
-          flutter-version: '3.41.3'
-          channel: stable
-          cache: true
+          version: 10.10.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
-      - run: flutter pub get
-      - name: Build native importer
+        with:
+          components: rustfmt
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: cargo fmt --manifest-path native/tomatodo_importer/Cargo.toml -- --check
+      - run: cargo test --manifest-path native/tomatodo_importer/Cargo.toml
+      - run: cargo build --release --manifest-path native/tomatodo_importer/Cargo.toml
+      - run: pnpm build:windows
+      - name: Build NSIS package
+        run: pnpm --filter @zhixu/windows exec electron-builder --win nsis --x64 --publish never
+      - name: Generate update manifests
+        run: node scripts/write-update-manifest.mjs
+      - name: Packaged self-test
         shell: pwsh
-        run: ./tool/build_native.ps1 -Release
-      - run: flutter analyze --no-pub
-      - run: flutter test --no-pub
-      - name: Test native importer
-        shell: pwsh
-        run: cargo test --manifest-path native/tomatodo_importer/Cargo.toml
-      - run: flutter build windows --release
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup --yes --no-progress
-      - name: Build installer
-        shell: pwsh
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ needs.validate.outputs.version }}" installer\zhixu.iss'
-      - name: Validate installer output
+        run: scripts/run-packaged-self-test.ps1
+      - name: Silent install and uninstall
         shell: pwsh
         run: |
-          $installer = Get-Item "dist\Zhixu-Setup-*.exe"
-          if ($installer.Length -le 0) { throw '安装器为空' }
+          $installer = Get-Item 'release\windows\Zhixu-Setup-*.exe'
+          $installRoot = Join-Path $env:RUNNER_TEMP "zhixu-install-$([guid]::NewGuid().ToString('N'))"
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installRoot") `
+            -WindowStyle Hidden -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)." }
+          $application = Get-ChildItem -LiteralPath $installRoot -Filter '*.exe' |
+            Where-Object { $_.Name -notlike 'Uninstall*' } | Select-Object -First 1
+          $uninstaller = Get-ChildItem -LiteralPath $installRoot -Filter 'Uninstall*.exe' | Select-Object -First 1
+          if (-not $application -or -not $uninstaller) { throw 'Installed application files were not found.' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' `
+            -WindowStyle Hidden -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)." }
+          if (Test-Path -LiteralPath $application.FullName) { throw 'Application remained after uninstall.' }
+      - name: Validate release assets
+        shell: pwsh
+        run: |
+          $installer = Get-Item 'release\windows\Zhixu-Setup-*.exe'
+          if ($installer.Length -le 0) { throw '安装器为空。' }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer.FullName).Hash.ToLowerInvariant()
           "$hash  $($installer.Name)" | Set-Content -Encoding ascii "$($installer.FullName).sha256"
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-release
+          name: zhixu-windows
           path: |
-            dist/Zhixu-Setup-*.exe
-            dist/Zhixu-Setup-*.exe.sha256
-
-  publish:
-    needs: [validate, windows]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-release
-          path: release-assets
-      - name: Create update manifest
-        shell: bash
-        env:
-          VERSION: ${{ needs.validate.outputs.version }}
-        run: |
-          set -euo pipefail
-          installer="Zhixu-Setup-${VERSION}.exe"
-          test -f "release-assets/${installer}"
-          test -f "release-assets/${installer}.sha256"
-          sha256="$(awk '{print $1}' "release-assets/${installer}.sha256")"
-          [[ "${sha256}" =~ ^[0-9a-f]{64}$ ]]
-          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
-          download_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${installer}"
-          jq -n \
-            --arg version "${VERSION}" \
-            --arg notes "知序 v${VERSION} Windows 预览版。任务页重构为统计概览、快速视图和按到期日期分组的高密度任务表，并完善组合筛选及桌面响应式布局。任务、分类、标签和番茄导入业务规则保持不变。云同步安全凭据和代码签名仍待正式验收。" \
-            --arg releaseUrl "${release_url}" \
-            --arg fileName "${installer}" \
-            --arg downloadUrl "${download_url}" \
-            --arg sha256 "${sha256}" \
-            --argjson size "$(stat -c%s "release-assets/${installer}")" \
-            '{schemaVersion: 1, version: $version, notes: $notes, releaseUrl: $releaseUrl, assets: {windows: {fileName: $fileName, downloadUrl: $downloadUrl, sha256: $sha256, size: $size}}}' \
-            > release-assets/update-manifest.json
-          jq -e '.schemaVersion == 1 and .assets.windows.size > 0' release-assets/update-manifest.json > /dev/null
-      - uses: softprops/action-gh-release@v2
-        with:
-          prerelease: true
-          generate_release_notes: true
-          body: |
-            ## 预览版说明
-
-            - 任务页重构为统计概览、快速视图和高密度分组任务表。
-            - 任务按逾期、今天、明天、近期、以后、无日期和已完成分组展示。
-            - 分类、标签、状态、日期视图和本页搜索支持组合筛选，默认仍显示待处理任务。
-            - 浅色和深色主题共用响应式桌面布局，任务业务规则及番茄导入行为保持不变。
-            - 云同步与系统安全凭据存储尚未完成正式验收，当前版本默认使用本地模式。
-            - Windows 安装包暂未代码签名，SmartScreen 可能显示未知发布者。
-          files: release-assets/*
+            release/windows/Zhixu-Setup-*.exe
+            release/windows/Zhixu-Setup-*.exe.sha256
+            release/windows/latest.yml
+            release/windows/update-manifest.json

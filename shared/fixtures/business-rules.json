@@ -1,0 +1,22 @@
+{
+  "taskGroups": [
+    "overdue",
+    "today",
+    "tomorrow",
+    "next7days",
+    "later",
+    "undated",
+    "done"
+  ],
+  "weekStartsOn": 1,
+  "focus": {
+    "nativeTimerEnabled": false,
+    "importCreatesTasks": false,
+    "zeroMinuteCreatesCategory": false
+  },
+  "sleep": {
+    "maximumValidHours": 24,
+    "kinds": ["sleep", "wake", "other"]
+  },
+  "tomatoSourceKeyVersion": 3
+}

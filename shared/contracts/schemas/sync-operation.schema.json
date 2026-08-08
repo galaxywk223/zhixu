@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhixu.app/schemas/sync-operation.schema.json",
+  "title": "Zhixu sync operation",
+  "type": "object",
+  "required": [
+    "operationId",
+    "entityType",
+    "entityId",
+    "operation",
+    "baseRevision",
+    "payload"
+  ],
+  "properties": {
+    "operationId": { "type": "string", "minLength": 1 },
+    "entityType": {
+      "enum": [
+        "task_category",
+        "tag",
+        "task",
+        "tag_link",
+        "note",
+        "schedule_block",
+        "focus_session",
+        "life_event"
+      ]
+    },
+    "entityId": { "type": "string", "minLength": 1 },
+    "operation": { "enum": ["upsert", "delete"] },
+    "baseRevision": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}

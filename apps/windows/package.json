@@ -1,0 +1,102 @@
+{
+  "name": "@zhixu/windows",
+  "version": "0.2.0",
+  "private": true,
+  "description": "知序 Windows 桌面客户端",
+  "author": "GalaxyWK",
+  "main": "./out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "lint": "prettier --check src tests *.ts *.json",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "build": "electron-vite build",
+    "package": "pnpm build && electron-builder --win nsis --x64 --publish never && node ../../scripts/write-update-manifest.mjs",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3"
+  },
+  "devDependencies": {
+    "@fluentui/react-components": "9.74.5",
+    "@fluentui/react-icons": "^2.0.320",
+    "@supabase/supabase-js": "^2.57.4",
+    "@tanstack/react-query": "5.101.4",
+    "@zhixu/contracts": "workspace:*",
+    "date-fns": "^4.1.0",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
+    "jszip": "^3.10.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.3.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "4.4.3",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "electron": "43.3.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "jsdom": "^27.0.1",
+    "prettier": "^3.6.2",
+    "typescript": "7.0.2",
+    "vite": "7.3.6",
+    "vitest": "4.1.10"
+  },
+  "build": {
+    "appId": "com.galaxywk.zhixu.desktop",
+    "productName": "知序",
+    "artifactName": "Zhixu-Setup-${version}.${ext}",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "directories": {
+      "output": "../../release/windows",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/zhixu.ico",
+        "to": "zhixu.ico"
+      },
+      {
+        "from": "../../native/tomatodo_importer/target/release/zhixu_tomatodo_importer.exe",
+        "to": "native/zhixu_tomatodo_importer.exe"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "resources/zhixu.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "知序",
+      "uninstallDisplayName": "知序 Windows"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "galaxywk223",
+      "repo": "zhixu",
+      "releaseType": "prerelease"
+    }
+  }
+}
