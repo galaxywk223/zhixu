@@ -8,14 +8,14 @@ import '../../data/repository.dart';
 import '../../state/providers.dart';
 
 const taskTagColors = [
-  '#175CD3',
-  '#067647',
-  '#B54708',
-  '#B42318',
-  '#6941C6',
-  '#0E7090',
-  '#C11574',
-  '#475467',
+  '#6366F1',
+  '#10B981',
+  '#F59E0B',
+  '#EF4444',
+  '#8B5CF6',
+  '#06B6D4',
+  '#EC4899',
+  '#64748B',
 ];
 
 Future<void> showTaskEditor(
@@ -41,10 +41,33 @@ Future<void> showTaskEditor(
   var priority = task?.priority ?? 1;
   var categoryId = task?.categoryId;
   DateTime? dueAt = task?.dueAt?.toLocal();
+
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
   final result = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text(task == null ? '添加任务' : '编辑任务'),
+      titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: ZhixuColors.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              task == null ? Icons.add_task : Icons.edit_note,
+              color: ZhixuColors.accent,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(task == null ? '添加任务' : '编辑任务'),
+        ],
+      ),
       content: SizedBox(
         width: 640,
         child: StatefulBuilder(
@@ -56,23 +79,30 @@ Future<void> showTaskEditor(
                 TextField(
                   controller: title,
                   autofocus: true,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                   decoration: const InputDecoration(labelText: '任务名称 *'),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 TextField(
                   controller: description,
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: '备注 / 描述'),
                 ),
-                const SizedBox(height: 18),
-                Text('组织', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
+                _SectionHeader(
+                  icon: Icons.folder_open_outlined,
+                  title: '分类与标签',
+                ),
+                const SizedBox(height: 12),
                 DropdownMenu<String>(
                   initialSelection: categoryId ?? '',
                   expandedInsets: EdgeInsets.zero,
                   enableFilter: true,
                   enableSearch: true,
-                  label: const Text('分类'),
+                  label: const Text('选择分类'),
                   leadingIcon: const Icon(Icons.folder_outlined, size: 19),
                   dropdownMenuEntries: [
                     const DropdownMenuEntry(value: '', label: '未分类'),
@@ -100,13 +130,13 @@ Future<void> showTaskEditor(
                 if (categories.where((item) => !item.isArchived).isEmpty) ...[
                   const SizedBox(height: 7),
                   const Text(
-                    '暂无分类，导入番茄记录后可选择。',
+                    '暂无分类，导入番茄记录或添加后可选择。',
                     style: TextStyle(color: ZhixuColors.muted, fontSize: 13),
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 InputDecorator(
-                  decoration: const InputDecoration(labelText: '标签'),
+                  decoration: const InputDecoration(labelText: '已选标签'),
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -115,6 +145,16 @@ Future<void> showTaskEditor(
                         FilterChip(
                           label: Text(tag.name),
                           selected: selectedTagIds.contains(tag.id),
+                          selectedColor: ZhixuColors.accent.withValues(
+                            alpha: 0.2,
+                          ),
+                          side: BorderSide(
+                            color: selectedTagIds.contains(tag.id)
+                                ? ZhixuColors.accent
+                                : (isDark
+                                      ? ZhixuColors.border
+                                      : Colors.grey.shade300),
+                          ),
                           avatar: Icon(
                             Icons.circle,
                             size: 11,
@@ -129,7 +169,7 @@ Future<void> showTaskEditor(
                           }),
                         ),
                       ActionChip(
-                        avatar: const Icon(Icons.add, size: 17),
+                        avatar: const Icon(Icons.add, size: 16),
                         label: const Text('新建标签'),
                         onPressed: () async {
                           final id = await showTagEditor(context, ref);
@@ -144,9 +184,9 @@ Future<void> showTaskEditor(
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                Text('计划', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 10),
+                const SizedBox(height: 22),
+                _SectionHeader(icon: Icons.alarm_outlined, title: '计划与到期安排'),
+                const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -179,7 +219,7 @@ Future<void> showTaskEditor(
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   children: [
@@ -199,28 +239,47 @@ Future<void> showTaskEditor(
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 InputDecorator(
                   decoration: const InputDecoration(labelText: '到期时间'),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
-                          dueAt == null ? '未设置' : formatLocalDateTime(dueAt!),
+                          dueAt == null
+                              ? '未设置到期时间'
+                              : formatLocalDateTime(dueAt!),
                           style: TextStyle(
                             color: dueAt == null ? ZhixuColors.muted : null,
+                            fontWeight: dueAt == null
+                                ? FontWeight.normal
+                                : FontWeight.w600,
                           ),
                         ),
                       ),
                       TextButton.icon(
                         icon: const Icon(Icons.event_outlined, size: 18),
-                        label: const Text('选择'),
+                        label: const Text('选择时间'),
                         onPressed: () async {
                           final day = await showDatePicker(
                             context: context,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2100),
                             initialDate: dueAt ?? DateTime.now(),
+                            initialEntryMode: DatePickerEntryMode.calendarOnly,
+                            builder: (context, child) => Theme(
+                              data: Theme.of(context).copyWith(
+                                dialogTheme: DialogThemeData(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: const BorderSide(
+                                      color: ZhixuColors.border,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: child!,
+                            ),
                           );
                           if (day == null || !context.mounted) return;
                           final time = await showTimePicker(
@@ -281,7 +340,7 @@ Future<void> showTaskEditor(
             if (dialogContext.mounted) Navigator.pop(dialogContext, true);
             refreshCore(ref);
           },
-          child: const Text('保存'),
+          child: const Text('保存任务'),
         ),
       ],
     ),
@@ -292,7 +351,7 @@ Future<void> showTaskEditor(
   if (result == true && context.mounted) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('任务已保存')));
+    ).showSnackBar(const SnackBar(content: Text('任务已成功保存')));
   }
 }
 
@@ -319,18 +378,26 @@ Future<String?> showTagEditor(
                 autofocus: true,
                 decoration: const InputDecoration(labelText: '标签名称 *'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
+              Text(
+                '挑选色彩',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: ZhixuColors.muted,
+                ),
+              ),
+              const SizedBox(height: 10),
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 12,
+                runSpacing: 12,
                 children: [
                   for (final value in taskTagColors)
-                    InkWell(
-                      borderRadius: BorderRadius.circular(20),
+                    GestureDetector(
                       onTap: () => setState(() => colorHex = value),
                       child: Container(
-                        width: 30,
-                        height: 30,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
                           color: colorFromHex(value),
                           shape: BoxShape.circle,
@@ -340,7 +407,10 @@ Future<String?> showTagEditor(
                           boxShadow: value == colorHex
                               ? [
                                   BoxShadow(
-                                    color: colorFromHex(value),
+                                    color: colorFromHex(
+                                      value,
+                                    ).withValues(alpha: 0.6),
+                                    blurRadius: 8,
                                     spreadRadius: 2,
                                   ),
                                 ]
@@ -387,6 +457,31 @@ Future<String?> showTagEditor(
   );
   name.dispose();
   return result;
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 16, color: ZhixuColors.accent),
+      const SizedBox(width: 8),
+      Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+      const SizedBox(width: 10),
+      const Expanded(child: Divider()),
+    ],
+  );
 }
 
 Color colorFromHex(String value) {

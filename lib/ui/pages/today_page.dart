@@ -22,8 +22,15 @@ class TodayPage extends ConsumerWidget {
         .length;
     final todayTotal = tasks.valueOrNull?.length ?? 0;
     final date = DateTime.now();
+    final hour = date.hour;
+    final greeting = hour < 12
+        ? '早上好 ☀️'
+        : hour < 18
+            ? '下午好 ☕'
+            : '晚上好 🌙';
+
     return PageFrame(
-      title: '今天 / ${DateFormat('M月d日 EEEE', 'zh_CN').format(date)}',
+      title: '$greeting · ${DateFormat('M月d日 EEEE', 'zh_CN').format(date)}',
       subtitle: '查看今天的手动待办、截止安排和独立专注统计。',
       actions: [
         FilledButton.icon(
@@ -42,24 +49,24 @@ class TodayPage extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: count,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
                 childAspectRatio: 2.35,
                 children: [
                   MetricCard(
-                    label: '今日任务',
+                    label: '今日任务完成度',
                     value: '$todayDone / $todayTotal',
                     icon: Icons.check_circle_outline,
                     color: ZhixuColors.accent,
                   ),
                   MetricCard(
-                    label: '累计完成',
+                    label: '累计已完成任务',
                     value: '$done',
                     icon: Icons.task_alt,
                     color: ZhixuColors.success,
                   ),
                   MetricCard(
-                    label: '今日专注',
+                    label: '今日专注时长',
                     value: '$focus 分钟',
                     icon: Icons.timer_outlined,
                     color: ZhixuColors.warning,
@@ -75,7 +82,7 @@ class TodayPage extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth > 1000;
@@ -93,7 +100,7 @@ class TodayPage extends ConsumerWidget {
                       focus: focus,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   SectionCard(
                     child: _Upcoming(
                       tasks: allTasks
@@ -112,11 +119,11 @@ class TodayPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(flex: 3, child: left),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 16),
                         Expanded(flex: 2, child: right),
                       ],
                     )
-                  : Column(children: [left, const SizedBox(height: 14), right]);
+                  : Column(children: [left, const SizedBox(height: 16), right]);
             },
           ),
         ],
@@ -124,7 +131,6 @@ class TodayPage extends ConsumerWidget {
     );
   }
 }
-
 class _TodayTaskList extends ConsumerWidget {
   const _TodayTaskList({required this.tasks});
 
@@ -150,9 +156,20 @@ class _TodayTaskList extends ConsumerWidget {
           children: [
             Text('今日待办', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(width: 8),
-            Text(
-              '${tasks.length}',
-              style: const TextStyle(color: ZhixuColors.muted),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: ZhixuColors.accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${tasks.length}',
+                style: const TextStyle(
+                  color: ZhixuColors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             const Spacer(),
             TextButton.icon(
@@ -162,7 +179,7 @@ class _TodayTaskList extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (tasks.isEmpty)
           const EmptyState(
             icon: Icons.wb_sunny_outlined,
@@ -221,24 +238,23 @@ class _ProgressCard extends StatelessWidget {
         Row(
           children: [
             SizedBox(
-              width: 96,
-              height: 96,
+              width: 92,
+              height: 92,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   CircularProgressIndicator(
                     value: progress,
                     strokeWidth: 8,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
+                    backgroundColor: ZhixuColors.muted.withValues(alpha: 0.15),
                     color: ZhixuColors.accent,
                   ),
                   Text(
                     '${(progress * 100).round()}%',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 19,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ],
@@ -253,19 +269,29 @@ class _ProgressCard extends StatelessWidget {
                     '$done / $total 完成',
                     style: const TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    '今日专注 $focus 分钟',
-                    style: const TextStyle(color: ZhixuColors.muted),
+                  Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, size: 14, color: ZhixuColors.warning),
+                      const SizedBox(width: 4),
+                      Text(
+                        '今日专注 $focus 分钟',
+                        style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 7,
+                      backgroundColor: ZhixuColors.muted.withValues(alpha: 0.15),
+                      color: ZhixuColors.accent,
+                    ),
                   ),
                 ],
               ),
@@ -291,19 +317,41 @@ class _Upcoming extends StatelessWidget {
           children: [
             Text('即将到期', style: Theme.of(context).textTheme.titleLarge),
             const Spacer(),
-            Text(
-              '${tasks.length}',
-              style: const TextStyle(color: ZhixuColors.danger),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: ZhixuColors.danger.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${tasks.length}',
+                style: const TextStyle(
+                  color: ZhixuColors.danger,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         if (tasks.isEmpty)
-          const Text('暂无即将到期任务', style: TextStyle(color: ZhixuColors.muted))
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('暂无即将到期任务', style: TextStyle(color: ZhixuColors.muted, fontSize: 13.5)),
+          )
         else
           ...tasks.map(
-            (task) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+            (task) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: ZhixuColors.danger.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: ZhixuColors.danger.withValues(alpha: 0.2),
+                ),
+              ),
               child: Row(
                 children: [
                   Container(
@@ -312,21 +360,25 @@ class _Upcoming extends StatelessWidget {
                     decoration: const BoxDecoration(
                       color: ZhixuColors.danger,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: ZhixuColors.danger, blurRadius: 4),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 9),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       task.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                   ),
                   Text(
                     DateFormat('M/d HH:mm').format(task.dueAt!.toLocal()),
                     style: const TextStyle(
                       color: ZhixuColors.muted,
-                      fontSize: 13,
+                      fontSize: 12.5,
                     ),
                   ),
                 ],

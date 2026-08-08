@@ -33,7 +33,7 @@ class PageFrame extends StatelessWidget {
                 spacing: 16,
                 runSpacing: 14,
                 alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.start,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 260),
@@ -42,12 +42,18 @@ class PageFrame extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: Theme.of(context).textTheme.headlineMedium,
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           subtitle,
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 13.5,
+                            color: ZhixuColors.muted,
+                          ),
                         ),
                       ],
                     ),
@@ -55,6 +61,7 @@ class PageFrame extends StatelessWidget {
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       const _GlobalSearchButton(),
                       if (actions != null) ...actions!,
@@ -73,7 +80,6 @@ class PageFrame extends StatelessWidget {
     );
   }
 }
-
 class SectionCard extends StatelessWidget {
   const SectionCard({
     required this.child,
@@ -85,9 +91,34 @@ class SectionCard extends StatelessWidget {
   final EdgeInsets padding;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(padding: padding, child: child),
-  );
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? ZhixuColors.surface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? ZhixuColors.border : Theme.of(context).dividerColor,
+        ),
+        boxShadow: isDark
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
 }
 
 class MetricCard extends StatelessWidget {
@@ -106,18 +137,26 @@ class MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SectionCard(
       padding: const EdgeInsets.all(18),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: .13),
-              borderRadius: BorderRadius.circular(6),
+              color: color.withValues(alpha: isDark ? 0.16 : 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                ),
+              ],
             ),
-            child: Icon(icon, color: color, size: 21),
+            child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -125,13 +164,20 @@ class MetricCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(label, style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 13,
+                    color: ZhixuColors.muted,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
                   ),
                 ),
               ],
@@ -160,20 +206,39 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 38),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: ZhixuColors.muted, size: 34),
-          const SizedBox(height: 14),
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: ZhixuColors.accent.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: ZhixuColors.accent.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Icon(icon, color: ZhixuColors.accent, size: 28),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: ZhixuColors.muted,
+              fontSize: 13.5,
+            ),
           ),
-          if (action != null) ...[const SizedBox(height: 18), action!],
+          if (action != null) ...[const SizedBox(height: 20), action!],
         ],
       ),
     ),
@@ -195,10 +260,11 @@ class StatusPill extends StatelessWidget {
       _ => '待完成',
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(5),
+        color: color.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: .3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -206,15 +272,21 @@ class StatusPill extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color, blurRadius: 4),
+              ],
+            ),
           ),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -235,13 +307,14 @@ class PriorityPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: .25)),
       ),
       child: Text(
         '优先级 ${priorityLabel(priority)}',
         style: TextStyle(
           color: color,
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -270,72 +343,106 @@ class TaskTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = task.status == 'done';
-    return ListTile(
-      onTap: onEdit,
-      minTileHeight: 56,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-      leading: Checkbox(value: done, onChanged: (_) => onToggle()),
-      title: Text(
-        task.title,
-        style: TextStyle(
-          decoration: done ? TextDecoration.lineThrough : null,
-          color: done ? ZhixuColors.muted : null,
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF10141D) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? ZhixuColors.border.withValues(alpha: 0.6) : Colors.grey.shade200,
         ),
       ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Wrap(
-          spacing: 10,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
+      child: ListTile(
+        onTap: onEdit,
+        minTileHeight: 56,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        leading: Transform.scale(
+          scale: 1.1,
+          child: Checkbox(
+            value: done,
+            activeColor: ZhixuColors.success,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+            onChanged: (_) => onToggle(),
+          ),
+        ),
+        title: Text(
+          task.title,
+          style: TextStyle(
+            decoration: done ? TextDecoration.lineThrough : null,
+            color: done ? ZhixuColors.muted : null,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              PriorityPill(priority: task.priority),
+              if (category != null)
+                _MetadataPill(
+                  label: category!.isArchived
+                      ? '${category!.name} · 历史'
+                      : category!.name,
+                  color: _metadataColor(category!.colorHex),
+                  icon: Icons.folder_outlined,
+                ),
+              for (final tag in tags.take(3))
+                _MetadataPill(
+                  label: tag.name,
+                  color: _metadataColor(tag.colorHex),
+                  icon: Icons.label_outline,
+                ),
+              if (task.dueAt != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.schedule, size: 13, color: ZhixuColors.muted),
+                    const SizedBox(width: 4),
+                    Text(
+                      _dateLabel(task.dueAt!),
+                      style: const TextStyle(color: ZhixuColors.muted, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              if (task.estimatedMinutes > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 13, color: ZhixuColors.muted),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${task.estimatedMinutes} 分钟',
+                      style: const TextStyle(color: ZhixuColors.muted, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            PriorityPill(priority: task.priority),
-            if (category != null)
-              _MetadataPill(
-                label: category!.isArchived
-                    ? '${category!.name} · 历史'
-                    : category!.name,
-                color: _metadataColor(category!.colorHex),
-                icon: Icons.folder_outlined,
+            StatusPill(status: task.status),
+            if (onEdit != null)
+              IconButton(
+                tooltip: '编辑',
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                onPressed: onEdit,
               ),
-            for (final tag in tags.take(3))
-              _MetadataPill(
-                label: tag.name,
-                color: _metadataColor(tag.colorHex),
-                icon: Icons.label_outline,
-              ),
-            if (task.dueAt != null)
-              Text(
-                _dateLabel(task.dueAt!),
-                style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
-              ),
-            if (task.estimatedMinutes > 0)
-              Text(
-                '${task.estimatedMinutes} 分钟',
-                style: const TextStyle(color: ZhixuColors.muted, fontSize: 13),
+            if (onDelete != null)
+              IconButton(
+                tooltip: '删除',
+                icon: const Icon(Icons.delete_outline, size: 18),
+                onPressed: onDelete,
               ),
           ],
         ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          StatusPill(status: task.status),
-          if (onEdit != null)
-            IconButton(
-              tooltip: '编辑',
-              icon: const Icon(Icons.edit_outlined, size: 19),
-              onPressed: onEdit,
-            ),
-          if (onDelete != null)
-            IconButton(
-              tooltip: '删除',
-              icon: const Icon(Icons.delete_outline, size: 19),
-              onPressed: onDelete,
-            ),
-        ],
       ),
     );
   }
@@ -356,20 +463,20 @@ class _MetadataPill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: color.withValues(alpha: .1),
-      borderRadius: BorderRadius.circular(5),
+      color: color.withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(6),
       border: Border.all(color: color.withValues(alpha: .3)),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: color),
+        Icon(icon, size: 12, color: color),
         const SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(
             color: color,
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -388,13 +495,30 @@ class _GlobalSearchButton extends ConsumerWidget {
   const _GlobalSearchButton();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => IconButton.outlined(
-    tooltip: '全局搜索',
+  Widget build(BuildContext context, WidgetRef ref) => OutlinedButton.icon(
+    icon: const Icon(Icons.search, size: 18),
+    label: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('搜索'),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          decoration: BoxDecoration(
+            color: ZhixuColors.muted.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'Ctrl+K',
+            style: TextStyle(fontSize: 11, color: ZhixuColors.muted),
+          ),
+        ),
+      ],
+    ),
     onPressed: () => showDialog<void>(
       context: context,
       builder: (_) => const _GlobalSearchDialog(),
     ),
-    icon: const Icon(Icons.search, size: 20),
   );
 }
 
@@ -419,24 +543,58 @@ class _GlobalSearchDialogState extends ConsumerState<_GlobalSearchDialog> {
   @override
   Widget build(BuildContext context) {
     final results = ref.watch(searchResultsProvider);
-    return AlertDialog(
-      title: const Text('全局搜索'),
-      content: SizedBox(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Dialog(
+      backgroundColor: isDark ? ZhixuColors.surface : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDark ? ZhixuColors.borderHighlight : Colors.grey.shade300,
+        ),
+      ),
+      child: Container(
         width: 620,
-        height: 430,
+        height: 460,
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: '搜索任务、笔记或专注事项',
-              ),
-              onChanged: (value) =>
-                  ref.read(searchQueryProvider.notifier).state = value,
+            Row(
+              children: [
+                const Icon(Icons.search, color: ZhixuColors.accent, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    decoration: const InputDecoration(
+                      hintText: '搜索任务、笔记或专注事项...',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (value) =>
+                        ref.read(searchQueryProvider.notifier).state = value,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: ZhixuColors.muted.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: const Text(
+                    'ESC',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ZhixuColors.muted),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+            Divider(color: isDark ? ZhixuColors.border : Colors.grey.shade200),
+            const SizedBox(height: 10),
             Expanded(
               child: results.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -448,18 +606,18 @@ class _GlobalSearchDialogState extends ConsumerState<_GlobalSearchDialog> {
                 data: (items) => controller.text.trim().isEmpty
                     ? const EmptyState(
                         icon: Icons.manage_search,
-                        title: '输入关键词',
-                        message: '搜索结果会按任务、笔记和专注事项显示。',
+                        title: '输入关键词搜索',
+                        message: '搜索涵盖您的手动任务、Markdown 笔记与独立专注记录。',
                       )
                     : items.isEmpty
                     ? const EmptyState(
                         icon: Icons.search_off,
-                        title: '没有匹配结果',
-                        message: '尝试缩短关键词或更换搜索内容。',
+                        title: '未匹配到任何结果',
+                        message: '请尝试更换简短关键词重新搜索。',
                       )
                     : ListView.separated(
                         itemCount: items.length,
-                        separatorBuilder: (_, _) => const Divider(),
+                        separatorBuilder: (_, _) => const SizedBox(height: 4),
                         itemBuilder: (context, index) => _SearchResultTile(
                           result: items[index],
                           onTap: () {
@@ -477,12 +635,6 @@ class _GlobalSearchDialogState extends ConsumerState<_GlobalSearchDialog> {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
-        ),
-      ],
     );
   }
 }
@@ -495,17 +647,35 @@ class _SearchResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, label) = switch (result.entityType) {
-      'note' => (Icons.edit_note_outlined, '笔记'),
-      'focus' => (Icons.timer_outlined, '专注'),
-      _ => (Icons.check_box_outlined, '任务'),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final (icon, label, color) = switch (result.entityType) {
+      'note' => (Icons.edit_note_outlined, '笔记', ZhixuColors.cyan),
+      'focus' => (Icons.timer_outlined, '专注', ZhixuColors.warning),
+      _ => (Icons.check_box_outlined, '任务', ZhixuColors.accent),
     };
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(result.title),
-      subtitle: Text(label),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161B26) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? ZhixuColors.border.withValues(alpha: 0.5) : Colors.grey.shade200,
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(result.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
+        subtitle: Text(label, style: const TextStyle(fontSize: 12.5, color: ZhixuColors.muted)),
+        trailing: const Icon(Icons.chevron_right, size: 20, color: ZhixuColors.muted),
+        onTap: onTap,
+      ),
     );
   }
 }

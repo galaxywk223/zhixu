@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../core/theme.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({required this.child, super.key});
@@ -32,22 +33,28 @@ class _AppShellState extends State<AppShell> {
     final location = GoRouterState.of(context).uri.path;
     final forceCompact = MediaQuery.sizeOf(context).width < 1180;
     final compact = forceCompact || collapsed;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Row(
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: compact ? 72 : 240,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            width: compact ? 74 : 240,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: isDark ? ZhixuColors.surface : Theme.of(context).colorScheme.surface,
               border: Border(
-                right: BorderSide(color: Theme.of(context).dividerColor),
+                right: BorderSide(
+                  color: isDark ? ZhixuColors.border : Theme.of(context).dividerColor,
+                ),
               ),
             ),
             child: SafeArea(
               child: Column(
                 children: [
                   _Brand(compact: compact),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -55,11 +62,15 @@ class _AppShellState extends State<AppShell> {
                         for (final group in _groups) ...[
                           if (!compact)
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 18, 10, 7),
+                              padding: const EdgeInsets.fromLTRB(12, 18, 12, 8),
                               child: Text(
                                 group.label,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  color: ZhixuColors.muted.withValues(alpha: 0.8),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             )
                           else
@@ -125,30 +136,59 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(compact ? 14 : 20, 18, compact ? 14 : 20, 12),
+    padding: EdgeInsets.fromLTRB(compact ? 14 : 20, 20, compact ? 14 : 20, 14),
     child: Row(
       mainAxisAlignment: compact
           ? MainAxisAlignment.center
           : MainAxisAlignment.start,
       children: [
-        ClipRRect(
-          key: const Key('zhixu-brand-mark'),
-          borderRadius: BorderRadius.circular(7),
-          child: Image.asset(
-            'assets/branding/zhixu-mark-1024.png',
-            width: 36,
-            height: 36,
-            filterQuality: FilterQuality.medium,
+        Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6366F1), Color(0xFF06B6D4)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                blurRadius: 10,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            key: const Key('zhixu-brand-mark'),
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              'assets/branding/zhixu-mark-1024.png',
+              width: 34,
+              height: 34,
+              filterQuality: FilterQuality.medium,
+            ),
           ),
         ),
         if (!compact) ...[
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('知序', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 2),
-              Text('个人工作台', style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                '知序',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                '个人工作台',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  color: ZhixuColors.muted,
+                ),
+              ),
             ],
           ),
         ],
@@ -173,15 +213,32 @@ class _SidebarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final child = InkWell(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(10),
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
         height: 46,
         padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 12),
         decoration: BoxDecoration(
-          color: active ? colors.primaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          color: active
+              ? (isDark ? const Color(0xFF1E2640) : colors.primaryContainer)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: active && isDark
+              ? Border.all(color: ZhixuColors.accent.withValues(alpha: 0.35))
+              : null,
+          boxShadow: active && isDark
+              ? [
+                  BoxShadow(
+                    color: ZhixuColors.accent.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisAlignment: compact
@@ -192,8 +249,8 @@ class _SidebarItem extends StatelessWidget {
               item.icon,
               size: 21,
               color: active
-                  ? colors.onPrimaryContainer
-                  : colors.onSurfaceVariant,
+                  ? (isDark ? const Color(0xFF818CF8) : colors.onPrimaryContainer)
+                  : (isDark ? ZhixuColors.muted : colors.onSurfaceVariant),
             ),
             if (!compact) ...[
               const SizedBox(width: 12),
@@ -203,13 +260,28 @@ class _SidebarItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: active
-                        ? colors.onPrimaryContainer
-                        : colors.onSurfaceVariant,
-                    fontSize: 15,
+                        ? (isDark ? Colors.white : colors.onPrimaryContainer)
+                        : (isDark ? ZhixuColors.muted : colors.onSurfaceVariant),
+                    fontSize: 14.5,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
+              if (active)
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: ZhixuColors.accent,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: ZhixuColors.accent,
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ],
         ),
