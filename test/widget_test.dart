@@ -1,11 +1,14 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:zhixu/app.dart';
 import 'package:zhixu/core/theme.dart';
 import 'package:zhixu/data/database.dart';
 import 'package:zhixu/data/repository.dart';
+import 'package:zhixu/services/update_service.dart';
 import 'package:zhixu/state/providers.dart';
 import 'package:zhixu/ui/pages/focus_page.dart';
 import 'package:zhixu/ui/pages/sleep_page.dart';
@@ -17,8 +20,29 @@ void main() {
     final theme = buildZhixuTheme(brightness: Brightness.light);
     expect(theme.textTheme.bodyMedium?.fontSize, 15);
     expect(theme.textTheme.bodySmall?.fontSize, 13);
-    expect(theme.textTheme.headlineMedium?.fontSize, 27);
+    expect(theme.textTheme.headlineMedium?.fontSize, 26);
     expect(theme.textTheme.bodyMedium?.fontFamily, 'Noto Sans SC');
+  });
+
+  testWidgets('应用根节点提供中文 Material 本地化', (tester) async {
+    final database = ZhixuDatabase.memory();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          updateServiceProvider.overrideWith((ref) => _NoopUpdateService()),
+        ],
+        child: const ZhixuApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final context = tester.element(find.byType(AppShell));
+    expect(Localizations.localeOf(context), const Locale('zh', 'CN'));
+    expect(MaterialLocalizations.of(context).cancelButtonLabel, '取消');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('应用 shell 可以启动', (tester) async {
@@ -122,6 +146,9 @@ void main() {
       ProviderScope(
         overrides: [databaseProvider.overrideWithValue(database)],
         child: MaterialApp(
+          locale: const Locale('zh', 'CN'),
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('zh', 'CN')],
           theme: buildZhixuTheme(brightness: Brightness.light),
           home: const Scaffold(body: TasksPage()),
         ),
@@ -184,11 +211,23 @@ void main() {
     await tester.tap(find.byKey(Key('task-row-$todayTaskId')));
     await tester.pumpAndSettle();
     expect(find.text('编辑任务'), findsOneWidget);
-    expect(find.text('组织'), findsOneWidget);
-    expect(find.text('计划'), findsOneWidget);
+    expect(find.text('分类与标签'), findsOneWidget);
+    expect(find.text('计划与到期安排'), findsOneWidget);
     expect(find.text('新建标签'), findsOneWidget);
     expect(find.text('15 分钟'), findsOneWidget);
     expect(find.text('到期时间'), findsWidgets);
+
+    await tester.tap(find.text('选择时间'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    final datePickerCancel = find.descendant(
+      of: find.byType(DatePickerDialog),
+      matching: find.text('取消'),
+    );
+    expect(datePickerCancel, findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(datePickerCancel);
+    await tester.pumpAndSettle();
 
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
@@ -255,4 +294,9 @@ void main() {
     router.dispose();
     await tester.binding.setSurfaceSize(null);
   });
+}
+
+class _NoopUpdateService extends UpdateService {
+  @override
+  Future<void> autoCheck() async {}
 }

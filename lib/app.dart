@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -52,6 +53,9 @@ class _ZhixuAppState extends ConsumerState<ZhixuApp> {
     return MaterialApp.router(
       title: '知序',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('zh', 'CN'),
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('zh', 'CN')],
       theme: buildZhixuTheme(brightness: Brightness.light),
       darkTheme: buildZhixuTheme(brightness: Brightness.dark),
       themeMode: mode,
