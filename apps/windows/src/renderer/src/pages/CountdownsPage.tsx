@@ -81,31 +81,35 @@ export function CountdownsPage(props: {
           </Button>
         }
       />
-      {groups.upcoming.length === 0 && groups.past.length === 0 ? (
-        <EmptyState
-          title="暂无倒数日"
-          detail="记录考试、申请截止或其他重要日期。"
-          action={<Button onClick={() => setEditing("new")}>新建倒数日</Button>}
-        />
-      ) : (
-        <div className="countdown-sections">
-          <CountdownSection
-            title="即将到来"
-            items={groups.upcoming}
-            empty="暂无即将到来的日期"
-            onEdit={setEditing}
-            onDelete={removeItem}
+      <div className="countdown-workspace-scroll">
+        {groups.upcoming.length === 0 && groups.past.length === 0 ? (
+          <EmptyState
+            title="暂无倒数日"
+            detail="记录考试、申请截止或其他重要日期。"
+            action={
+              <Button onClick={() => setEditing("new")}>新建倒数日</Button>
+            }
           />
-          {groups.past.length ? (
+        ) : (
+          <div className="countdown-sections">
             <CountdownSection
-              title="已经过去"
-              items={groups.past}
+              title="即将到来"
+              items={groups.upcoming}
+              empty="暂无即将到来的日期"
               onEdit={setEditing}
               onDelete={removeItem}
             />
-          ) : null}
-        </div>
-      )}
+            {groups.past.length ? (
+              <CountdownSection
+                title="已经过去"
+                items={groups.past}
+                onEdit={setEditing}
+                onDelete={removeItem}
+              />
+            ) : null}
+          </div>
+        )}
+      </div>
       <CountdownEditor value={editing} onClose={() => setEditing(null)} />
     </div>
   );

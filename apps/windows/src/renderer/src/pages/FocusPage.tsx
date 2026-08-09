@@ -274,62 +274,64 @@ export function FocusPage({
 
       <div className="focus-workspace-layout">
         <aside className="focus-filter-rail" aria-label="专注视图与概览">
-          <section>
-            <h2>快捷视图</h2>
-            <nav aria-label="专注快捷视图">
-              {focusViews.map((view) => (
-                <button
-                  type="button"
-                  className={filters.view === view.value ? "active" : ""}
-                  key={view.value}
-                  onClick={() =>
-                    setFilters((current) => ({
-                      ...current,
-                      view: view.value,
-                    }))
-                  }
-                >
-                  {view.icon}
-                  <span>{FOCUS_VIEW_LABELS[view.value]}</span>
-                  <strong>{workspace.viewCounts[view.value]}</strong>
-                </button>
-              ))}
-            </nav>
-          </section>
-          {filters.view === "custom" ? (
-            <section className="focus-custom-range">
-              <h2>日期范围</h2>
-              <Field label="开始日期">
-                <LocalDateField
-                  value={filters.customStart}
-                  max={today}
-                  ariaLabel="专注开始日期"
-                  onChange={(value) =>
-                    setFilters((current) => ({
-                      ...current,
-                      customStart: value,
-                    }))
-                  }
-                />
-              </Field>
-              <Field label="结束日期">
-                <LocalDateField
-                  value={filters.customEnd}
-                  max={today}
-                  ariaLabel="专注结束日期"
-                  onChange={(value) =>
-                    setFilters((current) => ({
-                      ...current,
-                      customEnd: value,
-                    }))
-                  }
-                />
-              </Field>
-              {workspace.rangeError ? (
-                <p className="focus-range-error">{workspace.rangeError}</p>
-              ) : null}
+          <div className="focus-filter-scroll">
+            <section>
+              <h2>快捷视图</h2>
+              <nav aria-label="专注快捷视图">
+                {focusViews.map((view) => (
+                  <button
+                    type="button"
+                    className={filters.view === view.value ? "active" : ""}
+                    key={view.value}
+                    onClick={() =>
+                      setFilters((current) => ({
+                        ...current,
+                        view: view.value,
+                      }))
+                    }
+                  >
+                    {view.icon}
+                    <span>{FOCUS_VIEW_LABELS[view.value]}</span>
+                    <strong>{workspace.viewCounts[view.value]}</strong>
+                  </button>
+                ))}
+              </nav>
             </section>
-          ) : null}
+            {filters.view === "custom" ? (
+              <section className="focus-custom-range">
+                <h2>日期范围</h2>
+                <Field label="开始日期">
+                  <LocalDateField
+                    value={filters.customStart}
+                    max={today}
+                    ariaLabel="专注开始日期"
+                    onChange={(value) =>
+                      setFilters((current) => ({
+                        ...current,
+                        customStart: value,
+                      }))
+                    }
+                  />
+                </Field>
+                <Field label="结束日期">
+                  <LocalDateField
+                    value={filters.customEnd}
+                    max={today}
+                    ariaLabel="专注结束日期"
+                    onChange={(value) =>
+                      setFilters((current) => ({
+                        ...current,
+                        customEnd: value,
+                      }))
+                    }
+                  />
+                </Field>
+                {workspace.rangeError ? (
+                  <p className="focus-range-error">{workspace.rangeError}</p>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
           <section className="focus-overview">
             <h2>当前概览</h2>
             <dl>

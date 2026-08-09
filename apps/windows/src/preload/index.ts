@@ -44,12 +44,6 @@ const api: ZhixuApi = {
     save: (draft) => ipcRenderer.invoke("countdowns:save", draft),
     remove: (id) => ipcRenderer.invoke("countdowns:remove", id),
   },
-  calendar: {
-    list: (startAt, endAt) =>
-      ipcRenderer.invoke("calendar:list", { startAt, endAt }),
-    save: (draft) => ipcRenderer.invoke("calendar:save", draft),
-    remove: (id) => ipcRenderer.invoke("calendar:remove", id),
-  },
   notes: {
     list: () => ipcRenderer.invoke("notes:list"),
     save: (draft) => ipcRenderer.invoke("notes:save", draft),

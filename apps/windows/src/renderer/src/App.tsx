@@ -31,7 +31,8 @@ export function App(): React.JSX.Element {
   const [editor, setEditor] = useState<{
     open: boolean;
     task: TaskRecord | null;
-  }>({ open: false, task: null });
+    initialDueDate: string | null;
+  }>({ open: false, task: null, initialDueDate: null });
   const [search, setSearch] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
@@ -60,7 +61,8 @@ export function App(): React.JSX.Element {
   useEffect(
     () =>
       window.zhixu.app.onNavigate((target) => {
-        if (target === "new-task") setEditor({ open: true, task: null });
+        if (target === "new-task")
+          setEditor({ open: true, task: null, initialDueDate: null });
         else if (target === "search") setSearch(true);
         else if (
           [
@@ -97,7 +99,7 @@ export function App(): React.JSX.Element {
       }
       if (event.key.toLowerCase() === "n") {
         event.preventDefault();
-        setEditor({ open: true, task: null });
+        setEditor({ open: true, task: null, initialDueDate: null });
       }
       if (event.key === ",") {
         event.preventDefault();
@@ -126,8 +128,12 @@ export function App(): React.JSX.Element {
     );
   const mode = settings.data?.themeMode ?? bootstrap.data.settings.themeMode;
   const dark = mode === "dark" || (mode === "system" && systemDark);
-  const openNew = (): void => setEditor({ open: true, task: null });
-  const openEdit = (task: TaskRecord): void => setEditor({ open: true, task });
+  const openNew = (): void =>
+    setEditor({ open: true, task: null, initialDueDate: null });
+  const openNewForDate = (initialDueDate: string): void =>
+    setEditor({ open: true, task: null, initialDueDate });
+  const openEdit = (task: TaskRecord): void =>
+    setEditor({ open: true, task, initialDueDate: null });
   const handleDrop = async (event: React.DragEvent): Promise<void> => {
     event.preventDefault();
     setDragging(false);
@@ -166,7 +172,7 @@ export function App(): React.JSX.Element {
     tasks: <TasksPage onNew={openNew} onEdit={openEdit} />,
     memos: <MemosPage initialSelectedId={selectedMemoId} />,
     countdowns: <CountdownsPage initialSelectedId={selectedCountdownId} />,
-    calendar: <CalendarPage onNewTask={openNew} />,
+    calendar: <CalendarPage onNewTask={openNewForDate} onEditTask={openEdit} />,
     focus: (
       <FocusPage preview={focusPreview} onPreviewChange={setFocusPreview} />
     ),
@@ -212,7 +218,10 @@ export function App(): React.JSX.Element {
       <TaskEditor
         open={editor.open}
         task={editor.task}
-        onClose={() => setEditor({ open: false, task: null })}
+        initialDueDate={editor.initialDueDate}
+        onClose={() =>
+          setEditor({ open: false, task: null, initialDueDate: null })
+        }
       />
       <SearchDialog
         open={search}

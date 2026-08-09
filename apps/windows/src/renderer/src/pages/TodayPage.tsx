@@ -189,279 +189,285 @@ export function TodayPage(props: {
         </div>
       </header>
 
-      <section className="today-countdown-strip">
-        <div className="today-countdown-heading">
-          <CalendarClock20Regular />
-          <h2>倒数日</h2>
-          <button
-            type="button"
-            className="panel-link"
-            onClick={() => props.onOpenCountdowns(null)}
-          >
-            查看全部
-            <ChevronRight20Regular />
-          </button>
-        </div>
-        {upcomingCountdowns.length ? (
-          <div className="today-countdown-list">
-            {upcomingCountdowns.map((item) => {
-              const days = countdownDays(item.targetDate, now);
-              return (
-                <button
-                  type="button"
-                  className={`today-countdown-item ${days === 0 ? "today" : days <= 7 ? "soon" : "future"}`}
-                  key={item.id}
-                  onClick={() => props.onOpenCountdowns(item.id)}
-                >
-                  <span>
-                    <strong>{item.title}</strong>
-                    <time dateTime={item.targetDate}>
-                      {parseLocalDate(item.targetDate).toLocaleDateString(
-                        "zh-CN",
-                        { month: "long", day: "numeric" },
-                      )}
-                    </time>
-                  </span>
-                  <b>{countdownLabel(days)}</b>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="today-countdown-empty"
-            onClick={() => props.onOpenCountdowns(null)}
-          >
-            暂无倒数日，添加重要日期
-            <Add20Regular />
-          </button>
-        )}
-      </section>
-
-      <div className="today-dashboard-grid">
-        <section className="today-panel today-task-panel">
-          <div className="today-panel-heading">
-            <h2>今日待办</h2>
-            <span className="panel-count">{dashboard.totalCount}</span>
-            {estimatedMinutes > 0 ? (
-              <span className="panel-meta">
-                预计 {formatMinutes(estimatedMinutes)}
-              </span>
-            ) : null}
-          </div>
-          {dashboard.todayTasks.length ? (
-            <TaskList
-              tasks={dashboard.todayTasks}
-              categories={categories.data ?? []}
-              tags={tags.data ?? []}
-              onEdit={props.onEdit}
-              onStatus={(task, value) => status.mutate({ id: task.id, value })}
-              onDelete={(task) => {
-                if (confirm(`删除“${task.title}”？`)) remove.mutate(task.id);
-              }}
-            />
-          ) : (
-            <EmptyState
-              title="今天没有待处理任务"
-              detail="添加任务后，今日安排会集中显示在这里。"
-              action={<Button onClick={props.onNew}>添加任务</Button>}
-            />
-          )}
-          <button
-            className="panel-footer-action"
-            type="button"
-            onClick={props.onNew}
-          >
-            <Add20Regular />
-            添加任务
-          </button>
-        </section>
-
-        <section className="today-panel upcoming-panel">
-          <div className="today-panel-heading">
-            <h2>即将到期</h2>
-            <span className="panel-count">
-              {dashboard.upcomingTasks.length}
-            </span>
-          </div>
-          {upcoming.length ? (
-            <div className="upcoming-list">
-              {upcoming.map((task) => {
-                const remainingDays = daysUntil(task.dueAt!, now);
-                return (
-                  <button
-                    type="button"
-                    key={task.id}
-                    className={`upcoming-item ${remainingDays <= 1 ? "urgent" : remainingDays <= 3 ? "soon" : "later"}`}
-                    onClick={() => props.onEdit(task)}
-                  >
-                    <span className="deadline-dot" />
-                    <span className="upcoming-main">
-                      <strong>{task.title}</strong>
-                      <small>
-                        {remainingDays === 1
-                          ? "明天到期"
-                          : `剩余 ${remainingDays} 天`}
-                      </small>
-                    </span>
-                    <time>{formatDeadline(task.dueAt!)}</time>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyState
-              title="暂无临近截止任务"
-              detail="未来任务会按截止时间显示。"
-            />
-          )}
-        </section>
-
-        <section className="today-panel today-progress-panel">
-          <div className="today-panel-heading">
-            <h2>今日进度概览</h2>
-          </div>
-          <div className="today-progress-grid">
-            <div className="completion-metric">
-              <span>今日完成率</span>
-              <div
-                className="completion-ring"
-                role="progressbar"
-                aria-label="今日完成率"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={dashboard.completionRate}
-                style={
-                  {
-                    "--completion-angle": `${dashboard.completionRate * 3.6}deg`,
-                  } as CSSProperties
-                }
-              >
-                <strong>{dashboard.completionRate}%</strong>
-              </div>
-              <small>
-                {dashboard.completedCount} / {dashboard.totalCount} 已完成
-              </small>
-            </div>
-
-            <div className="focus-metric">
-              <span>今日专注</span>
-              <strong>
-                {formatMinutes(summary.data?.focusTodayMinutes ?? 0)}
-              </strong>
-              <small>近七日专注趋势</small>
-              <div className="focus-bars" aria-label="近七日专注趋势">
-                {focusByDay.map((item) => (
-                  <i
-                    key={item.date}
-                    title={`${item.date} ${item.minutes} 分钟`}
-                    style={{
-                      height: `${Math.max(8, (item.minutes / maxFocusMinutes) * 100)}%`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="task-progress-metric">
-              <span>任务完成数</span>
-              <strong>
-                {dashboard.completedCount}
-                <small> / {dashboard.totalCount}</small>
-              </strong>
-              <div className="completion-dots" aria-hidden="true">
-                {dashboard.todayTasks.slice(0, 8).map((task) => (
-                  <i
-                    key={task.id}
-                    className={task.status === "done" ? "done" : ""}
-                  />
-                ))}
-              </div>
-              <small>
-                {remainingCount
-                  ? `还有 ${remainingCount} 项待处理`
-                  : "今日任务已处理完毕"}
-              </small>
-            </div>
-          </div>
-        </section>
-
-        <section className="today-panel suggestion-panel">
-          <div className="suggestion-heading">
-            <span className="suggestion-icon">◎</span>
-            <h2>今日重点建议</h2>
-          </div>
-          {dashboard.focusTask ? (
-            <>
-              <p>
-                优先处理“{dashboard.focusTask.title}”
-                {dashboard.focusTask.priority === 3
-                  ? "，该任务优先级较高。"
-                  : "，完成后再推进后续安排。"}
-              </p>
-              <Button
-                appearance="outline"
-                icon={<ChevronRight20Regular />}
-                onClick={() => props.onEdit(dashboard.focusTask!)}
-              >
-                查看任务
-              </Button>
-            </>
-          ) : (
-            <>
-              <p>今日任务已经处理完毕，可补充新的安排或整理最近笔记。</p>
-              <Button
-                appearance="outline"
-                icon={<Add20Regular />}
-                onClick={props.onNew}
-              >
-                添加任务
-              </Button>
-            </>
-          )}
-        </section>
-
-        <section className="today-panel recent-notes-panel">
-          <div className="today-panel-heading">
-            <h2>最近笔记</h2>
+      <div className="today-workspace-scroll">
+        <section className="today-countdown-strip">
+          <div className="today-countdown-heading">
+            <CalendarClock20Regular />
+            <h2>倒数日</h2>
             <button
               type="button"
               className="panel-link"
-              onClick={() => props.onOpenNotes(null)}
+              onClick={() => props.onOpenCountdowns(null)}
             >
               查看全部
               <ChevronRight20Regular />
             </button>
           </div>
-          {recentNotes.length ? (
-            <div className="recent-notes-grid">
-              {recentNotes.map((note) => (
-                <button
-                  type="button"
-                  className="recent-note-card"
-                  key={note.id}
-                  onClick={() => props.onOpenNotes(note.id)}
-                >
-                  <span className="note-card-icon">
-                    <Note24Regular />
-                  </span>
-                  <span className="note-card-main">
-                    <strong>{note.title}</strong>
-                    <small>{formatNoteTime(note.updatedAt, now)}</small>
-                    <span>{notePreview(note.contentMd) || "暂无正文内容"}</span>
-                  </span>
-                  {note.isPinned ? <em>置顶</em> : null}
-                </button>
-              ))}
+          {upcomingCountdowns.length ? (
+            <div className="today-countdown-list">
+              {upcomingCountdowns.map((item) => {
+                const days = countdownDays(item.targetDate, now);
+                return (
+                  <button
+                    type="button"
+                    className={`today-countdown-item ${days === 0 ? "today" : days <= 7 ? "soon" : "future"}`}
+                    key={item.id}
+                    onClick={() => props.onOpenCountdowns(item.id)}
+                  >
+                    <span>
+                      <strong>{item.title}</strong>
+                      <time dateTime={item.targetDate}>
+                        {parseLocalDate(item.targetDate).toLocaleDateString(
+                          "zh-CN",
+                          { month: "long", day: "numeric" },
+                        )}
+                      </time>
+                    </span>
+                    <b>{countdownLabel(days)}</b>
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <EmptyState
-              title="暂无笔记"
-              detail="最近编辑的笔记会显示在这里。"
-            />
+            <button
+              type="button"
+              className="today-countdown-empty"
+              onClick={() => props.onOpenCountdowns(null)}
+            >
+              暂无倒数日，添加重要日期
+              <Add20Regular />
+            </button>
           )}
         </section>
+
+        <div className="today-dashboard-grid">
+          <section className="today-panel today-task-panel">
+            <div className="today-panel-heading">
+              <h2>今日待办</h2>
+              <span className="panel-count">{dashboard.totalCount}</span>
+              {estimatedMinutes > 0 ? (
+                <span className="panel-meta">
+                  预计 {formatMinutes(estimatedMinutes)}
+                </span>
+              ) : null}
+            </div>
+            {dashboard.todayTasks.length ? (
+              <TaskList
+                tasks={dashboard.todayTasks}
+                categories={categories.data ?? []}
+                tags={tags.data ?? []}
+                onEdit={props.onEdit}
+                onStatus={(task, value) =>
+                  status.mutate({ id: task.id, value })
+                }
+                onDelete={(task) => {
+                  if (confirm(`删除“${task.title}”？`)) remove.mutate(task.id);
+                }}
+              />
+            ) : (
+              <EmptyState
+                title="今天没有待处理任务"
+                detail="添加任务后，今日安排会集中显示在这里。"
+                action={<Button onClick={props.onNew}>添加任务</Button>}
+              />
+            )}
+            <button
+              className="panel-footer-action"
+              type="button"
+              onClick={props.onNew}
+            >
+              <Add20Regular />
+              添加任务
+            </button>
+          </section>
+
+          <section className="today-panel upcoming-panel">
+            <div className="today-panel-heading">
+              <h2>即将到期</h2>
+              <span className="panel-count">
+                {dashboard.upcomingTasks.length}
+              </span>
+            </div>
+            {upcoming.length ? (
+              <div className="upcoming-list">
+                {upcoming.map((task) => {
+                  const remainingDays = daysUntil(task.dueAt!, now);
+                  return (
+                    <button
+                      type="button"
+                      key={task.id}
+                      className={`upcoming-item ${remainingDays <= 1 ? "urgent" : remainingDays <= 3 ? "soon" : "later"}`}
+                      onClick={() => props.onEdit(task)}
+                    >
+                      <span className="deadline-dot" />
+                      <span className="upcoming-main">
+                        <strong>{task.title}</strong>
+                        <small>
+                          {remainingDays === 1
+                            ? "明天到期"
+                            : `剩余 ${remainingDays} 天`}
+                        </small>
+                      </span>
+                      <time>{formatDeadline(task.dueAt!)}</time>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                title="暂无临近截止任务"
+                detail="未来任务会按截止时间显示。"
+              />
+            )}
+          </section>
+
+          <section className="today-panel today-progress-panel">
+            <div className="today-panel-heading">
+              <h2>今日进度概览</h2>
+            </div>
+            <div className="today-progress-grid">
+              <div className="completion-metric">
+                <span>今日完成率</span>
+                <div
+                  className="completion-ring"
+                  role="progressbar"
+                  aria-label="今日完成率"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={dashboard.completionRate}
+                  style={
+                    {
+                      "--completion-angle": `${dashboard.completionRate * 3.6}deg`,
+                    } as CSSProperties
+                  }
+                >
+                  <strong>{dashboard.completionRate}%</strong>
+                </div>
+                <small>
+                  {dashboard.completedCount} / {dashboard.totalCount} 已完成
+                </small>
+              </div>
+
+              <div className="focus-metric">
+                <span>今日专注</span>
+                <strong>
+                  {formatMinutes(summary.data?.focusTodayMinutes ?? 0)}
+                </strong>
+                <small>近七日专注趋势</small>
+                <div className="focus-bars" aria-label="近七日专注趋势">
+                  {focusByDay.map((item) => (
+                    <i
+                      key={item.date}
+                      title={`${item.date} ${item.minutes} 分钟`}
+                      style={{
+                        height: `${Math.max(8, (item.minutes / maxFocusMinutes) * 100)}%`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="task-progress-metric">
+                <span>任务完成数</span>
+                <strong>
+                  {dashboard.completedCount}
+                  <small> / {dashboard.totalCount}</small>
+                </strong>
+                <div className="completion-dots" aria-hidden="true">
+                  {dashboard.todayTasks.slice(0, 8).map((task) => (
+                    <i
+                      key={task.id}
+                      className={task.status === "done" ? "done" : ""}
+                    />
+                  ))}
+                </div>
+                <small>
+                  {remainingCount
+                    ? `还有 ${remainingCount} 项待处理`
+                    : "今日任务已处理完毕"}
+                </small>
+              </div>
+            </div>
+          </section>
+
+          <section className="today-panel suggestion-panel">
+            <div className="suggestion-heading">
+              <span className="suggestion-icon">◎</span>
+              <h2>今日重点建议</h2>
+            </div>
+            {dashboard.focusTask ? (
+              <>
+                <p>
+                  优先处理“{dashboard.focusTask.title}”
+                  {dashboard.focusTask.priority === 3
+                    ? "，该任务优先级较高。"
+                    : "，完成后再推进后续安排。"}
+                </p>
+                <Button
+                  appearance="outline"
+                  icon={<ChevronRight20Regular />}
+                  onClick={() => props.onEdit(dashboard.focusTask!)}
+                >
+                  查看任务
+                </Button>
+              </>
+            ) : (
+              <>
+                <p>今日任务已经处理完毕，可补充新的安排或整理最近笔记。</p>
+                <Button
+                  appearance="outline"
+                  icon={<Add20Regular />}
+                  onClick={props.onNew}
+                >
+                  添加任务
+                </Button>
+              </>
+            )}
+          </section>
+
+          <section className="today-panel recent-notes-panel">
+            <div className="today-panel-heading">
+              <h2>最近笔记</h2>
+              <button
+                type="button"
+                className="panel-link"
+                onClick={() => props.onOpenNotes(null)}
+              >
+                查看全部
+                <ChevronRight20Regular />
+              </button>
+            </div>
+            {recentNotes.length ? (
+              <div className="recent-notes-grid">
+                {recentNotes.map((note) => (
+                  <button
+                    type="button"
+                    className="recent-note-card"
+                    key={note.id}
+                    onClick={() => props.onOpenNotes(note.id)}
+                  >
+                    <span className="note-card-icon">
+                      <Note24Regular />
+                    </span>
+                    <span className="note-card-main">
+                      <strong>{note.title}</strong>
+                      <small>{formatNoteTime(note.updatedAt, now)}</small>
+                      <span>
+                        {notePreview(note.contentMd) || "暂无正文内容"}
+                      </span>
+                    </span>
+                    {note.isPinned ? <em>置顶</em> : null}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="暂无笔记"
+                detail="最近编辑的笔记会显示在这里。"
+              />
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

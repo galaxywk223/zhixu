@@ -12,7 +12,6 @@ const formSources = [
   "../src/renderer/src/components/TaskEditor.tsx",
   "../src/renderer/src/pages/MemosPage.tsx",
   "../src/renderer/src/pages/CountdownsPage.tsx",
-  "../src/renderer/src/pages/CalendarPage.tsx",
   "../src/renderer/src/pages/SleepPage.tsx",
   "../src/renderer/src/pages/SettingsPage.tsx",
 ].map((path) =>
@@ -22,6 +21,24 @@ const focusSource = readFileSync(
   fileURLToPath(
     new URL("../src/renderer/src/pages/FocusPage.tsx", import.meta.url),
   ),
+  "utf8",
+);
+const calendarSource = readFileSync(
+  fileURLToPath(
+    new URL("../src/renderer/src/pages/CalendarPage.tsx", import.meta.url),
+  ),
+  "utf8",
+);
+const preloadSource = readFileSync(
+  fileURLToPath(new URL("../src/preload/index.ts", import.meta.url)),
+  "utf8",
+);
+const ipcSource = readFileSync(
+  fileURLToPath(new URL("../src/main/ipc.ts", import.meta.url)),
+  "utf8",
+);
+const databaseSource = readFileSync(
+  fileURLToPath(new URL("../src/main/database.ts", import.meta.url)),
   "utf8",
 );
 
@@ -57,6 +74,37 @@ describe("visual system", () => {
     expect(focusSource).toContain('role="tablist"');
     expect(focusSource).not.toContain('className="stats-grid"');
     expect(focusSource).not.toContain('className="filter-bar"');
+  });
+
+  it("keeps the app shell fixed and scrolls long workspace content internally", () => {
+    expect(styles).toMatch(/\.content \{[^}]*overflow: hidden;/s);
+    expect(styles).toMatch(
+      /\.page \{[^}]*height: 100%;[^}]*min-height: 0;[^}]*overflow: hidden;/s,
+    );
+    expect(styles).toMatch(
+      /\.task-table-scroll \{[^}]*overflow-y: auto;[^}]*overflow-x: hidden;/s,
+    );
+    for (const className of [
+      "memo-workspace-scroll",
+      "countdown-workspace-scroll",
+      "settings-workspace-scroll",
+      "today-workspace-scroll",
+      "calendar-detail-scroll",
+      "week-timeline-scroll",
+    ]) {
+      expect(styles).toContain(`.${className}`);
+    }
+  });
+
+  it("uses tasks for the month view and focus sessions for the week view", () => {
+    expect(calendarSource).toContain("buildCalendarMonth");
+    expect(calendarSource).toContain("buildFocusWeek");
+    expect(calendarSource).toContain("queryFn: window.zhixu.tasks.list");
+    expect(calendarSource).toContain("queryFn: window.zhixu.focus.list");
+    expect(calendarSource).not.toContain("ScheduleEditor");
+    expect(preloadSource).not.toContain('ipcRenderer.invoke("calendar:');
+    expect(ipcSource).not.toContain('ipcMain.handle("calendar:');
+    expect(databaseSource).toContain("schedule_blocks");
   });
 
   it("uses the shared Fluent date and time fields in editor dialogs", () => {

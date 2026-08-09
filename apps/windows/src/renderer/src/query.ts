@@ -15,7 +15,6 @@ export const queryKeys = {
   summary: ["dashboard-summary"] as const,
   settings: ["settings"] as const,
   updates: ["updates"] as const,
-  calendar: (start: string, end: string) => ["calendar", start, end] as const,
 };
 
 export function useDataInvalidation(): void {
@@ -33,7 +32,6 @@ export function useDataInvalidation(): void {
           memos: [queryKeys.memos, queryKeys.summary],
           countdowns: [queryKeys.countdowns],
           notes: [queryKeys.notes],
-          calendar: [["calendar"], queryKeys.summary],
           focus: [
             queryKeys.focus,
             queryKeys.batches,

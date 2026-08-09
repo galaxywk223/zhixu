@@ -16,7 +16,7 @@ import { isImplicitEndOfDay } from "../src/shared/task-schedule";
 
 afterEach(cleanup);
 
-function renderEditor(api: ZhixuApi): void {
+function renderEditor(api: ZhixuApi, initialDueDate?: string): void {
   Object.defineProperty(window, "zhixu", { configurable: true, value: api });
   const client = new QueryClient({
     defaultOptions: {
@@ -27,13 +27,38 @@ function renderEditor(api: ZhixuApi): void {
   render(
     <QueryClientProvider client={client}>
       <FluentProvider theme={zhixuLightTheme}>
-        <TaskEditor open task={null} onClose={() => undefined} />
+        <TaskEditor
+          open
+          task={null}
+          initialDueDate={initialDueDate}
+          onClose={() => undefined}
+        />
       </FluentProvider>
     </QueryClientProvider>,
   );
 }
 
 describe("task editor", () => {
+  it("prefills an initial date supplied by the calendar", async () => {
+    renderEditor(
+      {
+        tasks: {
+          categories: vi.fn().mockResolvedValue([]),
+          tags: vi.fn().mockResolvedValue([]),
+          save: vi.fn(),
+          createBatch: vi.fn(),
+          saveTag: vi.fn(),
+        },
+      } as unknown as ZhixuApi,
+      "2026-08-09",
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      (within(dialog).getByLabelText("日期") as HTMLInputElement).value,
+    ).toBe("2026年8月9日");
+  });
+
   it("selects existing tags and creates a new selected tag", async () => {
     const records: TagRecord[] = [
       {

@@ -109,76 +109,78 @@ export function MemosPage(props: {
           </Button>
         </div>
       </header>
-      {filtered.length === 0 ? (
-        <EmptyState
-          title={query ? "没有匹配的备忘" : "暂无备忘"}
-          detail={query ? "调整搜索内容。" : "记录不需要安排日期的事项。"}
-          action={
-            query ? undefined : (
-              <Button onClick={() => setEditing("new")}>新建备忘</Button>
-            )
-          }
-        />
-      ) : (
-        <div className="memo-list">
-          {filtered.map((memo) => {
-            const memoTags = memo.tagIds
-              .map((id) => tagMap.get(id))
-              .filter((tag): tag is TagRecord => Boolean(tag));
-            return (
-              <article className="memo-row" key={memo.id}>
-                <button
-                  type="button"
-                  className="memo-row-main"
-                  onClick={() => setEditing(memo)}
-                >
-                  <strong>{memo.title}</strong>
-                  {memo.descriptionMd ? <p>{memo.descriptionMd}</p> : null}
-                  <span className="memo-meta">
-                    {memo.categoryId
-                      ? (categoryMap.get(memo.categoryId)?.name ?? "未分类")
-                      : "未分类"}
-                    <time>
-                      {new Date(memo.updatedAt).toLocaleString("zh-CN", {
-                        month: "numeric",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </time>
-                  </span>
-                  {memoTags.length ? (
-                    <span className="memo-tags">
-                      {memoTags.map((tag) => (
-                        <span key={tag.id} data-tag-tone={tagTone(tag.name)}>
-                          {tag.name}
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
-                </button>
-                <div className="memo-actions">
-                  <Button
-                    appearance="subtle"
-                    icon={<Edit20Regular />}
-                    aria-label={`编辑${memo.title}`}
+      <div className="memo-workspace-scroll">
+        {filtered.length === 0 ? (
+          <EmptyState
+            title={query ? "没有匹配的备忘" : "暂无备忘"}
+            detail={query ? "调整搜索内容。" : "记录不需要安排日期的事项。"}
+            action={
+              query ? undefined : (
+                <Button onClick={() => setEditing("new")}>新建备忘</Button>
+              )
+            }
+          />
+        ) : (
+          <div className="memo-list">
+            {filtered.map((memo) => {
+              const memoTags = memo.tagIds
+                .map((id) => tagMap.get(id))
+                .filter((tag): tag is TagRecord => Boolean(tag));
+              return (
+                <article className="memo-row" key={memo.id}>
+                  <button
+                    type="button"
+                    className="memo-row-main"
                     onClick={() => setEditing(memo)}
-                  />
-                  <Button
-                    appearance="subtle"
-                    icon={<Delete20Regular />}
-                    aria-label={`删除${memo.title}`}
-                    onClick={() => {
-                      if (confirm(`删除“${memo.title}”？`))
-                        remove.mutate(memo.id);
-                    }}
-                  />
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+                  >
+                    <strong>{memo.title}</strong>
+                    {memo.descriptionMd ? <p>{memo.descriptionMd}</p> : null}
+                    <span className="memo-meta">
+                      {memo.categoryId
+                        ? (categoryMap.get(memo.categoryId)?.name ?? "未分类")
+                        : "未分类"}
+                      <time>
+                        {new Date(memo.updatedAt).toLocaleString("zh-CN", {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </time>
+                    </span>
+                    {memoTags.length ? (
+                      <span className="memo-tags">
+                        {memoTags.map((tag) => (
+                          <span key={tag.id} data-tag-tone={tagTone(tag.name)}>
+                            {tag.name}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </button>
+                  <div className="memo-actions">
+                    <Button
+                      appearance="subtle"
+                      icon={<Edit20Regular />}
+                      aria-label={`编辑${memo.title}`}
+                      onClick={() => setEditing(memo)}
+                    />
+                    <Button
+                      appearance="subtle"
+                      icon={<Delete20Regular />}
+                      aria-label={`删除${memo.title}`}
+                      onClick={() => {
+                        if (confirm(`删除“${memo.title}”？`))
+                          remove.mutate(memo.id);
+                      }}
+                    />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <MemoEditor
         value={editing}
         categories={categories.data ?? []}

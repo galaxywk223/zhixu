@@ -55,12 +55,14 @@ type SaveRequest =
 interface TaskEditorProps {
   open: boolean;
   task: TaskRecord | null;
+  initialDueDate?: string | null;
   onClose(): void;
 }
 
 export function TaskEditor({
   open,
   task,
+  initialDueDate = null,
   onClose,
 }: TaskEditorProps): React.JSX.Element {
   const client = useQueryClient();
@@ -94,7 +96,9 @@ export function TaskEditor({
     setTitle(task?.title ?? "");
     setDescription(task?.descriptionMd ?? "");
     setPriority(task?.priority ?? 1);
-    const due = dueParts(task?.dueAt ?? null);
+    const due = task
+      ? dueParts(task.dueAt)
+      : { date: initialDueDate ?? localDateKey(new Date()), time: "" };
     setDueDate(due.date);
     setDueTime(due.time);
     setCreationMode("single");
@@ -105,7 +109,7 @@ export function TaskEditor({
     setTagIds(task?.tagIds ?? []);
     setTagQuery("");
     setError(null);
-  }, [open, task]);
+  }, [open, task, initialDueDate]);
 
   const save = useMutation<unknown, Error, SaveRequest>({
     mutationFn: (request: SaveRequest) =>

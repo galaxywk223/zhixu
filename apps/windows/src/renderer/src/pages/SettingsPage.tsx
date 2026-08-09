@@ -136,183 +136,187 @@ export function SettingsPage(): React.JSX.Element {
         <div className="error-message">{settingsError}</div>
       ) : null}
       {message ? <div className="success-message">{message}</div> : null}
-      <div className="settings-layout">
-        <section className="settings-section">
-          <h2>主题外观</h2>
-          <div className="segmented">
-            {(["system", "light", "dark"] as const).map((mode) => (
-              <button
-                key={mode}
-                className={draft.themeMode === mode ? "active" : ""}
-                disabled={updateSettings.isPending}
-                onClick={() => changeSettings({ themeMode: mode })}
-              >
-                {mode === "system"
-                  ? "跟随系统"
-                  : mode === "light"
-                    ? "浅色"
-                    : "深色"}
-              </button>
-            ))}
-          </div>
-          <div className="setting-row scale-setting-row">
-            <div>
-              <strong>界面缩放</strong>
-              <small>同步调整文字、控件和页面布局。</small>
+      <div className="settings-workspace-scroll">
+        <div className="settings-layout">
+          <section className="settings-section">
+            <h2>主题外观</h2>
+            <div className="segmented">
+              {(["system", "light", "dark"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={draft.themeMode === mode ? "active" : ""}
+                  disabled={updateSettings.isPending}
+                  onClick={() => changeSettings({ themeMode: mode })}
+                >
+                  {mode === "system"
+                    ? "跟随系统"
+                    : mode === "light"
+                      ? "浅色"
+                      : "深色"}
+                </button>
+              ))}
             </div>
-            <div className="scale-stepper" role="group" aria-label="界面缩放">
-              <Tooltip content="缩小界面  Ctrl+-" relationship="description">
-                <Button
-                  appearance="subtle"
-                  icon={<ZoomOut20Regular />}
-                  aria-label="缩小界面"
-                  disabled={draft.uiScale === 80 || updateSettings.isPending}
-                  onClick={() =>
-                    changeSettings({
-                      uiScale: stepUiScale(draft.uiScale, -1),
-                    })
-                  }
-                />
-              </Tooltip>
-              <output aria-live="polite">{draft.uiScale}%</output>
-              <Tooltip content="放大界面  Ctrl++" relationship="description">
-                <Button
-                  appearance="subtle"
-                  icon={<ZoomIn20Regular />}
-                  aria-label="放大界面"
-                  disabled={draft.uiScale === 150 || updateSettings.isPending}
-                  onClick={() =>
-                    changeSettings({
-                      uiScale: stepUiScale(draft.uiScale, 1),
-                    })
-                  }
-                />
-              </Tooltip>
-              <Tooltip content="恢复 100%  Ctrl+0" relationship="description">
-                <Button
-                  appearance="subtle"
-                  icon={<ArrowReset20Regular />}
-                  aria-label="恢复默认缩放"
-                  disabled={
-                    draft.uiScale === DEFAULT_UI_SCALE ||
-                    updateSettings.isPending
-                  }
-                  onClick={() => changeSettings({ uiScale: DEFAULT_UI_SCALE })}
-                />
-              </Tooltip>
-            </div>
-          </div>
-          <div className="setting-row">
-            <div>
-              <strong>关闭后驻留系统托盘</strong>
-              <small>托盘菜单可重新打开或明确退出。</small>
-            </div>
-            <Switch
-              checked={draft.closeToTray}
-              disabled={updateSettings.isPending}
-              onChange={(_, data) =>
-                changeSettings({ closeToTray: data.checked })
-              }
-            />
-          </div>
-          <div className="setting-row">
-            <div>
-              <strong>启动后保持最小化</strong>
-              <small>适合随系统启动的后台工作流。</small>
-            </div>
-            <Switch
-              checked={draft.startMinimized}
-              disabled={updateSettings.isPending}
-              onChange={(_, data) =>
-                changeSettings({ startMinimized: data.checked })
-              }
-            />
-          </div>
-        </section>
-        <section className="settings-section">
-          <div className="section-heading">
-            <h2>标签管理</h2>
-            <Button onClick={() => setEditingTag("new")}>新建标签</Button>
-          </div>
-          <div className="tag-settings">
-            {(tags.data ?? []).map((tag) => (
-              <div key={tag.id}>
-                <span data-tag-tone={tagTone(tag.name)} />
-                <strong>{tag.name}</strong>
-                <Button
-                  appearance="subtle"
-                  icon={<Edit20Regular />}
-                  onClick={() => setEditingTag(tag)}
-                />
-                <Button
-                  appearance="subtle"
-                  icon={<Delete20Regular />}
-                  onClick={() => {
-                    if (confirm(`删除“${tag.name}”标签？任务不会被删除。`))
-                      removeTag.mutate(tag.id);
-                  }}
-                />
+            <div className="setting-row scale-setting-row">
+              <div>
+                <strong>界面缩放</strong>
+                <small>同步调整文字、控件和页面布局。</small>
               </div>
-            ))}
-          </div>
-        </section>
-        <section className="settings-section">
-          <h2>数据与备份</h2>
-          <p>
-            Electron 数据库与 Flutter
-            原数据库相互独立。恢复操作在校验失败时自动回滚。
-          </p>
-          <div className="button-row">
-            <Button
-              icon={<ArrowDownload20Regular />}
-              onClick={() => exportBackup.mutate()}
-            >
-              导出 v6 备份
-            </Button>
-            <Button
-              icon={<ArrowUpload20Regular />}
-              onClick={() => {
-                if (confirm("恢复会覆盖当前 Electron 本地数据，是否继续？"))
-                  restore.mutate();
-              }}
-            >
-              恢复 v1–v6 备份
-            </Button>
-          </div>
-        </section>
-        <section className="settings-section">
-          <h2>账户与同步</h2>
-          <div className="sync-deferred">
-            <strong>本地完整模式</strong>
-            <p>{sync.data?.message}</p>
-          </div>
-        </section>
-        <section className="settings-section">
-          <h2>数据库迁移</h2>
-          <dl className="details-list">
-            <dt>状态</dt>
-            <dd>{bootstrap.data?.migration.status}</dd>
-            <dt>版本</dt>
-            <dd>
-              {bootstrap.data?.migration.fromVersion} →{" "}
-              {bootstrap.data?.migration.toVersion}
-            </dd>
-            <dt>完整性</dt>
-            <dd>{bootstrap.data?.migration.integrity}</dd>
-            <dt>源数据库</dt>
-            <dd>{bootstrap.data?.migration.sourcePath ?? "未发现旧库"}</dd>
-            <dt>迁移备份</dt>
-            <dd>{bootstrap.data?.migration.backupPath ?? "无需新备份"}</dd>
-          </dl>
-        </section>
-        <section className="settings-section">
-          <h2>关于与更新</h2>
-          <p>知序 {bootstrap.data?.version} · Electron Windows x64</p>
-          <UpdatePanel
-            state={updates.data}
-            onCheck={() => checkUpdate.mutate()}
-          />
-        </section>
+              <div className="scale-stepper" role="group" aria-label="界面缩放">
+                <Tooltip content="缩小界面  Ctrl+-" relationship="description">
+                  <Button
+                    appearance="subtle"
+                    icon={<ZoomOut20Regular />}
+                    aria-label="缩小界面"
+                    disabled={draft.uiScale === 80 || updateSettings.isPending}
+                    onClick={() =>
+                      changeSettings({
+                        uiScale: stepUiScale(draft.uiScale, -1),
+                      })
+                    }
+                  />
+                </Tooltip>
+                <output aria-live="polite">{draft.uiScale}%</output>
+                <Tooltip content="放大界面  Ctrl++" relationship="description">
+                  <Button
+                    appearance="subtle"
+                    icon={<ZoomIn20Regular />}
+                    aria-label="放大界面"
+                    disabled={draft.uiScale === 150 || updateSettings.isPending}
+                    onClick={() =>
+                      changeSettings({
+                        uiScale: stepUiScale(draft.uiScale, 1),
+                      })
+                    }
+                  />
+                </Tooltip>
+                <Tooltip content="恢复 100%  Ctrl+0" relationship="description">
+                  <Button
+                    appearance="subtle"
+                    icon={<ArrowReset20Regular />}
+                    aria-label="恢复默认缩放"
+                    disabled={
+                      draft.uiScale === DEFAULT_UI_SCALE ||
+                      updateSettings.isPending
+                    }
+                    onClick={() =>
+                      changeSettings({ uiScale: DEFAULT_UI_SCALE })
+                    }
+                  />
+                </Tooltip>
+              </div>
+            </div>
+            <div className="setting-row">
+              <div>
+                <strong>关闭后驻留系统托盘</strong>
+                <small>托盘菜单可重新打开或明确退出。</small>
+              </div>
+              <Switch
+                checked={draft.closeToTray}
+                disabled={updateSettings.isPending}
+                onChange={(_, data) =>
+                  changeSettings({ closeToTray: data.checked })
+                }
+              />
+            </div>
+            <div className="setting-row">
+              <div>
+                <strong>启动后保持最小化</strong>
+                <small>适合随系统启动的后台工作流。</small>
+              </div>
+              <Switch
+                checked={draft.startMinimized}
+                disabled={updateSettings.isPending}
+                onChange={(_, data) =>
+                  changeSettings({ startMinimized: data.checked })
+                }
+              />
+            </div>
+          </section>
+          <section className="settings-section">
+            <div className="section-heading">
+              <h2>标签管理</h2>
+              <Button onClick={() => setEditingTag("new")}>新建标签</Button>
+            </div>
+            <div className="tag-settings">
+              {(tags.data ?? []).map((tag) => (
+                <div key={tag.id}>
+                  <span data-tag-tone={tagTone(tag.name)} />
+                  <strong>{tag.name}</strong>
+                  <Button
+                    appearance="subtle"
+                    icon={<Edit20Regular />}
+                    onClick={() => setEditingTag(tag)}
+                  />
+                  <Button
+                    appearance="subtle"
+                    icon={<Delete20Regular />}
+                    onClick={() => {
+                      if (confirm(`删除“${tag.name}”标签？任务不会被删除。`))
+                        removeTag.mutate(tag.id);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="settings-section">
+            <h2>数据与备份</h2>
+            <p>
+              Electron 数据库与 Flutter
+              原数据库相互独立。恢复操作在校验失败时自动回滚。
+            </p>
+            <div className="button-row">
+              <Button
+                icon={<ArrowDownload20Regular />}
+                onClick={() => exportBackup.mutate()}
+              >
+                导出 v6 备份
+              </Button>
+              <Button
+                icon={<ArrowUpload20Regular />}
+                onClick={() => {
+                  if (confirm("恢复会覆盖当前 Electron 本地数据，是否继续？"))
+                    restore.mutate();
+                }}
+              >
+                恢复 v1–v6 备份
+              </Button>
+            </div>
+          </section>
+          <section className="settings-section">
+            <h2>账户与同步</h2>
+            <div className="sync-deferred">
+              <strong>本地完整模式</strong>
+              <p>{sync.data?.message}</p>
+            </div>
+          </section>
+          <section className="settings-section">
+            <h2>数据库迁移</h2>
+            <dl className="details-list">
+              <dt>状态</dt>
+              <dd>{bootstrap.data?.migration.status}</dd>
+              <dt>版本</dt>
+              <dd>
+                {bootstrap.data?.migration.fromVersion} →{" "}
+                {bootstrap.data?.migration.toVersion}
+              </dd>
+              <dt>完整性</dt>
+              <dd>{bootstrap.data?.migration.integrity}</dd>
+              <dt>源数据库</dt>
+              <dd>{bootstrap.data?.migration.sourcePath ?? "未发现旧库"}</dd>
+              <dt>迁移备份</dt>
+              <dd>{bootstrap.data?.migration.backupPath ?? "无需新备份"}</dd>
+            </dl>
+          </section>
+          <section className="settings-section">
+            <h2>关于与更新</h2>
+            <p>知序 {bootstrap.data?.version} · Electron Windows x64</p>
+            <UpdatePanel
+              state={updates.data}
+              onCheck={() => checkUpdate.mutate()}
+            />
+          </section>
+        </div>
       </div>
       <TagEditor value={editingTag} onClose={() => setEditingTag(null)} />
     </div>

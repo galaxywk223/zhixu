@@ -52,7 +52,7 @@ export function SleepPage(): React.JSX.Element {
     : 0;
   const latest = valid[0];
   return (
-    <div className="page">
+    <div className="page sleep-page">
       <PageHeader
         title="睡眠"
         actions={
@@ -86,84 +86,88 @@ export function SleepPage(): React.JSX.Element {
           tone="amber"
         />
       </div>
-      <section className="workspace-section">
-        <div className="section-heading">
-          <h2>睡眠记录</h2>
-          <span>{records.length}</span>
-        </div>
-        {records.length === 0 ? (
-          <EmptyState
-            title="暂无睡眠记录"
-            detail="导入或记录睡觉与起床事件后自动形成区间。"
-          />
-        ) : (
-          <div className="sleep-records">
-            {records.map((record, index) => (
-              <div
-                key={`${record.start?.id ?? "none"}-${record.end?.id ?? index}`}
-                className={record.issue ? "invalid" : ""}
-              >
+      <div className="sleep-workspace">
+        <section className="workspace-section sleep-panel">
+          <div className="section-heading">
+            <h2>睡眠记录</h2>
+            <span>{records.length}</span>
+          </div>
+          {records.length === 0 ? (
+            <EmptyState
+              title="暂无睡眠记录"
+              detail="导入或记录睡觉与起床事件后自动形成区间。"
+            />
+          ) : (
+            <div className="sleep-records">
+              {records.map((record, index) => (
+                <div
+                  key={`${record.start?.id ?? "none"}-${record.end?.id ?? index}`}
+                  className={record.issue ? "invalid" : ""}
+                >
+                  <div>
+                    <strong>
+                      {record.start
+                        ? new Date(record.start.occurredAt).toLocaleString(
+                            "zh-CN",
+                          )
+                        : "缺少开始"}{" "}
+                      →{" "}
+                      {record.end
+                        ? new Date(record.end.occurredAt).toLocaleString(
+                            "zh-CN",
+                          )
+                        : "缺少结束"}
+                    </strong>
+                    <small>
+                      {record.issue ??
+                        `${Math.floor((record.durationMinutes ?? 0) / 60)} 小时 ${(record.durationMinutes ?? 0) % 60} 分钟`}
+                    </small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+        <section className="workspace-section sleep-panel">
+          <div className="section-heading">
+            <h2>生活事件</h2>
+            <span>{events.data?.length ?? 0}</span>
+          </div>
+          <div className="event-list">
+            {(events.data ?? []).map((event) => (
+              <div key={event.id}>
+                <span className={`event-kind ${event.kind}`}>
+                  {event.kind === "sleep"
+                    ? "睡觉"
+                    : event.kind === "wake"
+                      ? "起床"
+                      : "其他"}
+                </span>
                 <div>
-                  <strong>
-                    {record.start
-                      ? new Date(record.start.occurredAt).toLocaleString(
-                          "zh-CN",
-                        )
-                      : "缺少开始"}{" "}
-                    →{" "}
-                    {record.end
-                      ? new Date(record.end.occurredAt).toLocaleString("zh-CN")
-                      : "缺少结束"}
-                  </strong>
+                  <strong>{event.title}</strong>
                   <small>
-                    {record.issue ??
-                      `${Math.floor((record.durationMinutes ?? 0) / 60)} 小时 ${(record.durationMinutes ?? 0) % 60} 分钟`}
+                    {new Date(event.occurredAt).toLocaleString("zh-CN")} ·{" "}
+                    {event.source === "manual" ? "手动" : "番茄导入"}
                   </small>
                 </div>
+                <Button
+                  appearance="subtle"
+                  icon={<Edit20Regular />}
+                  onClick={() => setEditing(event)}
+                />
+                <Button
+                  appearance="subtle"
+                  icon={<Delete20Regular />}
+                  onClick={() => {
+                    if (confirm(`删除“${event.title}”？`))
+                      remove.mutate(event.id);
+                  }}
+                />
               </div>
             ))}
           </div>
-        )}
-      </section>
-      <section className="workspace-section">
-        <div className="section-heading">
-          <h2>生活事件</h2>
-          <span>{events.data?.length ?? 0}</span>
-        </div>
-        <div className="event-list">
-          {(events.data ?? []).map((event) => (
-            <div key={event.id}>
-              <span className={`event-kind ${event.kind}`}>
-                {event.kind === "sleep"
-                  ? "睡觉"
-                  : event.kind === "wake"
-                    ? "起床"
-                    : "其他"}
-              </span>
-              <div>
-                <strong>{event.title}</strong>
-                <small>
-                  {new Date(event.occurredAt).toLocaleString("zh-CN")} ·{" "}
-                  {event.source === "manual" ? "手动" : "番茄导入"}
-                </small>
-              </div>
-              <Button
-                appearance="subtle"
-                icon={<Edit20Regular />}
-                onClick={() => setEditing(event)}
-              />
-              <Button
-                appearance="subtle"
-                icon={<Delete20Regular />}
-                onClick={() => {
-                  if (confirm(`删除“${event.title}”？`))
-                    remove.mutate(event.id);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
+        </section>
+      </div>
       <EventEditor value={editing} onClose={() => setEditing(null)} />
     </div>
   );

@@ -5,7 +5,6 @@ import {
   lifeEventDraftSchema,
   memoDraftSchema,
   noteDraftSchema,
-  scheduleDraftSchema,
   taskBatchDraftSchema,
   taskDraftSchema,
   taskStatusSchema,
@@ -132,23 +131,6 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle(
     "countdowns:remove",
     mutation("countdowns", (id) => store.removeCountdown(idSchema.parse(id))),
-  );
-
-  ipcMain.handle("calendar:list", (_event, value) => {
-    const parsed = z
-      .object({ startAt: z.string().datetime(), endAt: z.string().datetime() })
-      .parse(value);
-    return store.listScheduleBlocks(parsed.startAt, parsed.endAt);
-  });
-  ipcMain.handle(
-    "calendar:save",
-    mutation("calendar", (value) =>
-      store.saveScheduleBlock(scheduleDraftSchema.parse(value)),
-    ),
-  );
-  ipcMain.handle(
-    "calendar:remove",
-    mutation("calendar", (id) => store.removeScheduleBlock(idSchema.parse(id))),
   );
 
   ipcMain.handle("notes:list", () => store.listNotes());

@@ -3,7 +3,6 @@ import type {
   LifeEventDraft,
   MemoDraft,
   NoteDraft,
-  ScheduleDraft,
   TaskBatchDraft,
   TaskDraft,
   ThemeMode,
@@ -271,11 +270,6 @@ export interface ZhixuApi {
   countdowns: {
     list(): Promise<CountdownRecord[]>;
     save(draft: CountdownDraft): Promise<string>;
-    remove(id: string): Promise<void>;
-  };
-  calendar: {
-    list(startAt: string, endAt: string): Promise<ScheduleBlockRecord[]>;
-    save(draft: ScheduleDraft): Promise<string>;
     remove(id: string): Promise<void>;
   };
   notes: {
