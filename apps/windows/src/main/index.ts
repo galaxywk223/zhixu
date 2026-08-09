@@ -5,6 +5,7 @@ import {
   app,
   BrowserWindow,
   Menu,
+  nativeImage,
   nativeTheme,
   session,
   shell,
@@ -17,6 +18,7 @@ import { BackupService } from "./services/backup";
 import { TomatoImportService } from "./services/tomato-import";
 import { UpdateService } from "./services/updates";
 import { ZhixuStore } from "./store";
+import { appUserModelId, resolveAppIconPath } from "../shared/app-identity";
 
 interface WindowState {
   width: number;
@@ -30,7 +32,7 @@ const localData = process.env.LOCALAPPDATA
   ? join(process.env.LOCALAPPDATA, "Zhixu")
   : app.getPath("userData");
 app.setPath("userData", localData);
-app.setAppUserModelId("com.galaxywk.zhixu.desktop");
+app.setAppUserModelId(appUserModelId(app.isPackaged));
 log.initialize();
 
 let mainWindow: BrowserWindow | null = null;
@@ -73,16 +75,21 @@ function sendNavigation(route: string): void {
 
 async function createWindow(): Promise<void> {
   const state = loadWindowState();
-  const icon = app.isPackaged
-    ? join(process.resourcesPath, "zhixu.ico")
-    : resolve("resources/zhixu.ico");
+  const iconPath = resolveAppIconPath({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    workingDirectory: process.cwd(),
+  });
+  const icon = nativeImage.createFromPath(iconPath);
+  if (!existsSync(iconPath) || icon.isEmpty())
+    throw new Error(`知序图标加载失败：${iconPath}`);
   mainWindow = new BrowserWindow({
     ...state,
     minWidth: 1080,
     minHeight: 680,
     show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#1C2025" : "#F7F9FC",
-    icon: existsSync(icon) ? icon : undefined,
+    icon,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
@@ -92,6 +99,7 @@ async function createWindow(): Promise<void> {
       devTools: !app.isPackaged,
     },
   });
+  mainWindow.setIcon(icon);
   mainWindow.webContents.setZoomFactor(currentUiScale / 100);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\/(github\.com|supabase\.com)\//.test(url))
