@@ -1,18 +1,26 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   EmptyState,
   PageHeader,
   StatCard,
 } from "../src/renderer/src/components/Page";
-import { Shell } from "../src/renderer/src/components/Shell";
+import {
+  Shell,
+  SIDEBAR_COLLAPSED_STORAGE_KEY,
+} from "../src/renderer/src/components/Shell";
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 describe("shared page components", () => {
   it("renders compact desktop headings and summary values", () => {
-    render(
+    const { container } = render(
       <FluentProvider theme={webLightTheme}>
-        <PageHeader title="任务" subtitle="本地任务工作台" />
+        <PageHeader title="任务" />
         <StatCard label="今日到期" value={3} />
         <EmptyState title="暂无任务" detail="当前筛选没有结果" />
       </FluentProvider>,
@@ -20,10 +28,11 @@ describe("shared page components", () => {
     expect(screen.getByRole("heading", { name: "任务" })).toBeTruthy();
     expect(screen.getByText("今日到期")).toBeTruthy();
     expect(screen.getByText("暂无任务")).toBeTruthy();
+    expect(container.querySelector(".page-header p")).toBeNull();
   });
 
-  it("renders the compact shell without a workspace subtitle", () => {
-    render(
+  it("persists manual sidebar collapse while preserving navigation", () => {
+    const { container, unmount } = render(
       <FluentProvider theme={webLightTheme}>
         <Shell route="today" onRouteChange={() => undefined}>
           <main>页面内容</main>
@@ -34,5 +43,40 @@ describe("shared page components", () => {
     expect(screen.getByText("知序")).toBeTruthy();
     expect(screen.queryByText("个人工作台")).toBeNull();
     expect(screen.getByRole("button", { name: "设置" })).toBeTruthy();
+    expect(container.querySelector(".app-frame.sidebar-collapsed")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "收起侧边栏" }));
+    expect(
+      container.querySelector(".app-frame.sidebar-collapsed"),
+    ).toBeTruthy();
+    expect(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe("true");
+    expect(screen.getByRole("button", { name: "展开侧边栏" })).toBeTruthy();
+
+    unmount();
+    const restored = render(
+      <FluentProvider theme={webLightTheme}>
+        <Shell route="tasks" onRouteChange={() => undefined}>
+          <main>恢复后的页面</main>
+        </Shell>
+      </FluentProvider>,
+    );
+    expect(
+      restored.container.querySelector(".app-frame.sidebar-collapsed"),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "任务" })).toBeTruthy();
+  });
+
+  it("defaults to an expanded sidebar for invalid stored preferences", () => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, "invalid");
+    const { container } = render(
+      <FluentProvider theme={webLightTheme}>
+        <Shell route="today" onRouteChange={() => undefined}>
+          <main>页面内容</main>
+        </Shell>
+      </FluentProvider>,
+    );
+
+    expect(container.querySelector(".app-frame.sidebar-collapsed")).toBeNull();
+    expect(screen.getByRole("button", { name: "收起侧边栏" })).toBeTruthy();
   });
 });

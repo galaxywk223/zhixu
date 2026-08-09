@@ -2,14 +2,12 @@ import { Spinner } from "@fluentui/react-components";
 
 export function PageHeader(props: {
   title: string;
-  subtitle: string;
   actions?: React.ReactNode;
 }): React.JSX.Element {
   return (
     <div className="page-header">
       <div>
         <h1>{props.title}</h1>
-        <p>{props.subtitle}</p>
       </div>
       {props.actions ? (
         <div className="page-actions">{props.actions}</div>

@@ -94,7 +94,6 @@ export function NotesPage(props: {
     <div className="page notes-page">
       <PageHeader
         title="笔记"
-        subtitle="在本地编辑 Markdown，保存时自动保留上一版本。"
         actions={
           <Button appearance="primary" icon={<Add20Regular />} onClick={create}>
             新建笔记

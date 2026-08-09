@@ -98,7 +98,6 @@ export function CalendarPage(props: { onNewTask(): void }): React.JSX.Element {
     <div className="page">
       <PageHeader
         title="日历"
-        subtitle="按月查看任务截止时间，按周安排独立时间块。"
         actions={
           <>
             <div className="segmented">

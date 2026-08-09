@@ -95,7 +95,6 @@ export function SettingsPage(): React.JSX.Element {
     <div className="page settings-page">
       <PageHeader
         title="设置"
-        subtitle="管理外观、本地数据、桌面行为、标签和应用更新。"
         actions={
           <Button
             appearance="primary"

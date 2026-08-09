@@ -64,7 +64,6 @@ export function FocusPage(): React.JSX.Element {
     <div className="page">
       <PageHeader
         title="专注"
-        subtitle="专注记录来自番茄 TODO 导入，不会创建或修改待办。"
         actions={
           <Button
             appearance="primary"

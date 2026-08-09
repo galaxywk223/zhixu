@@ -92,6 +92,10 @@ describe("today page", () => {
 
     expect(await screen.findByText("今日测试任务")).toBeTruthy();
     expect(screen.getByText("35 分钟")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /^今天 \/ / })).toBeTruthy();
+    expect(
+      screen.queryByText("聚焦今天最重要的事，稳步推进当前计划。"),
+    ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /测试笔记/ }));
     expect(openNotes).toHaveBeenCalledWith("note-1");
   });

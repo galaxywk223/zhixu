@@ -84,7 +84,9 @@ describe("tasks page", () => {
     );
 
     expect(await screen.findByText("线性代数复习")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "任务管理" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "任务" })).toBeTruthy();
+    expect(screen.queryByText("任务管理")).toBeNull();
+    expect(screen.queryByText("集中查看、分类整理并推进本地任务。")).toBeNull();
     expect(screen.getByRole("heading", { name: "未完成" })).toBeTruthy();
     expect(screen.getAllByText("累计完成")).toHaveLength(2);
     expect(screen.getByText("剩余预计时间")).toBeTruthy();

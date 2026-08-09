@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Tooltip } from "@fluentui/react-components";
 import {
   Calendar24Regular,
@@ -5,10 +6,14 @@ import {
   DataBarVertical24Regular,
   Home24Regular,
   Note24Regular,
+  PanelLeftContract24Regular,
+  PanelLeftExpand24Regular,
   Settings24Regular,
   Timer24Regular,
   WeatherMoon24Regular,
 } from "@fluentui/react-icons";
+
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = "zhixu-sidebar-collapsed";
 
 export type Route =
   | "today"
@@ -71,9 +76,30 @@ interface ShellProps {
   children: React.ReactNode;
 }
 
+function readCollapsedPreference(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function Shell(props: ShellProps): React.JSX.Element {
+  const [collapsed, setCollapsed] = useState(readCollapsedPreference);
+  const toggleLabel = collapsed ? "展开侧边栏" : "收起侧边栏";
+  const toggleSidebar = (): void => {
+    setCollapsed((current) => {
+      const next = !current;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(next));
+      } catch {
+        // The current session still supports collapsing when storage is unavailable.
+      }
+      return next;
+    });
+  };
   return (
-    <div className="app-frame">
+    <div className={`app-frame ${collapsed ? "sidebar-collapsed" : ""}`}>
       <aside className="sidebar">
         <div className="brand-block">
           <img src="/zhixu-mark-1024.png" alt="知序" />
@@ -98,6 +124,21 @@ export function Shell(props: ShellProps): React.JSX.Element {
           ))}
         </nav>
         <div className="sidebar-spacer" />
+        <Tooltip content={toggleLabel} relationship="description">
+          <button
+            type="button"
+            className="nav-item sidebar-collapse"
+            aria-label={toggleLabel}
+            onClick={toggleSidebar}
+          >
+            {collapsed ? (
+              <PanelLeftExpand24Regular />
+            ) : (
+              <PanelLeftContract24Regular />
+            )}
+            <span>{toggleLabel}</span>
+          </button>
+        </Tooltip>
         <Tooltip content="设置  Ctrl+8" relationship="description">
           <button
             type="button"

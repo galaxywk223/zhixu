@@ -93,10 +93,7 @@ export function TasksPage(props: {
   return (
     <div className="page tasks-page">
       <header className="task-workspace-header">
-        <div>
-          <h1>任务管理</h1>
-          <p>集中查看、分类整理并推进本地任务。</p>
-        </div>
+        <h1>任务</h1>
         <div className="task-workspace-actions">
           <Input
             className="task-workspace-search"

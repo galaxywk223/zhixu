@@ -142,12 +142,9 @@ export function TodayPage(props: {
   return (
     <div className="page today-page">
       <header className="today-header">
-        <div>
-          <h1>
-            今天 <span>/ {formatToday(now)}</span>
-          </h1>
-          <p>聚焦今天最重要的事，稳步推进当前计划。</p>
-        </div>
+        <h1>
+          今天 <span>/ {formatToday(now)}</span>
+        </h1>
         <div className="today-header-actions">
           <Button
             className="today-search"

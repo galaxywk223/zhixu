@@ -55,7 +55,6 @@ export function SleepPage(): React.JSX.Element {
     <div className="page">
       <PageHeader
         title="睡眠"
-        subtitle="根据睡觉和起床事件配对睡眠区间，并标出异常记录。"
         actions={
           <Button
             appearance="primary"

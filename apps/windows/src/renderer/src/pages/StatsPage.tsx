@@ -22,7 +22,7 @@ export function StatsPage(): React.JSX.Element {
     : 0;
   return (
     <div className="page">
-      <PageHeader title="统计" subtitle="任务完成与专注投入采用独立口径。" />
+      <PageHeader title="统计" />
       <div className="stats-grid">
         <StatCard label="任务完成率" value={`${completion}%`} tone="green" />
         <StatCard
