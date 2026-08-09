@@ -1,12 +1,46 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input } from "@fluentui/react-components";
-import { Add20Regular, Search20Regular } from "@fluentui/react-icons";
+import { Button, Input, Tooltip } from "@fluentui/react-components";
+import {
+  Add20Regular,
+  Calendar20Regular,
+  CheckmarkCircle20Regular,
+  Clock20Regular,
+  Filter20Regular,
+  List20Regular,
+  Search20Regular,
+  Tag20Regular,
+  Warning20Regular,
+} from "@fluentui/react-icons";
 import type { TaskRecord } from "../../../preload/api-types";
-import { groupTasks } from "../../../shared/domain";
-import { EmptyState, Loading, PageHeader, StatCard } from "../components/Page";
-import { TaskList } from "../components/TaskList";
+import { EmptyState, Loading } from "../components/Page";
+import { TaskTable } from "../components/TaskTable";
 import { queryKeys } from "../query";
+import {
+  buildTaskWorkspace,
+  DEFAULT_TASK_WORKSPACE_FILTERS,
+  formatEstimatedMinutes,
+  selectExactTaskStatus,
+  selectTaskView,
+  TASK_VIEW_LABELS,
+  type ExactTaskStatus,
+  type TaskSort,
+  type TaskView,
+} from "./task-workspace-model";
+
+const quickViews: Array<{
+  value: TaskView;
+  icon: React.ReactNode;
+}> = [
+  { value: "active", icon: <Clock20Regular /> },
+  { value: "all", icon: <List20Regular /> },
+  { value: "overdue", icon: <Warning20Regular /> },
+  { value: "today", icon: <Calendar20Regular /> },
+  { value: "tomorrow", icon: <Calendar20Regular /> },
+  { value: "next7days", icon: <Calendar20Regular /> },
+  { value: "undated", icon: <Clock20Regular /> },
+  { value: "done", icon: <CheckmarkCircle20Regular /> },
+];
 
 export function TasksPage(props: {
   onNew(): void;
@@ -25,14 +59,11 @@ export function TasksPage(props: {
     queryKey: queryKeys.tags,
     queryFn: window.zhixu.tasks.tags,
   });
-  const summary = useQuery({
-    queryKey: queryKeys.summary,
-    queryFn: window.zhixu.dashboard.summary,
+  const [filters, setFilters] = useState({
+    ...DEFAULT_TASK_WORKSPACE_FILTERS,
   });
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [tagFilter, setTagFilter] = useState("all");
+  const [sort, setSort] = useState<TaskSort>("due");
+  const [filterOpen, setFilterOpen] = useState(false);
   const status = useMutation({
     mutationFn: ({ id, value }: { id: string; value: TaskRecord["status"] }) =>
       window.zhixu.tasks.setStatus(id, value),
@@ -42,38 +73,125 @@ export function TasksPage(props: {
     mutationFn: window.zhixu.tasks.remove,
     onSuccess: () => client.invalidateQueries(),
   });
-  const filtered = useMemo(
-    () =>
-      (tasks.data ?? []).filter((task) => {
-        if (
-          query &&
-          !`${task.title} ${task.descriptionMd ?? ""}`
-            .toLocaleLowerCase("zh-CN")
-            .includes(query.toLocaleLowerCase("zh-CN"))
-        )
-          return false;
-        if (statusFilter === "active" && task.status === "done") return false;
-        if (
-          !["all", "active"].includes(statusFilter) &&
-          task.status !== statusFilter
-        )
-          return false;
-        if (categoryFilter !== "all" && task.categoryId !== categoryFilter)
-          return false;
-        if (tagFilter !== "all" && !task.tagIds.includes(tagFilter))
-          return false;
-        return true;
-      }),
-    [tasks.data, query, statusFilter, categoryFilter, tagFilter],
+  const workspace = useMemo(
+    () => buildTaskWorkspace(tasks.data ?? [], filters, sort),
+    [tasks.data, filters, sort],
   );
+  const activeFilterCount = [
+    filters.status !== "all",
+    filters.categoryId !== "all",
+    filters.tagId !== "all",
+  ].filter(Boolean).length;
+
   if (tasks.isLoading) return <Loading />;
-  const groups = groupTasks(filtered);
+
+  const resetFilters = (): void => {
+    setFilters({ ...DEFAULT_TASK_WORKSPACE_FILTERS });
+    setSort("due");
+  };
+
   return (
-    <div className="page">
-      <PageHeader
-        title="任务"
-        subtitle="按日期、状态、分类和标签组织手动待办。"
-        actions={
+    <div className="page tasks-page">
+      <header className="task-workspace-header">
+        <div>
+          <h1>任务管理</h1>
+          <p>集中查看、分类整理并推进本地任务。</p>
+        </div>
+        <div className="task-workspace-actions">
+          <Input
+            className="task-workspace-search"
+            contentBefore={<Search20Regular />}
+            aria-label="搜索任务"
+            placeholder="搜索任务"
+            value={filters.query}
+            onChange={(_, data) =>
+              setFilters((current) => ({ ...current, query: data.value }))
+            }
+          />
+          <div className="task-filter-trigger">
+            <Button
+              appearance="secondary"
+              icon={<Filter20Regular />}
+              aria-expanded={filterOpen}
+              onClick={() => setFilterOpen((open) => !open)}
+            >
+              筛选
+              {activeFilterCount > 0 ? (
+                <span className="active-filter-count">{activeFilterCount}</span>
+              ) : null}
+            </Button>
+            {filterOpen ? (
+              <div
+                className="task-filter-popover"
+                role="dialog"
+                aria-label="任务筛选"
+              >
+                <div className="task-filter-popover-heading">
+                  <strong>组合筛选</strong>
+                  <button type="button" onClick={resetFilters}>
+                    重置
+                  </button>
+                </div>
+                <label>
+                  <span>精确状态</span>
+                  <select
+                    value={filters.status}
+                    onChange={(event) =>
+                      setFilters((current) =>
+                        selectExactTaskStatus(
+                          current,
+                          event.target.value as ExactTaskStatus,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="all">全部状态</option>
+                    <option value="todo">待完成</option>
+                    <option value="in_progress">进行中</option>
+                    <option value="done">已完成</option>
+                  </select>
+                </label>
+                <label>
+                  <span>分类</span>
+                  <select
+                    value={filters.categoryId}
+                    onChange={(event) =>
+                      setFilters((current) => ({
+                        ...current,
+                        categoryId: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="all">全部分类</option>
+                    {(categories.data ?? []).map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>标签</span>
+                  <select
+                    value={filters.tagId}
+                    onChange={(event) =>
+                      setFilters((current) => ({
+                        ...current,
+                        tagId: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="all">全部标签</option>
+                    {(tags.data ?? []).map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </div>
           <Button
             appearance="primary"
             icon={<Add20Regular />}
@@ -81,107 +199,172 @@ export function TasksPage(props: {
           >
             新建任务
           </Button>
-        }
-      />
-      <div className="stats-grid compact">
-        <StatCard label="任务总数" value={summary.data?.taskTotal ?? 0} />
-        <StatCard
-          label="今日到期"
-          value={summary.data?.dueToday ?? 0}
-          tone="blue"
-        />
-        <StatCard
-          label="已逾期"
-          value={summary.data?.overdue ?? 0}
-          tone="red"
-        />
-        <StatCard
-          label="已完成"
-          value={summary.data?.completed ?? 0}
-          tone="green"
-        />
+        </div>
+      </header>
+
+      <div className="task-metrics-grid" aria-label="任务指标">
+        <section className="task-metric-card">
+          <List20Regular />
+          <div>
+            <span>任务总数</span>
+            <strong>{workspace.metrics.total}</strong>
+          </div>
+        </section>
+        <section className="task-metric-card due">
+          <Calendar20Regular />
+          <div>
+            <span>今日到期</span>
+            <strong>{workspace.metrics.dueToday}</strong>
+          </div>
+        </section>
+        <section className="task-metric-card overdue">
+          <Warning20Regular />
+          <div>
+            <span>已逾期</span>
+            <strong>{workspace.metrics.overdue}</strong>
+          </div>
+        </section>
+        <section className="task-metric-card completed">
+          <CheckmarkCircle20Regular />
+          <div>
+            <span>累计完成</span>
+            <strong>{workspace.metrics.completed}</strong>
+          </div>
+        </section>
+        <section className="task-metric-card progress">
+          <Clock20Regular />
+          <div>
+            <span>进行中</span>
+            <strong>{workspace.metrics.inProgress}</strong>
+          </div>
+        </section>
+        <section className="task-metric-card estimate">
+          <Clock20Regular />
+          <div>
+            <span>剩余预计时间</span>
+            <strong>
+              {formatEstimatedMinutes(
+                workspace.metrics.remainingEstimatedMinutes,
+              )}
+            </strong>
+          </div>
+        </section>
       </div>
-      <div className="filter-bar">
-        <Input
-          contentBefore={<Search20Regular />}
-          placeholder="搜索本地任务"
-          value={query}
-          onChange={(_, data) => setQuery(data.value)}
-        />
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-        >
-          <option value="active">未完成</option>
-          <option value="all">全部状态</option>
-          <option value="todo">待完成</option>
-          <option value="in_progress">进行中</option>
-          <option value="done">已完成</option>
-        </select>
-        <select
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-        >
-          <option value="all">全部分类</option>
-          {(categories.data ?? []).map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={tagFilter}
-          onChange={(event) => setTagFilter(event.target.value)}
-        >
-          <option value="all">全部标签</option>
-          {(tags.data ?? []).map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-        <Button
-          appearance="subtle"
-          onClick={() => {
-            setQuery("");
-            setStatusFilter("active");
-            setCategoryFilter("all");
-            setTagFilter("all");
-          }}
-        >
-          重置筛选
-        </Button>
-      </div>
-      {filtered.length === 0 ? (
-        <EmptyState
-          title="没有符合条件的任务"
-          detail="调整筛选条件或创建一项新任务。"
-          action={<Button onClick={props.onNew}>新建任务</Button>}
-        />
-      ) : (
-        groups
-          .filter((group) => group.tasks.length > 0)
-          .map((group) => (
-            <section className="task-group" key={group.kind}>
-              <div className="section-heading">
-                <h2>{group.label}</h2>
-                <span>{group.tasks.length}</span>
+
+      <div className="task-workspace-layout">
+        <aside className="task-filter-rail" aria-label="任务视图与标签">
+          <section>
+            <h2>快捷视图</h2>
+            <nav aria-label="快捷视图">
+              {quickViews.map((view) => (
+                <button
+                  type="button"
+                  className={filters.view === view.value ? "active" : ""}
+                  key={view.value}
+                  onClick={() =>
+                    setFilters((current) => selectTaskView(current, view.value))
+                  }
+                >
+                  {view.icon}
+                  <span>{TASK_VIEW_LABELS[view.value]}</span>
+                  <strong>{workspace.viewCounts[view.value]}</strong>
+                </button>
+              ))}
+            </nav>
+          </section>
+          <section className="task-tag-navigation">
+            <h2>
+              标签
+              <Tooltip content="标签可在设置中维护" relationship="description">
+                <Tag20Regular />
+              </Tooltip>
+            </h2>
+            {(tags.data ?? []).length === 0 ? (
+              <p>暂无标签</p>
+            ) : (
+              <nav aria-label="标签筛选">
+                {(tags.data ?? []).map((tag) => (
+                  <button
+                    type="button"
+                    className={filters.tagId === tag.id ? "active" : ""}
+                    key={tag.id}
+                    onClick={() =>
+                      setFilters((current) => ({
+                        ...current,
+                        tagId: current.tagId === tag.id ? "all" : tag.id,
+                      }))
+                    }
+                  >
+                    <i style={{ backgroundColor: tag.colorHex }} />
+                    <span>{tag.name}</span>
+                    <strong>{workspace.tagCounts[tag.id] ?? 0}</strong>
+                  </button>
+                ))}
+              </nav>
+            )}
+          </section>
+          <section className="task-overview">
+            <h2>任务概览</h2>
+            <dl>
+              <div>
+                <dt>总数</dt>
+                <dd>{workspace.metrics.total}</dd>
               </div>
-              <TaskList
-                tasks={group.tasks}
-                categories={categories.data ?? []}
-                tags={tags.data ?? []}
-                onEdit={props.onEdit}
-                onStatus={(task, value) =>
-                  status.mutate({ id: task.id, value })
-                }
-                onDelete={(task) => {
-                  if (confirm(`删除“${task.title}”？`)) remove.mutate(task.id);
-                }}
-              />
-            </section>
-          ))
-      )}
+              <div>
+                <dt>逾期</dt>
+                <dd>{workspace.metrics.overdue}</dd>
+              </div>
+              <div>
+                <dt>今日到期</dt>
+                <dd>{workspace.metrics.dueToday}</dd>
+              </div>
+              <div>
+                <dt>累计完成</dt>
+                <dd>{workspace.metrics.completed}</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <section className="task-table-panel">
+          <div className="task-table-toolbar">
+            <div>
+              <h2>{TASK_VIEW_LABELS[filters.view]}</h2>
+              <span>{workspace.filteredTasks.length}</span>
+            </div>
+            <label>
+              <span>排序</span>
+              <select
+                aria-label="任务排序"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as TaskSort)}
+              >
+                <option value="due">到期时间</option>
+                <option value="priority">优先级</option>
+                <option value="updated">最近更新</option>
+              </select>
+            </label>
+          </div>
+          {workspace.filteredTasks.length === 0 ? (
+            <EmptyState
+              title="没有符合条件的任务"
+              detail="调整当前视图或筛选条件。"
+              action={<Button onClick={props.onNew}>新建任务</Button>}
+            />
+          ) : (
+            <TaskTable
+              groups={workspace.groups}
+              categories={categories.data ?? []}
+              tags={tags.data ?? []}
+              onEdit={props.onEdit}
+              onStatus={(task, value) => status.mutate({ id: task.id, value })}
+              onDelete={(task) => {
+                if (confirm(`删除“${task.title}”？`)) remove.mutate(task.id);
+              }}
+            />
+          )}
+        </section>
+      </div>
     </div>
   );
 }
