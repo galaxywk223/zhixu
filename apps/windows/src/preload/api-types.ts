@@ -1,7 +1,9 @@
 import type {
   LifeEventDraft,
+  MemoDraft,
   NoteDraft,
   ScheduleDraft,
+  TaskBatchDraft,
   TaskDraft,
   ThemeMode,
   UiScale,
@@ -23,6 +25,22 @@ export interface TaskRecord {
   updatedAt: string;
   deletedAt: string | null;
   tagIds: string[];
+}
+
+export interface MemoRecord {
+  id: string;
+  title: string;
+  descriptionMd: string | null;
+  categoryId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  tagIds: string[];
+}
+
+export interface TaskBatchResult {
+  primaryId: string;
+  createdCount: number;
+  ids: string[];
 }
 
 export interface CategoryRecord {
@@ -132,7 +150,7 @@ export interface DashboardSummary {
   dueToday: number;
   overdue: number;
   completed: number;
-  inProgress: number;
+  pending: number;
   estimatedMinutes: number;
   focusTodayMinutes: number;
   focusWeekMinutes: number;
@@ -142,7 +160,7 @@ export interface DashboardSummary {
 
 export interface SearchHit {
   id: string;
-  entityType: "task" | "note" | "focus";
+  entityType: "task" | "memo" | "note" | "focus";
   title: string;
   subtitle: string;
 }
@@ -197,12 +215,18 @@ export interface ZhixuApi {
   tasks: {
     list(): Promise<TaskRecord[]>;
     save(draft: TaskDraft): Promise<string>;
+    createBatch(draft: TaskBatchDraft): Promise<TaskBatchResult>;
     setStatus(id: string, status: TaskRecord["status"]): Promise<void>;
     remove(id: string): Promise<void>;
     categories(): Promise<CategoryRecord[]>;
     tags(): Promise<TagRecord[]>;
     saveTag(input: { id?: string; name: string }): Promise<string>;
     removeTag(id: string): Promise<void>;
+  };
+  memos: {
+    list(): Promise<MemoRecord[]>;
+    save(draft: MemoDraft): Promise<string>;
+    remove(id: string): Promise<void>;
   };
   calendar: {
     list(startAt: string, endAt: string): Promise<ScheduleBlockRecord[]>;
@@ -240,8 +264,7 @@ export interface ZhixuApi {
   };
   settings: {
     get(): Promise<AppSettings>;
-    set(settings: AppSettings): Promise<void>;
-    setUiScale(uiScale: UiScale): Promise<void>;
+    update(settings: Partial<AppSettings>): Promise<void>;
   };
   updates: {
     getState(): Promise<UpdateState>;

@@ -631,6 +631,9 @@ button {
 .form-row.two {
   grid-template-columns: 1fr 1fr;
 }
+.form-row.one {
+  grid-template-columns: minmax(0, 1fr);
+}
 .form-row.three {
   grid-template-columns: 1fr 1fr 1fr;
 }
@@ -1907,49 +1910,51 @@ button {
 .task-table-scroll {
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 .workspace-task-table {
-  min-width: 850px;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
 }
-.workspace-task-head,
-.workspace-task-row {
-  display: grid;
-  grid-template-columns:
-    32px minmax(210px, 1.6fr) 112px 68px minmax(110px, 1fr) 90px 96px
-    64px;
-  align-items: center;
-  column-gap: 7px;
+.workspace-task-table th,
+.workspace-task-table td {
+  min-width: 0;
+  padding: 10px 7px;
+  overflow-wrap: anywhere;
+  text-align: left;
+  vertical-align: middle;
 }
-.workspace-task-head {
-  min-height: 39px;
-  padding: 0 10px;
+.workspace-task-table thead {
   color: var(--muted);
   background: color-mix(in srgb, var(--surface2) 70%, var(--surface));
   border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
-.workspace-task-head > span:last-child {
+.workspace-task-table thead th {
+  padding-block: 11px;
+  font-weight: 500;
+}
+.workspace-task-table thead th:last-child {
   text-align: right;
 }
-.task-table-group-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 35px;
-  padding: 0 16px;
+.task-table-group-label th {
+  padding: 9px 16px;
   color: var(--accent);
   background: color-mix(in srgb, var(--surface2) 55%, var(--surface));
   border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
-.task-table-group-label.group-overdue {
+.task-table-group-label strong {
+  margin-right: 7px;
+}
+.task-table-group-label.group-overdue th {
   color: var(--danger);
 }
-.task-table-group-label.group-today {
+.task-table-group-label.group-today th {
   color: var(--warning);
 }
-.task-table-group-label.group-done {
+.task-table-group-label.group-done th {
   color: var(--success);
 }
 .task-table-group-label span {
@@ -1957,9 +1962,6 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .workspace-task-row {
-  position: relative;
-  min-height: 54px;
-  padding: 5px 10px;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
@@ -1969,19 +1971,8 @@ button {
 .workspace-task-row:hover {
   background: color-mix(in srgb, var(--accentSoft) 35%, transparent);
 }
-.workspace-task-row > * {
-  min-width: 0;
-}
 .workspace-task-title {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.workspace-task-title strong,
-.workspace-task-title small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
 }
 .workspace-task-title strong {
   font-size: 13px;
@@ -1991,16 +1982,13 @@ button {
   color: var(--muted);
   text-decoration: line-through;
 }
-.workspace-task-title small {
+.task-category {
   color: var(--muted);
   font-size: 13px;
 }
 .task-due {
-  overflow: hidden;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .task-due.overdue {
   color: var(--danger);
@@ -2034,64 +2022,28 @@ button {
   display: flex;
   align-items: center;
   gap: 4px;
-  overflow: hidden;
+  flex-wrap: wrap;
 }
 .workspace-task-tag {
-  overflow: hidden;
-  max-width: 72px;
   padding: 2px 6px;
   color: var(--tag-foreground);
   background: var(--tag-background);
   border: 1px solid var(--tag-border);
   border-radius: 4px;
   font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.task-tag-more,
 .table-empty-value {
   color: var(--muted);
   font-size: 13px;
   white-space: nowrap;
 }
-.table-task-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.table-task-status i {
-  width: 8px;
-  height: 8px;
-  background: var(--muted);
-  border-radius: 50%;
-  opacity: 0.7;
-}
-.table-task-status.status-in_progress {
-  color: var(--accent);
-}
-.table-task-status.status-in_progress i {
-  background: var(--accent);
-  opacity: 1;
-}
-.table-task-status.status-done {
-  color: var(--success);
-}
-.table-task-status.status-done i {
-  background: var(--success);
-  opacity: 1;
-}
 .task-estimate {
-  overflow: hidden;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .workspace-row-actions {
-  position: relative;
   display: flex;
+  gap: 2px;
   justify-content: flex-end;
 }
 .workspace-row-actions .fui-Button {
@@ -2100,10 +2052,87 @@ button {
   min-height: 30px;
   height: 30px;
 }
-.workspace-context-menu {
-  top: 31px;
-  right: 0;
-  z-index: 20;
+.task-creation-mode {
+  width: fit-content;
+}
+.memo-header,
+.memo-header > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.memo-header h1 {
+  margin: 0;
+  font-size: 25px;
+}
+.memo-list {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.memo-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+.memo-row:last-child {
+  border-bottom: 0;
+}
+.memo-row:hover {
+  background: color-mix(in srgb, var(--accentSoft) 30%, transparent);
+}
+.memo-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 14px 16px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+.memo-row-main strong,
+.memo-row-main p {
+  overflow-wrap: anywhere;
+}
+.memo-row-main p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.memo-meta,
+.memo-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+.memo-meta time {
+  font-variant-numeric: tabular-nums;
+}
+.memo-tags > span {
+  padding: 2px 6px;
+  color: var(--tag-foreground);
+  background: var(--tag-background);
+  border: 1px solid var(--tag-border);
+  border-radius: 4px;
+}
+.memo-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
 }
 .task-table-panel > .empty-state {
   min-height: 300px;
@@ -2229,6 +2258,16 @@ button {
   .task-workspace-header {
     flex-direction: column;
     gap: 14px;
+  }
+  .memo-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .memo-header > div {
+    width: 100%;
+  }
+  .memo-header .fui-Input {
+    flex: 1;
   }
   .task-workspace-actions {
     width: 100%;

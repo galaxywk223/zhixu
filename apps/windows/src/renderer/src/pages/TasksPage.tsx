@@ -27,10 +27,8 @@ import {
   buildTaskWorkspace,
   DEFAULT_TASK_WORKSPACE_FILTERS,
   formatEstimatedMinutes,
-  selectExactTaskStatus,
   selectTaskView,
   TASK_VIEW_LABELS,
-  type ExactTaskStatus,
   type TaskSort,
   type TaskView,
 } from "./task-workspace-model";
@@ -45,7 +43,6 @@ const quickViews: Array<{
   { value: "today", icon: <Calendar20Regular /> },
   { value: "tomorrow", icon: <Calendar20Regular /> },
   { value: "next7days", icon: <Calendar20Regular /> },
-  { value: "undated", icon: <Clock20Regular /> },
   { value: "done", icon: <CheckmarkCircle20Regular /> },
 ];
 
@@ -85,7 +82,6 @@ export function TasksPage(props: {
     [tasks.data, filters, sort],
   );
   const activeFilterCount = [
-    filters.status !== "all",
     filters.categoryId !== "all",
     filters.tagId !== "all",
   ].filter(Boolean).length;
@@ -136,24 +132,6 @@ export function TasksPage(props: {
                     重置
                   </button>
                 </div>
-                <Field label="精确状态">
-                  <Select
-                    value={filters.status}
-                    onChange={(event) =>
-                      setFilters((current) =>
-                        selectExactTaskStatus(
-                          current,
-                          event.target.value as ExactTaskStatus,
-                        ),
-                      )
-                    }
-                  >
-                    <option value="all">全部状态</option>
-                    <option value="todo">待完成</option>
-                    <option value="in_progress">进行中</option>
-                    <option value="done">已完成</option>
-                  </Select>
-                </Field>
                 <Field label="分类">
                   <Select
                     value={filters.categoryId}
@@ -235,8 +213,8 @@ export function TasksPage(props: {
         <section className="task-metric-card progress">
           <Clock20Regular />
           <div>
-            <span>进行中</span>
-            <strong>{workspace.metrics.inProgress}</strong>
+            <span>待完成</span>
+            <strong>{workspace.metrics.pending}</strong>
           </div>
         </section>
         <section className="task-metric-card estimate">

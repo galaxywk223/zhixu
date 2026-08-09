@@ -78,7 +78,7 @@ describe("backup compatibility", () => {
     await expect(context.service.restoreFromPath(backupPath)).resolves.toBe(
       true,
     );
-    expect(context.store.listTasks()[0]?.title).toBe(`备份版本 ${version}`);
+    expect(context.store.listMemos()[0]?.title).toBe(`备份版本 ${version}`);
     expect(context.store.integrityCheck()).toBe("ok");
     context.close();
   });
@@ -101,7 +101,7 @@ describe("backup compatibility", () => {
     await expect(context.service.restoreFromPath(backupPath)).resolves.toBe(
       true,
     );
-    expect(context.store.listTasks()[0]?.title).toBe("备份版本 6");
+    expect(context.store.listMemos()[0]?.title).toBe("备份版本 6");
     context.close();
   });
 
@@ -112,7 +112,7 @@ describe("backup compatibility", () => {
       descriptionMd: null,
       status: "todo",
       priority: 1,
-      dueAt: null,
+      dueAt: new Date(2026, 7, 9, 23, 59, 59, 999).toISOString(),
       estimatedMinutes: 0,
       categoryId: null,
       repeatRule: null,

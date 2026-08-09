@@ -8,6 +8,7 @@ import { TaskEditor } from "./components/TaskEditor";
 import { CalendarPage } from "./pages/CalendarPage";
 import { FocusPage } from "./pages/FocusPage";
 import { NotesPage } from "./pages/NotesPage";
+import { MemosPage } from "./pages/MemosPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SleepPage } from "./pages/SleepPage";
 import { StatsPage } from "./pages/StatsPage";
@@ -22,6 +23,10 @@ export function App(): React.JSX.Element {
     queryKey: queryKeys.bootstrap,
     queryFn: window.zhixu.app.bootstrap,
   });
+  const settings = useQuery({
+    queryKey: queryKeys.settings,
+    queryFn: window.zhixu.settings.get,
+  });
   const [route, setRoute] = useState<Route>("today");
   const [editor, setEditor] = useState<{
     open: boolean;
@@ -29,6 +34,7 @@ export function App(): React.JSX.Element {
   }>({ open: false, task: null });
   const [search, setSearch] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
@@ -37,8 +43,9 @@ export function App(): React.JSX.Element {
   useDataInvalidation();
 
   useEffect(() => {
-    if (bootstrap.data) uiScale.current = bootstrap.data.settings.uiScale;
-  }, [bootstrap.data]);
+    const current = settings.data ?? bootstrap.data?.settings;
+    if (current) uiScale.current = current.uiScale;
+  }, [bootstrap.data, settings.data]);
 
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
@@ -55,6 +62,7 @@ export function App(): React.JSX.Element {
           [
             "today",
             "tasks",
+            "memos",
             "calendar",
             "focus",
             "sleep",
@@ -75,7 +83,7 @@ export function App(): React.JSX.Element {
         event.preventDefault();
         if (nextScale !== uiScale.current) {
           uiScale.current = nextScale;
-          void window.zhixu.settings.setUiScale(nextScale);
+          void window.zhixu.settings.update({ uiScale: nextScale });
         }
         return;
       }
@@ -90,6 +98,7 @@ export function App(): React.JSX.Element {
       const routes: Route[] = [
         "today",
         "tasks",
+        "memos",
         "calendar",
         "notes",
         "focus",
@@ -117,7 +126,7 @@ export function App(): React.JSX.Element {
     return (
       <div className="startup error-message">{String(bootstrap.error)}</div>
     );
-  const mode = bootstrap.data.settings.themeMode;
+  const mode = settings.data?.themeMode ?? bootstrap.data.settings.themeMode;
   const dark = mode === "dark" || (mode === "system" && systemDark);
   const openNew = (): void => setEditor({ open: true, task: null });
   const openEdit = (task: TaskRecord): void => setEditor({ open: true, task });
@@ -162,6 +171,7 @@ export function App(): React.JSX.Element {
       />
     ),
     tasks: <TasksPage onNew={openNew} onEdit={openEdit} />,
+    memos: <MemosPage initialSelectedId={selectedMemoId} />,
     calendar: <CalendarPage onNewTask={openNew} />,
     focus: <FocusPage />,
     sleep: <SleepPage />,
@@ -190,6 +200,7 @@ export function App(): React.JSX.Element {
           route={route}
           onRouteChange={(nextRoute) => {
             if (nextRoute === "notes") setSelectedNoteId(null);
+            if (nextRoute === "memos") setSelectedMemoId(null);
             setRoute(nextRoute);
           }}
         >
@@ -210,7 +221,10 @@ export function App(): React.JSX.Element {
       <SearchDialog
         open={search}
         onClose={() => setSearch(false)}
-        onNavigate={setRoute}
+        onNavigate={(target, id) => {
+          if (target === "memos") setSelectedMemoId(id ?? null);
+          setRoute(target);
+        }}
       />
     </FluentProvider>
   );

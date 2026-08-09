@@ -93,15 +93,16 @@ describe("tasks page", () => {
     expect(screen.getByText("剩余预计时间")).toBeTruthy();
     for (const column of [
       "任务",
-      "到期时间",
+      "日期",
+      "分类",
       "优先级",
       "标签",
-      "状态",
       "预计时长",
       "操作",
     ]) {
       expect(screen.getByRole("columnheader", { name: column })).toBeTruthy();
     }
+    expect(screen.queryByRole("columnheader", { name: "状态" })).toBeNull();
     expect(
       screen.getByText("今天", { selector: ".task-table-group-label strong" }),
     ).toBeTruthy();
@@ -128,13 +129,10 @@ describe("tasks page", () => {
       expect(setStatus).toHaveBeenCalledWith("线性代数复习", "done"),
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "线性代数复习的更多操作" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "标记进行中" }));
-    await waitFor(() =>
-      expect(setStatus).toHaveBeenCalledWith("线性代数复习", "in_progress"),
-    );
+    expect(
+      screen.getByRole("button", { name: "删除线性代数复习" }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("精确状态")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /全部任务/ }));
     expect(await screen.findByText("归档课堂笔记")).toBeTruthy();
@@ -146,7 +144,7 @@ describe("tasks page", () => {
     ).toBeTruthy();
   });
 
-  it("switches exact status to all tasks and resets it when a quick view changes", async () => {
+  it("treats legacy in-progress rows as unfinished without exposing status filters", async () => {
     const api = {
       tasks: {
         list: vi
@@ -179,14 +177,8 @@ describe("tasks page", () => {
 
     await screen.findByText("进行中任务");
     fireEvent.click(screen.getByRole("button", { name: "筛选" }));
-    fireEvent.change(screen.getByLabelText("精确状态"), {
-      target: { value: "in_progress" },
-    });
-    expect(screen.getByRole("heading", { name: "全部任务" })).toBeTruthy();
-    expect(screen.queryByText("待完成任务")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: /未完成/ }));
-    expect(await screen.findByText("待完成任务")).toBeTruthy();
+    expect(screen.queryByLabelText("精确状态")).toBeNull();
+    expect(screen.getByText("待完成任务")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "未完成" })).toBeTruthy();
   });
 });

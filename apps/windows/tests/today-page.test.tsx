@@ -39,7 +39,7 @@ describe("today page", () => {
       dueToday: 1,
       overdue: 0,
       completed: 0,
-      inProgress: 0,
+      pending: 1,
       estimatedMinutes: 45,
       focusTodayMinutes: 35,
       focusWeekMinutes: 90,

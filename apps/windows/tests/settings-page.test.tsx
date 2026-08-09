@@ -24,8 +24,9 @@ describe("settings page", () => {
       closeToTray: true,
       startMinimized: false,
     };
-    const setUiScale = vi.fn().mockResolvedValue(undefined);
-    const saveSettings = vi.fn().mockResolvedValue(undefined);
+    const updateSettings = vi.fn(async (patch: Partial<AppSettings>) => {
+      Object.assign(settings, patch);
+    });
     const saveTag = vi.fn().mockResolvedValue("tag-algorithm");
     const api = {
       app: {
@@ -46,8 +47,7 @@ describe("settings page", () => {
       },
       settings: {
         get: vi.fn().mockResolvedValue(settings),
-        set: saveSettings,
-        setUiScale,
+        update: updateSettings,
       },
       tasks: {
         tags: vi.fn().mockResolvedValue([
@@ -100,19 +100,26 @@ describe("settings page", () => {
         ?.getAttribute("data-tag-tone"),
     ).toBe(tagTone("学习"));
     fireEvent.click(screen.getByRole("button", { name: "深色" }));
+    await waitFor(() =>
+      expect(updateSettings).toHaveBeenCalledWith({ themeMode: "dark" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "放大界面" }));
-    await waitFor(() => expect(setUiScale).toHaveBeenCalledWith(110));
+    await waitFor(() =>
+      expect(updateSettings).toHaveBeenCalledWith({ uiScale: 110 }),
+    );
     expect(await screen.findByText("110%")).toBeTruthy();
     client.setQueryData(["settings"], { ...settings, uiScale: 125 });
     expect(await screen.findByText("125%")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "保存设置" }));
-    await waitFor(() => expect(saveSettings).toHaveBeenCalled());
-    expect(saveSettings.mock.calls[0]?.[0]).toEqual({
-      ...settings,
-      themeMode: "dark",
-      uiScale: 125,
-    });
+    expect(screen.queryByRole("button", { name: "保存设置" })).toBeNull();
     expect(screen.getByRole("button", { name: "恢复默认缩放" })).toBeTruthy();
+
+    updateSettings.mockRejectedValueOnce(new Error("设置写入失败"));
+    const startMinimized = screen.getAllByRole("switch")[1]!;
+    fireEvent.click(startMinimized);
+    expect(await screen.findByText("设置写入失败")).toBeTruthy();
+    await waitFor(() =>
+      expect((startMinimized as HTMLInputElement).checked).toBe(false),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "新建标签" }));
     const dialog = screen.getByRole("dialog");

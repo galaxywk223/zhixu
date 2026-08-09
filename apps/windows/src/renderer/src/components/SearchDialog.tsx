@@ -15,7 +15,7 @@ import type { Route } from "./Shell";
 export function SearchDialog(props: {
   open: boolean;
   onClose(): void;
-  onNavigate(route: Route): void;
+  onNavigate(route: Route, id?: string): void;
 }): React.JSX.Element {
   const [query, setQuery] = useState("");
   useEffect(() => {
@@ -26,7 +26,12 @@ export function SearchDialog(props: {
     queryFn: () => window.zhixu.search.query(query),
     enabled: props.open && query.trim().length > 0,
   });
-  const routeMap = { task: "tasks", note: "notes", focus: "focus" } as const;
+  const routeMap = {
+    task: "tasks",
+    memo: "memos",
+    note: "notes",
+    focus: "focus",
+  } as const;
   return (
     <Dialog
       open={props.open}
@@ -42,7 +47,7 @@ export function SearchDialog(props: {
               autoFocus
               size="large"
               contentBefore={<Search24Regular />}
-              placeholder="搜索任务、笔记或专注事项"
+              placeholder="搜索任务、备忘、笔记或专注事项"
               value={query}
               onChange={(_, data) => setQuery(data.value)}
             />
@@ -53,16 +58,18 @@ export function SearchDialog(props: {
                   key={`${result.entityType}-${result.id}`}
                   type="button"
                   onClick={() => {
-                    props.onNavigate(routeMap[result.entityType]);
+                    props.onNavigate(routeMap[result.entityType], result.id);
                     props.onClose();
                   }}
                 >
                   <span className="entity-label">
                     {result.entityType === "task"
                       ? "任务"
-                      : result.entityType === "note"
-                        ? "笔记"
-                        : "专注"}
+                      : result.entityType === "memo"
+                        ? "备忘"
+                        : result.entityType === "note"
+                          ? "笔记"
+                          : "专注"}
                   </span>
                   <strong>{result.title}</strong>
                   <small>{result.subtitle}</small>

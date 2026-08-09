@@ -6,22 +6,13 @@ import {
 } from "../../../shared/domain";
 
 export type TaskView =
-  | "active"
-  | "all"
-  | "overdue"
-  | "today"
-  | "tomorrow"
-  | "next7days"
-  | "undated"
-  | "done";
+  "active" | "all" | "overdue" | "today" | "tomorrow" | "next7days" | "done";
 
 export type TaskSort = "due" | "priority" | "updated";
-export type ExactTaskStatus = "all" | TaskRecord["status"];
 
 export interface TaskWorkspaceFilters {
   view: TaskView;
   query: string;
-  status: ExactTaskStatus;
   categoryId: string;
   tagId: string;
 }
@@ -31,7 +22,7 @@ export interface TaskWorkspaceMetrics {
   dueToday: number;
   overdue: number;
   completed: number;
-  inProgress: number;
+  pending: number;
   remainingEstimatedMinutes: number;
 }
 
@@ -50,14 +41,12 @@ export const TASK_VIEW_LABELS: Record<TaskView, string> = {
   today: "今天",
   tomorrow: "明天",
   next7days: "近 7 天",
-  undated: "无日期",
   done: "已完成",
 };
 
 export const DEFAULT_TASK_WORKSPACE_FILTERS: TaskWorkspaceFilters = {
   view: "active",
   query: "",
-  status: "all",
   categoryId: "all",
   tagId: "all",
 };
@@ -105,7 +94,6 @@ function matchesBaseFilters(
       .includes(normalizedQuery)
   )
     return false;
-  if (filters.status !== "all" && task.status !== filters.status) return false;
   if (filters.categoryId !== "all" && task.categoryId !== filters.categoryId)
     return false;
   return true;
@@ -153,7 +141,7 @@ export function calculateTaskWorkspaceMetrics(
       (task) => task.status !== "done" && timestamp(task.dueAt) < start,
     ).length,
     completed: tasks.filter((task) => task.status === "done").length,
-    inProgress: tasks.filter((task) => task.status === "in_progress").length,
+    pending: tasks.filter((task) => task.status !== "done").length,
     remainingEstimatedMinutes: tasks
       .filter((task) => task.status !== "done")
       .reduce((total, task) => total + Math.max(0, task.estimatedMinutes), 0),
@@ -172,14 +160,7 @@ export function selectTaskView(
   filters: TaskWorkspaceFilters,
   view: TaskView,
 ): TaskWorkspaceFilters {
-  return { ...filters, view, status: "all" };
-}
-
-export function selectExactTaskStatus(
-  filters: TaskWorkspaceFilters,
-  status: ExactTaskStatus,
-): TaskWorkspaceFilters {
-  return { ...filters, view: "all", status };
+  return { ...filters, view };
 }
 
 export function buildTaskWorkspace(
@@ -188,7 +169,8 @@ export function buildTaskWorkspace(
   sort: TaskSort,
   now = new Date(),
 ): TaskWorkspaceModel {
-  const baseTasks = tasks.filter((task) =>
+  const datedTasks = tasks.filter((task) => task.dueAt !== null);
+  const baseTasks = datedTasks.filter((task) =>
     matchesBaseFilters(task, filters, now),
   );
   const tagCounts = baseTasks.reduce<Record<string, number>>((counts, task) => {
@@ -207,7 +189,7 @@ export function buildTaskWorkspace(
   const viewCounts = Object.fromEntries(
     views.map((view) => [
       view,
-      tasks.filter((task) => matchesTaskView(task, view, now)).length,
+      datedTasks.filter((task) => matchesTaskView(task, view, now)).length,
     ]),
   ) as Record<TaskView, number>;
 
@@ -216,6 +198,6 @@ export function buildTaskWorkspace(
     groups,
     viewCounts,
     tagCounts,
-    metrics: calculateTaskWorkspaceMetrics(tasks, now),
+    metrics: calculateTaskWorkspaceMetrics(datedTasks, now),
   };
 }

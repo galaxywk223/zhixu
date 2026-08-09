@@ -6,6 +6,7 @@ import {
   DataBarVertical24Regular,
   Home24Regular,
   Note24Regular,
+  NotePinRegular,
   PanelLeftContract24Regular,
   PanelLeftExpand24Regular,
   Settings24Regular,
@@ -18,6 +19,7 @@ export const SIDEBAR_COLLAPSED_STORAGE_KEY = "zhixu-sidebar-collapsed";
 export type Route =
   | "today"
   | "tasks"
+  | "memos"
   | "calendar"
   | "focus"
   | "sleep"
@@ -39,33 +41,39 @@ const navigation = [
     icon: <CheckmarkSquare24Regular />,
   },
   {
+    route: "memos" as const,
+    label: "备忘",
+    shortcut: 3,
+    icon: <NotePinRegular />,
+  },
+  {
     route: "calendar" as const,
     label: "日历",
-    shortcut: 3,
+    shortcut: 4,
     icon: <Calendar24Regular />,
   },
   {
     route: "notes" as const,
     label: "笔记",
-    shortcut: 4,
+    shortcut: 5,
     icon: <Note24Regular />,
   },
   {
     route: "focus" as const,
     label: "专注",
-    shortcut: 5,
+    shortcut: 6,
     icon: <Timer24Regular />,
   },
   {
     route: "sleep" as const,
     label: "睡眠",
-    shortcut: 6,
+    shortcut: 7,
     icon: <WeatherMoon24Regular />,
   },
   {
     route: "stats" as const,
     label: "统计",
-    shortcut: 7,
+    shortcut: 8,
     icon: <DataBarVertical24Regular />,
   },
 ];
@@ -139,7 +147,7 @@ export function Shell(props: ShellProps): React.JSX.Element {
             {!collapsed ? <span>收起</span> : null}
           </button>
         </Tooltip>
-        <Tooltip content="设置  Ctrl+8" relationship="description">
+        <Tooltip content="设置  Ctrl+9" relationship="description">
           <button
             type="button"
             className={`nav-item sidebar-settings ${props.route === "settings" ? "active" : ""}`}

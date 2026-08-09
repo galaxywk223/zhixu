@@ -62,7 +62,7 @@ export function StatsPage(): React.JSX.Element {
         </section>
         <section className="chart-panel">
           <div className="section-heading">
-            <h2>任务状态</h2>
+            <h2>任务完成情况</h2>
             <span>仅手动任务</span>
           </div>
           <div className="status-breakdown">
@@ -71,19 +71,8 @@ export function StatsPage(): React.JSX.Element {
               <strong>{summary.data.completed}</strong>
             </div>
             <div>
-              <span>进行中</span>
-              <strong>{summary.data.inProgress}</strong>
-            </div>
-            <div>
-              <span>待处理</span>
-              <strong>
-                {Math.max(
-                  0,
-                  summary.data.taskTotal -
-                    summary.data.completed -
-                    summary.data.inProgress,
-                )}
-              </strong>
+              <span>待完成</span>
+              <strong>{summary.data.pending}</strong>
             </div>
           </div>
         </section>

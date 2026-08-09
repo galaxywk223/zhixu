@@ -20,7 +20,7 @@ import {
   TagPickerOption,
   Textarea,
 } from "@fluentui/react-components";
-import type { TaskDraft } from "@zhixu/contracts";
+import type { TaskBatchDraft, TaskDraft } from "@zhixu/contracts";
 import type { TagRecord, TaskRecord } from "../../../preload/api-types";
 import {
   normalizeTagName,
@@ -28,15 +28,28 @@ import {
   tagTone,
 } from "../../../shared/tag-colors";
 import { queryKeys } from "../query";
+import {
+  combineLocalDueAt,
+  isImplicitEndOfDay,
+  localDateKey,
+} from "../../../shared/task-schedule";
 
 const CREATE_TAG_OPTION = "__create-tag__";
 
-function toLocalInput(value: string | null): string {
-  if (!value) return "";
+function dueParts(value: string | null): { date: string; time: string } {
+  if (!value) return { date: localDateKey(new Date()), time: "" };
   const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return {
+    date: localDateKey(date),
+    time: isImplicitEndOfDay(value)
+      ? ""
+      : `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`,
+  };
 }
+
+type SaveRequest =
+  | { kind: "single"; draft: TaskDraft }
+  | { kind: "batch"; draft: TaskBatchDraft };
 
 interface TaskEditorProps {
   open: boolean;
@@ -60,9 +73,15 @@ export function TaskEditor({
   });
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<TaskRecord["status"]>("todo");
   const [priority, setPriority] = useState(1);
-  const [dueAt, setDueAt] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
+  const [creationMode, setCreationMode] = useState<"single" | "range">(
+    "single",
+  );
+  const [rangeEnd, setRangeEnd] = useState("");
+  const [frequency, setFrequency] =
+    useState<TaskBatchDraft["frequency"]>("daily");
   const [estimatedMinutes, setEstimatedMinutes] = useState(0);
   const [categoryId, setCategoryId] = useState("");
   const [tagIds, setTagIds] = useState<string[]>([]);
@@ -73,9 +92,13 @@ export function TaskEditor({
     if (!open) return;
     setTitle(task?.title ?? "");
     setDescription(task?.descriptionMd ?? "");
-    setStatus(task?.status ?? "todo");
     setPriority(task?.priority ?? 1);
-    setDueAt(toLocalInput(task?.dueAt ?? null));
+    const due = dueParts(task?.dueAt ?? null);
+    setDueDate(due.date);
+    setDueTime(due.time);
+    setCreationMode("single");
+    setRangeEnd(due.date);
+    setFrequency("daily");
     setEstimatedMinutes(task?.estimatedMinutes ?? 0);
     setCategoryId(task?.categoryId ?? "");
     setTagIds(task?.tagIds ?? []);
@@ -83,8 +106,11 @@ export function TaskEditor({
     setError(null);
   }, [open, task]);
 
-  const save = useMutation({
-    mutationFn: (draft: TaskDraft) => window.zhixu.tasks.save(draft),
+  const save = useMutation<unknown, Error, SaveRequest>({
+    mutationFn: (request: SaveRequest) =>
+      request.kind === "single"
+        ? window.zhixu.tasks.save(request.draft)
+        : window.zhixu.tasks.createBatch(request.draft),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: queryKeys.tasks });
       onClose();
@@ -142,18 +168,44 @@ export function TaskEditor({
 
   const submit = (): void => {
     if (!title.trim()) return setError("任务标题不能为空");
-    save.mutate({
-      id: task?.id,
+    if (!dueDate) return setError("请选择任务日期");
+    setError(null);
+    const common = {
       title: title.trim(),
       descriptionMd: description || null,
-      status,
       priority,
-      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
       estimatedMinutes: Math.max(0, estimatedMinutes || 0),
       categoryId: categoryId || null,
-      repeatRule: null,
       tagIds,
-    });
+    };
+    try {
+      if (!task && creationMode === "range") {
+        if (!rangeEnd) return setError("请选择结束日期");
+        save.mutate({
+          kind: "batch",
+          draft: {
+            ...common,
+            startDate: dueDate,
+            endDate: rangeEnd,
+            time: dueTime || null,
+            frequency,
+          },
+        });
+        return;
+      }
+      save.mutate({
+        kind: "single",
+        draft: {
+          ...common,
+          id: task?.id,
+          status: task?.status ?? "todo",
+          dueAt: combineLocalDueAt(dueDate, dueTime || null),
+          repeatRule: task?.repeatRule ?? null,
+        },
+      });
+    } catch (value) {
+      setError(value instanceof Error ? value.message : String(value));
+    }
   };
 
   return (
@@ -181,19 +233,27 @@ export function TaskEditor({
                 onChange={(_, data) => setDescription(data.value)}
               />
             </Field>
-            <div className="form-row three">
-              <Field label="状态">
-                <Select
-                  value={status}
-                  onChange={(event) =>
-                    setStatus(event.target.value as TaskRecord["status"])
-                  }
-                >
-                  <option value="todo">待完成</option>
-                  <option value="in_progress">进行中</option>
-                  <option value="done">已完成</option>
-                </Select>
+            {!task ? (
+              <Field label="创建方式">
+                <div className="segmented task-creation-mode">
+                  <button
+                    type="button"
+                    className={creationMode === "single" ? "active" : ""}
+                    onClick={() => setCreationMode("single")}
+                  >
+                    单次
+                  </button>
+                  <button
+                    type="button"
+                    className={creationMode === "range" ? "active" : ""}
+                    onClick={() => setCreationMode("range")}
+                  >
+                    日期范围
+                  </button>
+                </div>
               </Field>
+            ) : null}
+            <div className="form-row two">
               <Field label="优先级">
                 <Select
                   value={priority}
@@ -216,14 +276,63 @@ export function TaskEditor({
               </Field>
             </div>
             <div className="form-row two">
-              <Field label="到期时间">
+              <Field
+                label={creationMode === "range" && !task ? "开始日期" : "日期"}
+                required
+              >
                 <input
                   className="native-control"
-                  type="datetime-local"
-                  value={dueAt}
-                  onChange={(event) => setDueAt(event.target.value)}
+                  type="date"
+                  aria-label={
+                    creationMode === "range" && !task ? "开始日期" : "日期"
+                  }
+                  value={dueDate}
+                  onChange={(event) => {
+                    setDueDate(event.target.value);
+                    if (!rangeEnd || rangeEnd < event.target.value)
+                      setRangeEnd(event.target.value);
+                  }}
                 />
               </Field>
+              <Field label="时间（可选）">
+                <input
+                  className="native-control"
+                  type="time"
+                  aria-label="时间（可选）"
+                  value={dueTime}
+                  onChange={(event) => setDueTime(event.target.value)}
+                />
+              </Field>
+            </div>
+            {creationMode === "range" && !task ? (
+              <div className="form-row two">
+                <Field label="结束日期" required>
+                  <input
+                    className="native-control"
+                    type="date"
+                    aria-label="结束日期"
+                    min={dueDate}
+                    value={rangeEnd}
+                    onChange={(event) => setRangeEnd(event.target.value)}
+                  />
+                </Field>
+                <Field label="重复频率">
+                  <Select
+                    value={frequency}
+                    onChange={(event) =>
+                      setFrequency(
+                        event.target.value as TaskBatchDraft["frequency"],
+                      )
+                    }
+                  >
+                    <option value="daily">每天</option>
+                    <option value="weekdays">工作日</option>
+                    <option value="weekly">每周</option>
+                  </Select>
+                </Field>
+              </div>
+            ) : null}
+            <div className="form-row one">
               <Field label="分类">
                 <Select
                   value={categoryId}

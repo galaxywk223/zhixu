@@ -57,6 +57,7 @@ export function SettingsPage(): React.JSX.Element {
   const [draft, setDraft] = useState<AppSettings | null>(null);
   const [editingTag, setEditingTag] = useState<TagRecord | "new" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   useEffect(() => {
     if (settings.data)
       setDraft((current) =>
@@ -72,22 +73,38 @@ export function SettingsPage(): React.JSX.Element {
       ),
     [client],
   );
-  const saveSettings = useMutation({
-    mutationFn: window.zhixu.settings.set,
+  const updateSettings = useMutation({
+    mutationFn: (value: {
+      patch: Partial<AppSettings>;
+      previous: AppSettings;
+    }) => window.zhixu.settings.update(value.patch),
+    onError: (value, variables) => {
+      setDraft(variables.previous);
+      client.setQueryData(queryKeys.settings, variables.previous);
+      client.setQueryData(queryKeys.bootstrap, (current: unknown) => {
+        if (!current || typeof current !== "object") return current;
+        return { ...current, settings: variables.previous };
+      });
+      setSettingsError(value instanceof Error ? value.message : String(value));
+    },
     onSuccess: () => {
-      setMessage("设置已保存");
-      client.invalidateQueries();
+      void client.invalidateQueries({ queryKey: queryKeys.settings });
+      void client.invalidateQueries({ queryKey: queryKeys.bootstrap });
     },
   });
-  const setUiScale = useMutation({
-    mutationFn: async (uiScale: AppSettings["uiScale"]) => {
-      await window.zhixu.settings.setUiScale(uiScale);
-      return uiScale;
-    },
-    onSuccess: (uiScale) => {
-      setDraft((current) => (current ? { ...current, uiScale } : current));
-    },
-  });
+  const changeSettings = (patch: Partial<AppSettings>): void => {
+    if (!draft) return;
+    const previous: AppSettings = draft;
+    const next: AppSettings = { ...draft, ...patch };
+    setSettingsError(null);
+    setDraft(next);
+    client.setQueryData(queryKeys.settings, next);
+    client.setQueryData(queryKeys.bootstrap, (current: unknown) => {
+      if (!current || typeof current !== "object") return current;
+      return { ...current, settings: next };
+    });
+    updateSettings.mutate({ patch, previous });
+  };
   const removeTag = useMutation({
     mutationFn: window.zhixu.tasks.removeTag,
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.tags }),
@@ -114,17 +131,10 @@ export function SettingsPage(): React.JSX.Element {
   if (!draft || bootstrap.isLoading) return <Loading />;
   return (
     <div className="page settings-page">
-      <PageHeader
-        title="设置"
-        actions={
-          <Button
-            appearance="primary"
-            onClick={() => saveSettings.mutate(draft)}
-          >
-            保存设置
-          </Button>
-        }
-      />
+      <PageHeader title="设置" />
+      {settingsError ? (
+        <div className="error-message">{settingsError}</div>
+      ) : null}
       {message ? <div className="success-message">{message}</div> : null}
       <div className="settings-layout">
         <section className="settings-section">
@@ -134,7 +144,8 @@ export function SettingsPage(): React.JSX.Element {
               <button
                 key={mode}
                 className={draft.themeMode === mode ? "active" : ""}
-                onClick={() => setDraft({ ...draft, themeMode: mode })}
+                disabled={updateSettings.isPending}
+                onClick={() => changeSettings({ themeMode: mode })}
               >
                 {mode === "system"
                   ? "跟随系统"
@@ -155,9 +166,11 @@ export function SettingsPage(): React.JSX.Element {
                   appearance="subtle"
                   icon={<ZoomOut20Regular />}
                   aria-label="缩小界面"
-                  disabled={draft.uiScale === 80 || setUiScale.isPending}
+                  disabled={draft.uiScale === 80 || updateSettings.isPending}
                   onClick={() =>
-                    setUiScale.mutate(stepUiScale(draft.uiScale, -1))
+                    changeSettings({
+                      uiScale: stepUiScale(draft.uiScale, -1),
+                    })
                   }
                 />
               </Tooltip>
@@ -167,9 +180,11 @@ export function SettingsPage(): React.JSX.Element {
                   appearance="subtle"
                   icon={<ZoomIn20Regular />}
                   aria-label="放大界面"
-                  disabled={draft.uiScale === 150 || setUiScale.isPending}
+                  disabled={draft.uiScale === 150 || updateSettings.isPending}
                   onClick={() =>
-                    setUiScale.mutate(stepUiScale(draft.uiScale, 1))
+                    changeSettings({
+                      uiScale: stepUiScale(draft.uiScale, 1),
+                    })
                   }
                 />
               </Tooltip>
@@ -179,9 +194,10 @@ export function SettingsPage(): React.JSX.Element {
                   icon={<ArrowReset20Regular />}
                   aria-label="恢复默认缩放"
                   disabled={
-                    draft.uiScale === DEFAULT_UI_SCALE || setUiScale.isPending
+                    draft.uiScale === DEFAULT_UI_SCALE ||
+                    updateSettings.isPending
                   }
-                  onClick={() => setUiScale.mutate(DEFAULT_UI_SCALE)}
+                  onClick={() => changeSettings({ uiScale: DEFAULT_UI_SCALE })}
                 />
               </Tooltip>
             </div>
@@ -193,8 +209,9 @@ export function SettingsPage(): React.JSX.Element {
             </div>
             <Switch
               checked={draft.closeToTray}
+              disabled={updateSettings.isPending}
               onChange={(_, data) =>
-                setDraft({ ...draft, closeToTray: data.checked })
+                changeSettings({ closeToTray: data.checked })
               }
             />
           </div>
@@ -205,8 +222,9 @@ export function SettingsPage(): React.JSX.Element {
             </div>
             <Switch
               checked={draft.startMinimized}
+              disabled={updateSettings.isPending}
               onChange={(_, data) =>
-                setDraft({ ...draft, startMinimized: data.checked })
+                changeSettings({ startMinimized: data.checked })
               }
             />
           </div>

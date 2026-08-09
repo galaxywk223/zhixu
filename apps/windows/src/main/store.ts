@@ -2,14 +2,18 @@ import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
   lifeEventDraftSchema,
+  memoDraftSchema,
   noteDraftSchema,
   scheduleDraftSchema,
+  taskBatchDraftSchema,
   taskDraftSchema,
   themeModeSchema,
   uiScaleSchema,
   type LifeEventDraft,
+  type MemoDraft,
   type NoteDraft,
   type ScheduleDraft,
+  type TaskBatchDraft,
   type TaskDraft,
 } from "@zhixu/contracts";
 import type {
@@ -20,15 +24,21 @@ import type {
   ImportBatchRecord,
   ImportResult,
   LifeEventRecord,
+  MemoRecord,
   NoteRecord,
   ScheduleBlockRecord,
   SearchHit,
   TagRecord,
   TaskRecord,
+  TaskBatchResult,
   TomatoPreview,
 } from "../preload/api-types";
 import { classifyLifeEvent, normalizeLegacyTomatoText } from "../shared/domain";
 import { normalizeTagName, tagColorHex } from "../shared/tag-colors";
+import {
+  buildOccurrenceDates,
+  combineLocalDueAt,
+} from "../shared/task-schedule";
 
 const dataTables = [
   "task_categories",
@@ -156,6 +166,7 @@ export class ZhixuStore {
            WHERE tl.entity_type = 'task' AND tl.entity_id = t.id AND tl.deleted_at IS NULL) AS tag_ids
          FROM tasks t
          WHERE t.deleted_at IS NULL AND t.is_archived = 0 AND t.external_source IS NULL
+           AND t.due_at IS NOT NULL
          ORDER BY t.updated_at DESC`,
       )
       .all() as SqlRow[];
@@ -167,8 +178,10 @@ export class ZhixuStore {
     const id = draft.id ?? randomUUID();
     const now = nowSeconds();
     const existing = this.db
-      .prepare("SELECT id, created_at FROM tasks WHERE id = ?")
+      .prepare("SELECT id, created_at, due_at FROM tasks WHERE id = ?")
       .get(id) as SqlRow | undefined;
+    if (existing && existing.due_at == null)
+      throw new Error("备忘不能通过任务编辑器保存");
     const run = this.db.transaction(() => {
       if (existing) {
         this.db
@@ -209,6 +222,131 @@ export class ZhixuStore {
             draft.categoryId,
             draft.repeatRule,
             draft.status === "done" ? now : null,
+            now,
+            now,
+          );
+      }
+      this.replaceTaskTags(id, draft.tagIds, now);
+      this.enqueue(
+        "task",
+        id,
+        "upsert",
+        this.db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as SqlRow,
+      );
+    });
+    run();
+    return id;
+  }
+
+  createTaskBatch(input: TaskBatchDraft): TaskBatchResult {
+    const draft = taskBatchDraftSchema.parse(input);
+    const dates = buildOccurrenceDates(
+      draft.startDate,
+      draft.endDate,
+      draft.frequency,
+    );
+    const ids = dates.map(() => randomUUID());
+    const primaryId = ids[0]!;
+    const now = nowSeconds();
+    const repeatRule = JSON.stringify({
+      frequency: draft.frequency,
+      startDate: draft.startDate,
+      endDate: draft.endDate,
+      time: draft.time,
+    });
+    const insert = this.db.prepare(
+      `INSERT INTO tasks
+       (id, title, description_md, status, priority, due_at, estimated_minutes, category_id,
+        repeat_rule, parent_task_id, completed_at, is_archived, created_at, updated_at,
+        device_id, server_revision)
+       VALUES (?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, 'electron-windows', 0)`,
+    );
+    const run = this.db.transaction(() => {
+      dates.forEach((date, index) => {
+        const id = ids[index]!;
+        insert.run(
+          id,
+          draft.title,
+          draft.descriptionMd,
+          draft.priority,
+          toEpoch(combineLocalDueAt(date, draft.time)),
+          draft.estimatedMinutes,
+          draft.categoryId,
+          repeatRule,
+          index === 0 ? null : primaryId,
+          now,
+          now,
+        );
+        this.replaceTaskTags(id, draft.tagIds, now);
+        this.enqueue(
+          "task",
+          id,
+          "upsert",
+          this.db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as SqlRow,
+        );
+      });
+    });
+    run();
+    return { primaryId, createdCount: ids.length, ids };
+  }
+
+  listMemos(): MemoRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT t.*,
+          (SELECT group_concat(tl.tag_id)
+           FROM tag_links tl
+           WHERE tl.entity_type = 'task' AND tl.entity_id = t.id AND tl.deleted_at IS NULL) AS tag_ids
+         FROM tasks t
+         WHERE t.deleted_at IS NULL AND t.is_archived = 0 AND t.external_source IS NULL
+           AND t.due_at IS NULL
+         ORDER BY t.updated_at DESC`,
+      )
+      .all() as SqlRow[];
+    return rows.map((row) => {
+      const task = asTask(row);
+      return {
+        id: task.id,
+        title: task.title,
+        descriptionMd: task.descriptionMd,
+        categoryId: task.categoryId,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        tagIds: task.tagIds,
+      };
+    });
+  }
+
+  saveMemo(input: MemoDraft): string {
+    const draft = memoDraftSchema.parse(input);
+    const id = draft.id ?? randomUUID();
+    const now = nowSeconds();
+    const existing = this.db
+      .prepare("SELECT id, due_at FROM tasks WHERE id = ?")
+      .get(id) as SqlRow | undefined;
+    if (existing && existing.due_at != null)
+      throw new Error("任务不能通过备忘编辑器保存");
+    const run = this.db.transaction(() => {
+      if (existing) {
+        this.db
+          .prepare(
+            `UPDATE tasks SET title = ?, description_md = ?, category_id = ?, updated_at = ?,
+             deleted_at = NULL, is_archived = 0 WHERE id = ? AND due_at IS NULL`,
+          )
+          .run(draft.title, draft.descriptionMd, draft.categoryId, now, id);
+      } else {
+        this.db
+          .prepare(
+            `INSERT INTO tasks
+             (id, title, description_md, status, priority, due_at, estimated_minutes, category_id,
+              repeat_rule, completed_at, is_archived, created_at, updated_at, device_id, server_revision)
+             VALUES (?, ?, ?, 'todo', 1, NULL, 0, ?, NULL, NULL, 0, ?, ?, 'electron-windows', 0)`,
+          )
+          .run(
+            id,
+            draft.title,
+            draft.descriptionMd,
+            draft.categoryId,
             now,
             now,
           );
@@ -957,7 +1095,7 @@ export class ZhixuStore {
           Date.parse(task.dueAt) < todayStart,
       ).length,
       completed: tasks.filter((task) => task.status === "done").length,
-      inProgress: tasks.filter((task) => task.status === "in_progress").length,
+      pending: tasks.filter((task) => task.status !== "done").length,
       estimatedMinutes: tasks
         .filter((task) => task.status !== "done")
         .reduce((sum, task) => sum + task.estimatedMinutes, 0),
@@ -974,7 +1112,7 @@ export class ZhixuStore {
     const pattern = `%${value.replace(/[\\%_]/g, "\\$&")}%`;
     const taskRows = this.db
       .prepare(
-        `SELECT id, title, COALESCE(description_md, '') AS subtitle FROM tasks
+        `SELECT id, title, due_at, COALESCE(description_md, '') AS subtitle FROM tasks
          WHERE deleted_at IS NULL AND is_archived = 0 AND external_source IS NULL
            AND (title LIKE ? ESCAPE '\\' OR description_md LIKE ? ESCAPE '\\') LIMIT 20`,
       )
@@ -994,7 +1132,7 @@ export class ZhixuStore {
     return [
       ...taskRows.map((row) => ({
         id: String(row.id),
-        entityType: "task" as const,
+        entityType: (row.due_at == null ? "memo" : "task") as "memo" | "task",
         title: String(row.title),
         subtitle: String(row.subtitle),
       })),
@@ -1041,12 +1179,20 @@ export class ZhixuStore {
   }
 
   saveSettings(settings: AppSettings): void {
-    const parsed: AppSettings = {
-      themeMode: themeModeSchema.parse(settings.themeMode),
-      uiScale: uiScaleSchema.parse(settings.uiScale),
-      closeToTray: Boolean(settings.closeToTray),
-      startMinimized: Boolean(settings.startMinimized),
-    };
+    this.updateSettings(settings);
+  }
+
+  updateSettings(settings: Partial<AppSettings>): void {
+    const parsed: Partial<AppSettings> = {};
+    if (settings.themeMode !== undefined)
+      parsed.themeMode = themeModeSchema.parse(settings.themeMode);
+    if (settings.uiScale !== undefined)
+      parsed.uiScale = uiScaleSchema.parse(settings.uiScale);
+    if (settings.closeToTray !== undefined)
+      parsed.closeToTray = Boolean(settings.closeToTray);
+    if (settings.startMinimized !== undefined)
+      parsed.startMinimized = Boolean(settings.startMinimized);
+    if (Object.keys(parsed).length === 0) throw new Error("至少修改一项设置");
     const statement = this.db.prepare(
       `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
@@ -1059,13 +1205,7 @@ export class ZhixuStore {
   }
 
   saveUiScale(uiScale: AppSettings["uiScale"]): void {
-    const value = uiScaleSchema.parse(uiScale);
-    this.db
-      .prepare(
-        `INSERT INTO app_settings (key, value_json, updated_at) VALUES ('uiScale', ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-      )
-      .run(JSON.stringify(value), nowSeconds());
+    this.updateSettings({ uiScale });
   }
 
   exportData(): Record<string, SqlRow[]> {

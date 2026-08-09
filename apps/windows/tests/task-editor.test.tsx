@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TagRecord, ZhixuApi } from "../src/preload/api-types";
 import { TaskEditor } from "../src/renderer/src/components/TaskEditor";
 import { zhixuLightTheme } from "../src/renderer/src/theme";
+import { isImplicitEndOfDay } from "../src/shared/task-schedule";
 
 afterEach(cleanup);
 
@@ -32,7 +33,7 @@ function renderEditor(api: ZhixuApi): void {
   );
 }
 
-describe("task editor tags", () => {
+describe("task editor", () => {
   it("selects existing tags and creates a new selected tag", async () => {
     const records: TagRecord[] = [
       {
@@ -99,10 +100,54 @@ describe("task editor tags", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
     await waitFor(() => expect(saveTask).toHaveBeenCalled());
+    expect(within(dialog).queryByLabelText("状态")).toBeNull();
+    expect(isImplicitEndOfDay(saveTask.mock.calls[0]?.[0].dueAt)).toBe(true);
     expect(saveTask.mock.calls[0]?.[0].tagIds).toEqual([
       "tag-algorithm",
       "tag-baoyan",
     ]);
+  }, 15_000);
+
+  it("creates a bounded weekday task range", async () => {
+    const createBatch = vi.fn().mockResolvedValue({
+      primaryId: "task-1",
+      createdCount: 3,
+      ids: ["task-1", "task-2", "task-3"],
+    });
+    renderEditor({
+      tasks: {
+        categories: vi.fn().mockResolvedValue([]),
+        tags: vi.fn().mockResolvedValue([]),
+        save: vi.fn(),
+        createBatch,
+        saveTag: vi.fn(),
+      },
+    } as unknown as ZhixuApi);
+
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /标题/ }), {
+      target: { value: "每日复习" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "日期范围" }));
+    fireEvent.change(within(dialog).getByLabelText(/开始日期/), {
+      target: { value: "2026-08-07" },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/结束日期/), {
+      target: { value: "2026-08-11" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("重复频率"), {
+      target: { value: "weekdays" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(createBatch).toHaveBeenCalled());
+    expect(createBatch.mock.calls[0]?.[0]).toMatchObject({
+      title: "每日复习",
+      startDate: "2026-08-07",
+      endDate: "2026-08-11",
+      time: null,
+      frequency: "weekdays",
+    });
   });
 
   it("keeps the task draft when inline tag creation fails", async () => {

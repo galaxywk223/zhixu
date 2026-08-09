@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 export const queryKeys = {
   bootstrap: ["bootstrap"] as const,
   tasks: ["tasks"] as const,
+  memos: ["memos"] as const,
   categories: ["task-categories"] as const,
   tags: ["tags"] as const,
   notes: ["notes"] as const,
@@ -28,6 +29,7 @@ export function useDataInvalidation(): void {
             queryKeys.tags,
             queryKeys.summary,
           ],
+          memos: [queryKeys.memos, queryKeys.summary],
           notes: [queryKeys.notes],
           calendar: [["calendar"], queryKeys.summary],
           focus: [

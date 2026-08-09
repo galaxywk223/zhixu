@@ -4,7 +4,6 @@ import {
   buildTaskWorkspace,
   DEFAULT_TASK_WORKSPACE_FILTERS,
   formatEstimatedMinutes,
-  selectExactTaskStatus,
   selectTaskView,
   sortWorkspaceTasks,
 } from "../src/renderer/src/pages/task-workspace-model";
@@ -16,7 +15,7 @@ function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
     descriptionMd: null,
     status: "todo",
     priority: 1,
-    dueAt: null,
+    dueAt: new Date(2026, 7, 9, 23, 59).toISOString(),
     estimatedMinutes: 0,
     categoryId: null,
     repeatRule: null,
@@ -57,7 +56,7 @@ describe("task workspace model", () => {
       dueAt: new Date(2026, 7, 20, 12, 0).toISOString(),
       estimatedMinutes: 20,
     }),
-    task("undated", { estimatedMinutes: 10 }),
+    task("undated", { dueAt: null, estimatedMinutes: 10 }),
     task("done", {
       status: "done",
       dueAt: new Date(2026, 7, 9, 8, 0).toISOString(),
@@ -75,28 +74,27 @@ describe("task workspace model", () => {
     );
 
     expect(model.viewCounts).toMatchObject({
-      active: 6,
-      all: 7,
+      active: 5,
+      all: 6,
       overdue: 1,
       today: 1,
       tomorrow: 1,
       next7days: 1,
-      undated: 1,
       done: 1,
     });
     expect(model.metrics).toEqual({
-      total: 7,
+      total: 6,
       dueToday: 2,
       overdue: 1,
       completed: 1,
-      inProgress: 1,
-      remainingEstimatedMinutes: 190,
+      pending: 5,
+      remainingEstimatedMinutes: 180,
     });
-    expect(formatEstimatedMinutes(190)).toBe("3 小时 10 分钟");
+    expect(formatEstimatedMinutes(180)).toBe("3 小时");
     expect(formatEstimatedMinutes(0)).toBe("0 分钟");
   });
 
-  it("combines query, status, category, and tag filters", () => {
+  it("combines query, category, and tag filters", () => {
     const matching = task("matching", {
       title: "Alpha 复习",
       descriptionMd: "linear algebra",
@@ -110,7 +108,7 @@ describe("task workspace model", () => {
           title: "Alpha 完成",
           status: "done",
           categoryId: "study",
-          tagIds: ["blue"],
+          tagIds: ["red"],
         }),
         task("wrong tag", {
           title: "Alpha 其他",
@@ -121,7 +119,6 @@ describe("task workspace model", () => {
       {
         view: "all",
         query: "alpha",
-        status: "todo",
         categoryId: "study",
         tagId: "blue",
       },
@@ -130,23 +127,17 @@ describe("task workspace model", () => {
     );
 
     expect(model.filteredTasks.map((item) => item.id)).toEqual(["matching"]);
-    expect(model.tagCounts).toEqual({ blue: 1, green: 1, red: 1 });
+    expect(model.tagCounts).toEqual({ blue: 1, green: 1, red: 2 });
   });
 
-  it("resets exact status when changing views and returns to all for exact status", () => {
-    const exact = selectExactTaskStatus(
-      { ...DEFAULT_TASK_WORKSPACE_FILTERS, tagId: "blue" },
-      "in_progress",
-    );
-    expect(exact).toMatchObject({
-      view: "all",
-      status: "in_progress",
-      tagId: "blue",
-    });
-
-    expect(selectTaskView(exact, "tomorrow")).toMatchObject({
+  it("preserves combination filters when changing quick views", () => {
+    expect(
+      selectTaskView(
+        { ...DEFAULT_TASK_WORKSPACE_FILTERS, tagId: "blue" },
+        "tomorrow",
+      ),
+    ).toMatchObject({
       view: "tomorrow",
-      status: "all",
       tagId: "blue",
     });
   });

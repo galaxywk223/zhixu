@@ -70,6 +70,7 @@ describe("shared page components", () => {
       screen.getByRole("button", { name: "展开侧栏" }).querySelector("span"),
     ).toBeNull();
     expect(screen.getByRole("button", { name: "任务" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "备忘" })).toBeTruthy();
   });
 
   it("defaults to an expanded sidebar for invalid stored preferences", () => {

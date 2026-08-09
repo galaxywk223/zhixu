@@ -147,7 +147,7 @@ describe("schema 6 migration", () => {
       expect(context.report.fromVersion).toBe(version);
       expect(context.report.integrity).toBe("ok");
       expect(context.report.entityCounts.tasks).toBe(2);
-      expect(new ZhixuStore(context.db).listTasks()[0]?.title).toBe("保留任务");
+      expect(new ZhixuStore(context.db).listMemos()[0]?.title).toBe("保留任务");
       expect(
         context.db.prepare("SELECT COUNT(*) AS count FROM sync_outbox").get(),
       ).toEqual({ count: 1 });
@@ -207,7 +207,7 @@ describe("schema 6 migration", () => {
       descriptionMd: null,
       status: "todo",
       priority: 2,
-      dueAt: null,
+      dueAt: new Date(2026, 7, 9, 23, 59, 59, 999).toISOString(),
       estimatedMinutes: 30,
       categoryId: null,
       repeatRule: null,
@@ -243,6 +243,13 @@ describe("schema 6 migration", () => {
     expect(store.getSettings().uiScale).toBe(125);
     store.saveUiScale(150);
     expect(store.getSettings().uiScale).toBe(150);
+    store.updateSettings({ themeMode: "dark" });
+    expect(store.getSettings()).toEqual({
+      themeMode: "dark",
+      uiScale: 150,
+      closeToTray: true,
+      startMinimized: false,
+    });
     context.db.close();
   });
 
@@ -271,6 +278,102 @@ describe("schema 6 migration", () => {
         .prepare("SELECT color_hex AS colorHex FROM tags WHERE id = ?")
         .get(id),
     ).toEqual({ colorHex: tagColorHex("保研") });
+    context.db.close();
+  });
+
+  it("separates dated tasks from memos and labels memo search results", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+    const memoId = store.saveMemo({
+      title: "联系导师",
+      descriptionMd: "整理邮件内容",
+      categoryId: null,
+      tagIds: [],
+    });
+    store.saveTask({
+      title: "提交材料",
+      descriptionMd: null,
+      status: "todo",
+      priority: 2,
+      dueAt: new Date(2026, 7, 10, 23, 59, 59, 999).toISOString(),
+      estimatedMinutes: 30,
+      categoryId: null,
+      repeatRule: null,
+      tagIds: [],
+    });
+
+    expect(store.listMemos().map((item) => item.id)).toEqual([memoId]);
+    expect(store.listTasks().map((item) => item.title)).toEqual(["提交材料"]);
+    expect(store.search("导师")[0]).toMatchObject({
+      id: memoId,
+      entityType: "memo",
+    });
+    context.db.close();
+  });
+
+  it("creates linked task ranges atomically", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+    const result = store.createTaskBatch({
+      title: "每日复习",
+      descriptionMd: null,
+      priority: 2,
+      estimatedMinutes: 45,
+      categoryId: null,
+      tagIds: [],
+      startDate: "2026-08-07",
+      endDate: "2026-08-11",
+      time: null,
+      frequency: "weekdays",
+    });
+
+    expect(result.createdCount).toBe(3);
+    expect(store.listTasks()).toHaveLength(3);
+    const rows = context.db
+      .prepare(
+        "SELECT id, parent_task_id AS parentId, repeat_rule AS repeatRule FROM tasks ORDER BY due_at",
+      )
+      .all() as Array<{
+      id: string;
+      parentId: string | null;
+      repeatRule: string;
+    }>;
+    expect(rows[0]).toMatchObject({ id: result.primaryId, parentId: null });
+    expect(
+      rows.slice(1).every((row) => row.parentId === result.primaryId),
+    ).toBe(true);
+    expect(JSON.parse(rows[0]!.repeatRule)).toMatchObject({
+      frequency: "weekdays",
+      time: null,
+    });
+
+    context.db.exec(`
+      CREATE TRIGGER reject_failed_batch BEFORE INSERT ON tasks
+      WHEN NEW.title = '失败批次' AND
+        (SELECT COUNT(*) FROM tasks WHERE title = '失败批次') >= 1
+      BEGIN SELECT RAISE(ABORT, 'reject batch'); END;
+    `);
+    expect(() =>
+      store.createTaskBatch({
+        title: "失败批次",
+        descriptionMd: null,
+        priority: 1,
+        estimatedMinutes: 0,
+        categoryId: null,
+        tagIds: [],
+        startDate: "2026-08-07",
+        endDate: "2026-08-09",
+        time: "09:00",
+        frequency: "daily",
+      }),
+    ).toThrow();
+    expect(
+      context.db
+        .prepare("SELECT COUNT(*) AS count FROM tasks WHERE title = '失败批次'")
+        .get(),
+    ).toEqual({ count: 0 });
     context.db.close();
   });
 });

@@ -12,6 +12,7 @@ import { EmptyState, Loading } from "../components/Page";
 import { TaskList } from "../components/TaskList";
 import { queryKeys } from "../query";
 import { buildTodayDashboard } from "./today-page-model";
+import { isImplicitEndOfDay } from "../../../shared/task-schedule";
 
 function formatToday(date: Date): string {
   const weekday = new Intl.DateTimeFormat("zh-CN", {
@@ -28,7 +29,13 @@ function formatMinutes(value: number): string {
 }
 
 function formatDeadline(value: string): string {
-  return new Date(value).toLocaleString("zh-CN", {
+  const date = new Date(value);
+  if (isImplicitEndOfDay(value))
+    return date.toLocaleDateString("zh-CN", {
+      month: "numeric",
+      day: "numeric",
+    });
+  return date.toLocaleString("zh-CN", {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -152,7 +159,7 @@ export function TodayPage(props: {
             icon={<Search20Regular />}
             onClick={props.onSearch}
           >
-            搜索任务、笔记…
+            搜索任务、备忘、笔记…
           </Button>
           <Button
             appearance="primary"

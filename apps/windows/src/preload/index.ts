@@ -25,6 +25,7 @@ const api: ZhixuApi = {
   tasks: {
     list: () => ipcRenderer.invoke("tasks:list"),
     save: (draft) => ipcRenderer.invoke("tasks:save", draft),
+    createBatch: (draft) => ipcRenderer.invoke("tasks:create-batch", draft),
     setStatus: (id, status) =>
       ipcRenderer.invoke("tasks:set-status", { id, status }),
     remove: (id) => ipcRenderer.invoke("tasks:remove", id),
@@ -32,6 +33,11 @@ const api: ZhixuApi = {
     tags: () => ipcRenderer.invoke("tasks:tags"),
     saveTag: (input) => ipcRenderer.invoke("tasks:save-tag", input),
     removeTag: (id) => ipcRenderer.invoke("tasks:remove-tag", id),
+  },
+  memos: {
+    list: () => ipcRenderer.invoke("memos:list"),
+    save: (draft) => ipcRenderer.invoke("memos:save", draft),
+    remove: (id) => ipcRenderer.invoke("memos:remove", id),
   },
   calendar: {
     list: (startAt, endAt) =>
@@ -68,9 +74,7 @@ const api: ZhixuApi = {
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
-    set: (settings) => ipcRenderer.invoke("settings:set", settings),
-    setUiScale: (uiScale) =>
-      ipcRenderer.invoke("settings:set-ui-scale", uiScale),
+    update: (settings) => ipcRenderer.invoke("settings:update", settings),
   },
   updates: {
     getState: () => ipcRenderer.invoke("updates:get-state"),

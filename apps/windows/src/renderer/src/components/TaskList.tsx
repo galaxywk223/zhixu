@@ -1,16 +1,12 @@
-import { useState } from "react";
 import { Button, Checkbox, Tooltip } from "@fluentui/react-components";
-import {
-  Delete20Regular,
-  Edit20Regular,
-  MoreHorizontal20Regular,
-} from "@fluentui/react-icons";
+import { Delete20Regular, Edit20Regular } from "@fluentui/react-icons";
 import type {
   CategoryRecord,
   TagRecord,
   TaskRecord,
 } from "../../../preload/api-types";
 import { tagTone } from "../../../shared/tag-colors";
+import { isImplicitEndOfDay } from "../../../shared/task-schedule";
 
 interface TaskListProps {
   tasks: TaskRecord[];
@@ -22,7 +18,6 @@ interface TaskListProps {
 }
 
 export function TaskList(props: TaskListProps): React.JSX.Element {
-  const [menuTask, setMenuTask] = useState<string | null>(null);
   const categoryMap = new Map(props.categories.map((item) => [item.id, item]));
   const tagMap = new Map(props.tags.map((item) => [item.id, item]));
   return (
@@ -33,10 +28,6 @@ export function TaskList(props: TaskListProps): React.JSX.Element {
           className={`task-row priority-${task.priority}`}
           role="row"
           onDoubleClick={() => props.onEdit(task)}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            setMenuTask(task.id);
-          }}
         >
           <Checkbox
             aria-label={task.status === "done" ? "标记为未完成" : "标记为完成"}
@@ -50,24 +41,21 @@ export function TaskList(props: TaskListProps): React.JSX.Element {
               {task.title}
             </strong>
             <div className="task-meta">
-              <span className={`status status-${task.status}`}>
-                {task.status === "todo"
-                  ? "待完成"
-                  : task.status === "in_progress"
-                    ? "进行中"
-                    : "已完成"}
-              </span>
               {task.categoryId && categoryMap.get(task.categoryId) ? (
                 <span>{categoryMap.get(task.categoryId)?.name}</span>
               ) : null}
               {task.dueAt ? (
                 <time>
-                  {new Date(task.dueAt).toLocaleString("zh-CN", {
+                  {new Date(task.dueAt).toLocaleDateString("zh-CN", {
                     month: "numeric",
                     day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
                   })}
+                  {!isImplicitEndOfDay(task.dueAt)
+                    ? ` ${new Date(task.dueAt).toLocaleTimeString("zh-CN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
+                    : ""}
                 </time>
               ) : (
                 <span>无日期</span>
@@ -93,54 +81,18 @@ export function TaskList(props: TaskListProps): React.JSX.Element {
               <Button
                 appearance="subtle"
                 icon={<Edit20Regular />}
+                aria-label={`编辑${task.title}`}
                 onClick={() => props.onEdit(task)}
               />
             </Tooltip>
-            <Tooltip content="更多操作" relationship="label">
+            <Tooltip content="删除" relationship="label">
               <Button
                 appearance="subtle"
-                icon={<MoreHorizontal20Regular />}
-                onClick={() =>
-                  setMenuTask(menuTask === task.id ? null : task.id)
-                }
+                icon={<Delete20Regular />}
+                aria-label={`删除${task.title}`}
+                onClick={() => props.onDelete(task)}
               />
             </Tooltip>
-            {menuTask === task.id ? (
-              <div className="context-menu">
-                {task.status === "todo" ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      props.onStatus(task, "in_progress");
-                      setMenuTask(null);
-                    }}
-                  >
-                    标记进行中
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    props.onEdit(task);
-                    setMenuTask(null);
-                  }}
-                >
-                  <Edit20Regular />
-                  编辑
-                </button>
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={() => {
-                    props.onDelete(task);
-                    setMenuTask(null);
-                  }}
-                >
-                  <Delete20Regular />
-                  删除
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
       ))}

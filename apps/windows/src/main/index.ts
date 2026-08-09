@@ -191,6 +191,9 @@ else {
           currentUiScale = uiScale;
           mainWindow?.webContents.setZoomFactor(currentUiScale / 100);
         },
+        applyCloseToTray: (value) => {
+          closeToTray = value;
+        },
       });
       Menu.setApplicationMenu(null);
       await createWindow();

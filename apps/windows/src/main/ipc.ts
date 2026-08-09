@@ -2,8 +2,10 @@ import { z } from "zod";
 import { BrowserWindow, ipcMain, nativeTheme, Notification } from "electron";
 import {
   lifeEventDraftSchema,
+  memoDraftSchema,
   noteDraftSchema,
   scheduleDraftSchema,
+  taskBatchDraftSchema,
   taskDraftSchema,
   taskStatusSchema,
   themeModeSchema,
@@ -26,6 +28,7 @@ interface IpcDependencies {
   updates: UpdateService;
   packaged: boolean;
   applyUiScale(uiScale: UiScale): void;
+  applyCloseToTray(value: boolean): void;
 }
 
 const idSchema = z.string().min(1).max(200);
@@ -39,6 +42,9 @@ const settingsSchema = z.object({
   closeToTray: z.boolean(),
   startMinimized: z.boolean(),
 });
+const settingsPatchSchema = settingsSchema
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, "至少修改一项设置");
 
 export function registerIpc(dependencies: IpcDependencies): void {
   const { store, getWindow } = dependencies;
@@ -78,6 +84,12 @@ export function registerIpc(dependencies: IpcDependencies): void {
     mutation("tasks", (value) => store.saveTask(taskDraftSchema.parse(value))),
   );
   ipcMain.handle(
+    "tasks:create-batch",
+    mutation("tasks", (value) =>
+      store.createTaskBatch(taskBatchDraftSchema.parse(value)),
+    ),
+  );
+  ipcMain.handle(
     "tasks:set-status",
     mutation("tasks", (value) => {
       const parsed = z
@@ -99,6 +111,15 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle(
     "tasks:remove-tag",
     mutation("tasks", (id) => store.removeTag(idSchema.parse(id))),
+  );
+  ipcMain.handle("memos:list", () => store.listMemos());
+  ipcMain.handle(
+    "memos:save",
+    mutation("memos", (value) => store.saveMemo(memoDraftSchema.parse(value))),
+  );
+  ipcMain.handle(
+    "memos:remove",
+    mutation("memos", (id) => store.removeTask(idSchema.parse(id))),
   );
 
   ipcMain.handle("calendar:list", (_event, value) => {
@@ -181,20 +202,14 @@ export function registerIpc(dependencies: IpcDependencies): void {
   );
   ipcMain.handle("settings:get", () => store.getSettings());
   ipcMain.handle(
-    "settings:set",
+    "settings:update",
     mutation("settings", (value) => {
-      const settings = settingsSchema.parse(value);
-      store.saveSettings(settings);
-      nativeTheme.themeSource = settings.themeMode;
-      dependencies.applyUiScale(settings.uiScale);
-    }),
-  );
-  ipcMain.handle(
-    "settings:set-ui-scale",
-    mutation("settings", (value) => {
-      const uiScale = uiScaleSchema.parse(value);
-      store.saveUiScale(uiScale);
-      dependencies.applyUiScale(uiScale);
+      const settings = settingsPatchSchema.parse(value);
+      store.updateSettings(settings);
+      if (settings.themeMode) nativeTheme.themeSource = settings.themeMode;
+      if (settings.uiScale) dependencies.applyUiScale(settings.uiScale);
+      if (settings.closeToTray !== undefined)
+        dependencies.applyCloseToTray(settings.closeToTray);
     }),
   );
   ipcMain.handle("updates:get-state", () => dependencies.updates.getState());
