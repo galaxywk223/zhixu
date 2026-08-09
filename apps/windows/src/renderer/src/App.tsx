@@ -31,6 +31,7 @@ export function App(): React.JSX.Element {
     task: TaskRecord | null;
   }>({ open: false, task: null });
   const [search, setSearch] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
@@ -138,12 +139,22 @@ export function App(): React.JSX.Element {
     alert("仅支持番茄 TODO .xls 或知序 .zip 备份");
   };
   const page = {
-    today: <TodayPage onNew={openNew} onEdit={openEdit} />,
+    today: (
+      <TodayPage
+        onNew={openNew}
+        onEdit={openEdit}
+        onSearch={() => setSearch(true)}
+        onOpenNotes={(noteId) => {
+          setSelectedNoteId(noteId);
+          setRoute("notes");
+        }}
+      />
+    ),
     tasks: <TasksPage onNew={openNew} onEdit={openEdit} />,
     calendar: <CalendarPage onNewTask={openNew} />,
     focus: <FocusPage />,
     sleep: <SleepPage />,
-    notes: <NotesPage />,
+    notes: <NotesPage initialSelectedId={selectedNoteId} />,
     stats: <StatsPage />,
     settings: <SettingsPage />,
   }[route];
@@ -166,9 +177,10 @@ export function App(): React.JSX.Element {
       >
         <Shell
           route={route}
-          onRouteChange={setRoute}
-          onNewTask={openNew}
-          onSearch={() => setSearch(true)}
+          onRouteChange={(nextRoute) => {
+            if (nextRoute === "notes") setSelectedNoteId(null);
+            setRoute(nextRoute);
+          }}
         >
           {page}
         </Shell>

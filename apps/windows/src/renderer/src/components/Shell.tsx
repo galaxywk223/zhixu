@@ -1,12 +1,10 @@
-import { Button, Tooltip } from "@fluentui/react-components";
+import { Tooltip } from "@fluentui/react-components";
 import {
-  Add24Regular,
   Calendar24Regular,
   CheckmarkSquare24Regular,
   DataBarVertical24Regular,
   Home24Regular,
   Note24Regular,
-  Search24Regular,
   Settings24Regular,
   Timer24Regular,
   WeatherMoon24Regular,
@@ -23,29 +21,53 @@ export type Route =
   | "settings";
 
 const navigation = [
-  { route: "today" as const, label: "今日", icon: <Home24Regular /> },
+  {
+    route: "today" as const,
+    label: "今天",
+    shortcut: 1,
+    icon: <Home24Regular />,
+  },
   {
     route: "tasks" as const,
     label: "任务",
+    shortcut: 2,
     icon: <CheckmarkSquare24Regular />,
   },
-  { route: "calendar" as const, label: "日历", icon: <Calendar24Regular /> },
-  { route: "focus" as const, label: "专注", icon: <Timer24Regular /> },
-  { route: "sleep" as const, label: "睡眠", icon: <WeatherMoon24Regular /> },
-  { route: "notes" as const, label: "笔记", icon: <Note24Regular /> },
+  {
+    route: "calendar" as const,
+    label: "日历",
+    shortcut: 3,
+    icon: <Calendar24Regular />,
+  },
+  {
+    route: "notes" as const,
+    label: "笔记",
+    shortcut: 4,
+    icon: <Note24Regular />,
+  },
+  {
+    route: "focus" as const,
+    label: "专注",
+    shortcut: 5,
+    icon: <Timer24Regular />,
+  },
+  {
+    route: "sleep" as const,
+    label: "睡眠",
+    shortcut: 6,
+    icon: <WeatherMoon24Regular />,
+  },
   {
     route: "stats" as const,
     label: "统计",
+    shortcut: 7,
     icon: <DataBarVertical24Regular />,
   },
-  { route: "settings" as const, label: "设置", icon: <Settings24Regular /> },
 ];
 
 interface ShellProps {
   route: Route;
   onRouteChange(route: Route): void;
-  onNewTask(): void;
-  onSearch(): void;
   children: React.ReactNode;
 }
 
@@ -55,24 +77,13 @@ export function Shell(props: ShellProps): React.JSX.Element {
       <aside className="sidebar">
         <div className="brand-block">
           <img src="/zhixu-mark-1024.png" alt="知序" />
-          <div>
-            <strong>知序</strong>
-            <span>个人工作台</span>
-          </div>
+          <strong>知序</strong>
         </div>
-        <Button
-          appearance="primary"
-          icon={<Add24Regular />}
-          className="quick-add"
-          onClick={props.onNewTask}
-        >
-          新建任务
-        </Button>
         <nav aria-label="主导航">
           {navigation.map((item) => (
             <Tooltip
               key={item.route}
-              content={`${item.label}  Ctrl+${navigation.indexOf(item) + 1}`}
+              content={`${item.label}  Ctrl+${item.shortcut}`}
               relationship="description"
             >
               <button
@@ -86,11 +97,17 @@ export function Shell(props: ShellProps): React.JSX.Element {
             </Tooltip>
           ))}
         </nav>
-        <button type="button" className="search-entry" onClick={props.onSearch}>
-          <Search24Regular />
-          <span>全局搜索</span>
-          <kbd>Ctrl K</kbd>
-        </button>
+        <div className="sidebar-spacer" />
+        <Tooltip content="设置  Ctrl+8" relationship="description">
+          <button
+            type="button"
+            className={`nav-item sidebar-settings ${props.route === "settings" ? "active" : ""}`}
+            onClick={() => props.onRouteChange("settings")}
+          >
+            <Settings24Regular />
+            <span>设置</span>
+          </button>
+        </Tooltip>
       </aside>
       <main className="content">{props.children}</main>
     </div>

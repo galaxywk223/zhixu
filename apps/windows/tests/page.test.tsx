@@ -6,6 +6,7 @@ import {
   PageHeader,
   StatCard,
 } from "../src/renderer/src/components/Page";
+import { Shell } from "../src/renderer/src/components/Shell";
 
 describe("shared page components", () => {
   it("renders compact desktop headings and summary values", () => {
@@ -19,5 +20,19 @@ describe("shared page components", () => {
     expect(screen.getByRole("heading", { name: "任务" })).toBeTruthy();
     expect(screen.getByText("今日到期")).toBeTruthy();
     expect(screen.getByText("暂无任务")).toBeTruthy();
+  });
+
+  it("renders the compact shell without a workspace subtitle", () => {
+    render(
+      <FluentProvider theme={webLightTheme}>
+        <Shell route="today" onRouteChange={() => undefined}>
+          <main>页面内容</main>
+        </Shell>
+      </FluentProvider>,
+    );
+
+    expect(screen.getByText("知序")).toBeTruthy();
+    expect(screen.queryByText("个人工作台")).toBeNull();
+    expect(screen.getByRole("button", { name: "设置" })).toBeTruthy();
   });
 });

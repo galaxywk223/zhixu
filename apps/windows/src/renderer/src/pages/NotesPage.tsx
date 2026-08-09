@@ -13,13 +13,17 @@ import type { NoteRecord } from "../../../preload/api-types";
 import { EmptyState, Loading, PageHeader } from "../components/Page";
 import { queryKeys } from "../query";
 
-export function NotesPage(): React.JSX.Element {
+export function NotesPage(props: {
+  initialSelectedId?: string | null;
+}): React.JSX.Element {
   const client = useQueryClient();
   const notes = useQuery({
     queryKey: queryKeys.notes,
     queryFn: window.zhixu.notes.list,
   });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    props.initialSelectedId ?? null,
+  );
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
@@ -28,7 +32,15 @@ export function NotesPage(): React.JSX.Element {
   const selected =
     (notes.data ?? []).find((note) => note.id === selectedId) ?? null;
   useEffect(() => {
-    if (!selectedId && notes.data?.[0]) setSelectedId(notes.data[0].id);
+    if (props.initialSelectedId) setSelectedId(props.initialSelectedId);
+  }, [props.initialSelectedId]);
+  useEffect(() => {
+    if (
+      notes.data?.[0] &&
+      (!selectedId || !notes.data.some((note) => note.id === selectedId))
+    ) {
+      setSelectedId(notes.data[0].id);
+    }
   }, [notes.data, selectedId]);
   useEffect(() => {
     if (selected) {

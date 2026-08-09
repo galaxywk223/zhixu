@@ -69,61 +69,6 @@ function sendNavigation(route: string): void {
   mainWindow.webContents.send("app:navigate", route);
 }
 
-function installApplicationMenu(): void {
-  const menu = Menu.buildFromTemplate([
-    {
-      label: "文件",
-      submenu: [
-        {
-          label: "新建任务",
-          accelerator: "CmdOrCtrl+N",
-          click: () => sendNavigation("new-task"),
-        },
-        {
-          label: "全局搜索",
-          accelerator: "CmdOrCtrl+K",
-          click: () => sendNavigation("search"),
-        },
-        { type: "separator" },
-        {
-          label: "退出",
-          accelerator: "Alt+F4",
-          click: () => {
-            forceQuit = true;
-            app.quit();
-          },
-        },
-      ],
-    },
-    {
-      label: "导航",
-      submenu: [
-        {
-          label: "今日",
-          accelerator: "CmdOrCtrl+1",
-          click: () => sendNavigation("today"),
-        },
-        {
-          label: "任务",
-          accelerator: "CmdOrCtrl+2",
-          click: () => sendNavigation("tasks"),
-        },
-        {
-          label: "日历",
-          accelerator: "CmdOrCtrl+3",
-          click: () => sendNavigation("calendar"),
-        },
-        {
-          label: "笔记",
-          accelerator: "CmdOrCtrl+4",
-          click: () => sendNavigation("notes"),
-        },
-      ],
-    },
-  ]);
-  Menu.setApplicationMenu(menu);
-}
-
 async function createWindow(): Promise<void> {
   const state = loadWindowState();
   const icon = app.isPackaged
@@ -239,7 +184,7 @@ else {
         updates,
         packaged: app.isPackaged,
       });
-      installApplicationMenu();
+      Menu.setApplicationMenu(null);
       await createWindow();
       if (settings.startMinimized) mainWindow?.hide();
       app.on("activate", () => {
