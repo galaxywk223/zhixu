@@ -4,7 +4,6 @@ import {
   Calendar24Regular,
   CalendarClock24Regular,
   CheckmarkSquare24Regular,
-  DataBarVertical24Regular,
   Home24Regular,
   Note24Regular,
   NotePinRegular,
@@ -26,7 +25,6 @@ export type Route =
   | "focus"
   | "sleep"
   | "notes"
-  | "stats"
   | "settings";
 
 const navigation = [
@@ -77,12 +75,6 @@ const navigation = [
     label: "睡眠",
     shortcut: 8,
     icon: <WeatherMoon24Regular />,
-  },
-  {
-    route: "stats" as const,
-    label: "统计",
-    shortcut: 9,
-    icon: <DataBarVertical24Regular />,
   },
 ];
 

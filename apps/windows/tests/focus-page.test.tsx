@@ -39,14 +39,14 @@ function renderPage(preview: TomatoPreview | null, confirm = vi.fn()) {
     defaultOptions: { queries: { retry: false } },
   });
   const onPreviewChange = vi.fn();
-  render(
+  const rendered = render(
     <QueryClientProvider client={client}>
       <FluentProvider theme={webLightTheme}>
         <FocusPage preview={preview} onPreviewChange={onPreviewChange} />
       </FluentProvider>
     </QueryClientProvider>,
   );
-  return { onPreviewChange };
+  return { onPreviewChange, container: rendered.container };
 }
 
 const preview: TomatoPreview = {
@@ -120,6 +120,21 @@ const preview: TomatoPreview = {
 };
 
 describe("focus import preview", () => {
+  it("renders the task-style focus workspace instead of the old page layout", async () => {
+    const { container } = renderPage(null);
+    expect(
+      await screen.findByRole("heading", { name: "专注", level: 1 }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("专注指标")).toBeTruthy();
+    expect(screen.getByLabelText("专注快捷视图")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "数据概览" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "专注明细" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "导入批次" })).toBeTruthy();
+    expect(container.querySelector(".stats-grid")).toBeNull();
+    expect(container.querySelector(".filter-bar")).toBeNull();
+    expect(container.querySelector(".workspace-section")).toBeNull();
+  });
+
   it("shows database-aware outcomes and row-level details", async () => {
     renderPage(preview);
     const dialog = await screen.findByRole("dialog");

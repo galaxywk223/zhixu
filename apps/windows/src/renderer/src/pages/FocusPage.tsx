@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -8,10 +8,14 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Field,
 } from "@fluentui/react-components";
 import {
-  ArrowUpload20Regular,
   ArrowUndo20Regular,
+  ArrowUpload20Regular,
+  Calendar20Regular,
+  Clock20Regular,
+  List20Regular,
 } from "@fluentui/react-icons";
 import type {
   TomatoImportRow,
@@ -19,19 +23,37 @@ import type {
   TomatoRowAction,
 } from "../../../preload/api-types";
 import {
-  filterFocusByRange,
-  groupFocusByLocalDate,
-  rangeForLatestFocus,
-  type FocusRange,
-} from "../../../shared/focus-dates";
-import { localDateKey } from "../../../shared/local-date";
-import { EmptyState, Loading, PageHeader, StatCard } from "../components/Page";
+  addLocalDays,
+  localDateKey,
+  localDayStart,
+} from "../../../shared/local-date";
+import { FocusAnalytics } from "../components/FocusAnalytics";
+import { FocusHistory } from "../components/FocusHistory";
+import { LocalDateField } from "../components/DateTimeFields";
+import { EmptyState, Loading } from "../components/Page";
 import { queryKeys } from "../query";
+import {
+  buildFocusWorkspace,
+  FOCUS_VIEW_LABELS,
+  formatFocusMinutes,
+  type FocusFilters,
+  type FocusView,
+} from "./focus-workspace-model";
 
 interface FocusPageProps {
   preview: TomatoPreview | null;
   onPreviewChange(preview: TomatoPreview | null): void;
 }
+
+type FocusTab = "overview" | "history" | "batches";
+
+const focusViews: Array<{ value: FocusView; icon: React.ReactNode }> = [
+  { value: "today", icon: <Calendar20Regular /> },
+  { value: "week", icon: <Calendar20Regular /> },
+  { value: "month", icon: <Calendar20Regular /> },
+  { value: "all", icon: <List20Regular /> },
+  { value: "custom", icon: <Calendar20Regular /> },
+];
 
 const actionLabels: Record<TomatoRowAction, string> = {
   create: "新增",
@@ -79,6 +101,14 @@ function groupPreviewRows(
   return [...groups].sort(([left], [right]) => right.localeCompare(left));
 }
 
+function initialFilters(now = new Date()): FocusFilters {
+  return {
+    view: "today",
+    customStart: localDateKey(addLocalDays(localDayStart(now), -29)),
+    customEnd: localDateKey(now),
+  };
+}
+
 export function FocusPage({
   preview,
   onPreviewChange,
@@ -92,14 +122,20 @@ export function FocusPage({
     queryKey: queryKeys.batches,
     queryFn: window.zhixu.focus.batches,
   });
-  const summary = useQuery({
-    queryKey: queryKeys.summary,
-    queryFn: window.zhixu.dashboard.summary,
-  });
-  const [range, setRange] = useState<FocusRange>("30");
+  const [filters, setFilters] = useState<FocusFilters>(initialFilters);
+  const [tab, setTab] = useState<FocusTab>("overview");
   const [message, setMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const detailRef = useRef<HTMLElement>(null);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const workspace = useMemo(
+    () => buildFocusWorkspace(sessions.data ?? [], filters),
+    [sessions.data, filters],
+  );
+  const previewGroups = preview ? groupPreviewRows(preview.rows) : [];
+  const declaredMismatch =
+    preview?.declaredMinutes != null &&
+    preview.declaredMinutes !== preview.calculatedMinutes;
+
   const previewImport = useMutation({
     mutationFn: window.zhixu.focus.preview,
     onSuccess: (value) => {
@@ -144,11 +180,16 @@ export function FocusPage({
         `导入完成：新增 ${result.importedCount} 条，更新 ${result.updatedCount} 条，纠正旧错误 ${result.reconciledCount} 条，重复 ${result.skippedCount} 条，本次不导入 ${result.excludedCount} 条${latestDayNote}`,
       );
       await client.invalidateQueries();
-      const refreshed = await window.zhixu.focus.list();
-      client.setQueryData(queryKeys.focus, refreshed);
-      setRange(rangeForLatestFocus(refreshed[0]?.startAt));
+      if (latestDate) {
+        setFilters({
+          view: "custom",
+          customStart: latestDate,
+          customEnd: latestDate,
+        });
+        setTab("history");
+      }
       requestAnimationFrame(() =>
-        detailRef.current?.scrollIntoView({ block: "start" }),
+        workspaceRef.current?.scrollIntoView({ block: "start" }),
       );
     },
     onError: (error) => setImportError(String(error)),
@@ -157,141 +198,239 @@ export function FocusPage({
     mutationFn: window.zhixu.focus.rollback,
     onSuccess: () => client.invalidateQueries(),
   });
+
   if (sessions.isLoading) return <Loading />;
-  const filtered = filterFocusByRange(sessions.data ?? [], range);
-  const groupedSessions = groupFocusByLocalDate(filtered);
-  const previewGroups = preview ? groupPreviewRows(preview.rows) : [];
-  const declaredMismatch =
-    preview?.declaredMinutes != null &&
-    preview.declaredMinutes !== preview.calculatedMinutes;
+  const today = localDateKey(new Date());
+
   return (
-    <div className="page">
-      <PageHeader
-        title="专注"
-        actions={
-          <Button
-            appearance="primary"
-            icon={<ArrowUpload20Regular />}
-            onClick={() => previewImport.mutate()}
-            disabled={previewImport.isPending}
-          >
-            导入 .xls
-          </Button>
-        }
-      />
-      <div className="stats-grid">
-        <StatCard
-          label="今日专注"
-          value={`${summary.data?.focusTodayMinutes ?? 0} 分钟`}
-          tone="green"
-        />
-        <StatCard
-          label="近 7 天"
-          value={`${summary.data?.focusWeekMinutes ?? 0} 分钟`}
-        />
-        <StatCard
-          label="本月"
-          value={`${summary.data?.focusMonthMinutes ?? 0} 分钟`}
-          tone="blue"
-        />
-        <StatCard label="当前记录" value={sessions.data?.length ?? 0} />
+    <div className="page focus-page">
+      <header className="focus-workspace-header">
+        <h1>专注</h1>
+        <Button
+          appearance="primary"
+          icon={<ArrowUpload20Regular />}
+          onClick={() => previewImport.mutate()}
+          disabled={previewImport.isPending}
+        >
+          导入记录
+        </Button>
+      </header>
+
+      <div className="focus-metrics-grid" aria-label="专注指标">
+        <section className="focus-metric-card">
+          <List20Regular />
+          <div>
+            <span>累计次数</span>
+            <strong>{workspace.metrics.totalCount}</strong>
+          </div>
+        </section>
+        <section className="focus-metric-card duration">
+          <Clock20Regular />
+          <div>
+            <span>累计时长</span>
+            <strong>
+              {formatFocusMinutes(workspace.metrics.totalMinutes)}
+            </strong>
+          </div>
+        </section>
+        <section className="focus-metric-card days">
+          <Calendar20Regular />
+          <div>
+            <span>专注天数</span>
+            <strong>{workspace.metrics.focusDays}</strong>
+          </div>
+        </section>
+        <section className="focus-metric-card average">
+          <Clock20Regular />
+          <div>
+            <span>日均时长</span>
+            <strong>
+              {formatFocusMinutes(workspace.metrics.dailyAverageMinutes)}
+            </strong>
+          </div>
+        </section>
+        <section className="focus-metric-card today-count">
+          <Calendar20Regular />
+          <div>
+            <span>今日次数</span>
+            <strong>{workspace.metrics.todayCount}</strong>
+          </div>
+        </section>
+        <section className="focus-metric-card today-duration">
+          <Clock20Regular />
+          <div>
+            <span>今日时长</span>
+            <strong>
+              {formatFocusMinutes(workspace.metrics.todayMinutes)}
+            </strong>
+          </div>
+        </section>
       </div>
+
       {message ? <div className="success-message">{message}</div> : null}
       {importError && !preview ? (
         <div className="error-message">{importError}</div>
       ) : null}
-      <div className="filter-bar">
-        <div className="segmented">
-          {(
-            [
-              ["today", "今天"],
-              ["7", "近 7 天"],
-              ["30", "近 30 天"],
-              ["all", "全部"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              className={range === value ? "active" : ""}
-              onClick={() => setRange(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <section className="workspace-section" ref={detailRef}>
-        <div className="section-heading">
-          <h2>专注明细</h2>
-          <span>{filtered.length} 条</span>
-        </div>
-        {filtered.length === 0 ? (
-          <EmptyState
-            title="暂无专注记录"
-            detail="从设置或当前页面导入番茄 TODO 的 .xls 导出文件。"
-          />
-        ) : (
-          <div className="focus-history">
-            {groupedSessions.map((group) => (
-              <section className="focus-day-group" key={group.date}>
-                <header>
-                  <h3>{localDateLabel(group.date)}</h3>
-                  <span>
-                    {group.items.length} 条 · {group.totalMinutes} 分钟
-                  </span>
-                </header>
-                {group.items.map((item) => (
-                  <div className="focus-session-row" key={item.id}>
-                    <time>
-                      {new Date(item.startAt).toLocaleTimeString("zh-CN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </time>
-                    <strong>{item.taskName}</strong>
-                    <span>{item.durationMinutes} 分钟</span>
-                    <span>{item.status || "未知"}</span>
-                    <p>{item.reflection || "—"}</p>
-                  </div>
-                ))}
-              </section>
-            ))}
-          </div>
-        )}
-      </section>
-      <section className="workspace-section">
-        <div className="section-heading">
-          <h2>导入批次</h2>
-          <span>{batches.data?.length ?? 0}</span>
-        </div>
-        <div className="batch-list">
-          {(batches.data ?? []).map((batch) => (
-            <div key={batch.id}>
-              <div>
-                <strong>{batch.fileName}</strong>
-                <small>
-                  {new Date(batch.createdAt).toLocaleString("zh-CN")} · 导入{" "}
-                  {batch.importedCount} · 跳过 {batch.skippedCount}
-                </small>
-              </div>
-              {batch.rolledBackAt ? (
-                <span className="muted">已撤销</span>
-              ) : (
-                <Button
-                  appearance="subtle"
-                  icon={<ArrowUndo20Regular />}
-                  onClick={() => {
-                    if (confirm(`撤销 ${batch.fileName} 的数据变更？`))
-                      rollback.mutate(batch.id);
-                  }}
+
+      <div className="focus-workspace-layout">
+        <aside className="focus-filter-rail" aria-label="专注视图与概览">
+          <section>
+            <h2>快捷视图</h2>
+            <nav aria-label="专注快捷视图">
+              {focusViews.map((view) => (
+                <button
+                  type="button"
+                  className={filters.view === view.value ? "active" : ""}
+                  key={view.value}
+                  onClick={() =>
+                    setFilters((current) => ({
+                      ...current,
+                      view: view.value,
+                    }))
+                  }
                 >
-                  撤销
-                </Button>
-              )}
+                  {view.icon}
+                  <span>{FOCUS_VIEW_LABELS[view.value]}</span>
+                  <strong>{workspace.viewCounts[view.value]}</strong>
+                </button>
+              ))}
+            </nav>
+          </section>
+          {filters.view === "custom" ? (
+            <section className="focus-custom-range">
+              <h2>日期范围</h2>
+              <Field label="开始日期">
+                <LocalDateField
+                  value={filters.customStart}
+                  max={today}
+                  ariaLabel="专注开始日期"
+                  onChange={(value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      customStart: value,
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="结束日期">
+                <LocalDateField
+                  value={filters.customEnd}
+                  max={today}
+                  ariaLabel="专注结束日期"
+                  onChange={(value) =>
+                    setFilters((current) => ({
+                      ...current,
+                      customEnd: value,
+                    }))
+                  }
+                />
+              </Field>
+              {workspace.rangeError ? (
+                <p className="focus-range-error">{workspace.rangeError}</p>
+              ) : null}
+            </section>
+          ) : null}
+          <section className="focus-overview">
+            <h2>当前概览</h2>
+            <dl>
+              <div>
+                <dt>次数</dt>
+                <dd>{workspace.overview.count}</dd>
+              </div>
+              <div>
+                <dt>时长</dt>
+                <dd>{formatFocusMinutes(workspace.overview.minutes)}</dd>
+              </div>
+              <div>
+                <dt>天数</dt>
+                <dd>{workspace.overview.focusDays}</dd>
+              </div>
+              <div>
+                <dt>平均单次</dt>
+                <dd>
+                  {formatFocusMinutes(workspace.overview.averageSessionMinutes)}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <section className="focus-workspace-panel" ref={workspaceRef}>
+          <div className="focus-workspace-toolbar">
+            <div>
+              <h2>{FOCUS_VIEW_LABELS[filters.view]}专注</h2>
+              <span>{workspace.filteredSessions.length}</span>
             </div>
-          ))}
-        </div>
-      </section>
+            <div
+              className="focus-workspace-tabs"
+              role="tablist"
+              aria-label="专注视图"
+            >
+              {(
+                [
+                  ["overview", "数据概览"],
+                  ["history", "专注明细"],
+                  ["batches", "导入批次"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === value}
+                  className={tab === value ? "active" : ""}
+                  key={value}
+                  onClick={() => setTab(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="focus-workspace-content">
+            {tab === "overview" ? <FocusAnalytics model={workspace} /> : null}
+            {tab === "history" ? (
+              <FocusHistory sessions={workspace.filteredSessions} />
+            ) : null}
+            {tab === "batches" ? (
+              (batches.data ?? []).length === 0 ? (
+                <EmptyState
+                  title="暂无导入批次"
+                  detail="导入番茄 TODO 历史后可在此撤销对应批次。"
+                />
+              ) : (
+                <div className="focus-batch-list">
+                  {(batches.data ?? []).map((batch) => (
+                    <div key={batch.id}>
+                      <div>
+                        <strong>{batch.fileName}</strong>
+                        <small>
+                          {new Date(batch.createdAt).toLocaleString("zh-CN")} ·
+                          导入 {batch.importedCount} · 跳过 {batch.skippedCount}
+                        </small>
+                      </div>
+                      {batch.rolledBackAt ? (
+                        <span className="muted">已撤销</span>
+                      ) : (
+                        <Button
+                          appearance="subtle"
+                          icon={<ArrowUndo20Regular />}
+                          onClick={() => {
+                            if (confirm(`撤销 ${batch.fileName} 的数据变更？`))
+                              rollback.mutate(batch.id);
+                          }}
+                        >
+                          撤销
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : null}
+          </div>
+        </section>
+      </div>
+
       <Dialog
         open={preview !== null}
         onOpenChange={(_, data) => {

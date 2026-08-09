@@ -47,6 +47,18 @@ describe("visual system", () => {
     );
   });
 
+  it("uses the task workspace structure for focus analytics", () => {
+    expect(styles).toMatch(
+      /\.focus-page,[\s\S]*\.tasks-page \{[^}]*display: flex;/s,
+    );
+    expect(styles).toMatch(/\.focus-workspace-layout \{[^}]*flex: 1;/s);
+    expect(styles).toContain(".focus-filter-rail");
+    expect(styles).toContain(".focus-workspace-panel");
+    expect(focusSource).toContain('role="tablist"');
+    expect(focusSource).not.toContain('className="stats-grid"');
+    expect(focusSource).not.toContain('className="filter-bar"');
+  });
+
   it("uses the shared Fluent date and time fields in editor dialogs", () => {
     for (const source of formSources) {
       expect(source).not.toMatch(/type="(?:date|time|datetime-local)"/);

@@ -72,6 +72,7 @@ describe("shared page components", () => {
     ).toBeNull();
     expect(screen.getByRole("button", { name: "任务" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "备忘" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "统计" })).toBeNull();
     expect(
       screen
         .getByRole("button", { name: "倒数日" })
@@ -111,7 +112,7 @@ describe("shared page components", () => {
     expect(routeForNumericShortcut("3")).toBe("memos");
     expect(routeForNumericShortcut("4")).toBe("countdowns");
     expect(routeForNumericShortcut("5")).toBe("calendar");
-    expect(routeForNumericShortcut("9")).toBe("stats");
+    expect(routeForNumericShortcut("9")).toBeNull();
     expect(routeForNumericShortcut("0")).toBeNull();
   });
 });

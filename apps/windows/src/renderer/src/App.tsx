@@ -12,7 +12,6 @@ import { NotesPage } from "./pages/NotesPage";
 import { MemosPage } from "./pages/MemosPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SleepPage } from "./pages/SleepPage";
-import { StatsPage } from "./pages/StatsPage";
 import { TasksPage } from "./pages/TasksPage";
 import { TodayPage } from "./pages/TodayPage";
 import { queryKeys, useDataInvalidation } from "./query";
@@ -73,7 +72,6 @@ export function App(): React.JSX.Element {
             "focus",
             "sleep",
             "notes",
-            "stats",
             "settings",
           ].includes(target)
         )
@@ -174,7 +172,6 @@ export function App(): React.JSX.Element {
     ),
     sleep: <SleepPage />,
     notes: <NotesPage initialSelectedId={selectedNoteId} />,
-    stats: <StatsPage />,
     settings: <SettingsPage />,
   }[route];
   return (
