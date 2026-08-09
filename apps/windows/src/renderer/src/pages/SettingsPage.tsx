@@ -389,7 +389,7 @@ function TagEditor(props: {
         if (!data.open) props.onClose();
       }}
     >
-      <DialogSurface>
+      <DialogSurface className="editor-dialog">
         <DialogBody>
           <DialogTitle>{record ? "编辑标签" : "新建标签"}</DialogTitle>
           <DialogContent className="form-grid">

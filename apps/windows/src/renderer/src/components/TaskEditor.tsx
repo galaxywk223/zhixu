@@ -358,9 +358,6 @@ export function TaskEditor({
                     ))}
                 </Select>
               </Field>
-            </section>
-            <section className="form-section">
-              <h3>标签</h3>
               <Field label="任务标签" className="task-tag-field">
                 <TagPicker
                   selectedOptions={tagIds}

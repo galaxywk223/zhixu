@@ -503,12 +503,9 @@ button {
 }
 .filter-bar select,
 .native-control,
-.form-row input,
-.form-grid input[type="datetime-local"],
-.form-grid input[type="number"],
 .form-grid input[type="color"] {
   width: 100%;
-  height: 38px;
+  height: var(--control-height);
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
@@ -516,7 +513,7 @@ button {
   padding: 0 11px;
 }
 .native-control:focus-visible,
-.form-grid input:focus-visible,
+.form-grid input[type="color"]:focus-visible,
 .filter-bar select:focus-visible {
   border-color: var(--accent);
   outline: 2px solid color-mix(in srgb, var(--accent) 28%, transparent);
@@ -634,17 +631,20 @@ button {
 .form-grid {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
   min-width: 0;
-  padding-right: 4px;
+  padding-right: 10px;
   overflow-x: hidden;
   overflow-y: auto;
+  container-name: editor-form;
+  container-type: inline-size;
+  scrollbar-gutter: stable;
 }
 .form-section {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
-  padding-top: 16px;
+  padding-top: 18px;
   border-top: 1px solid var(--border);
 }
 .form-section:first-child {
@@ -659,56 +659,70 @@ button {
 }
 .form-row {
   display: grid;
-  gap: 12px;
+  align-items: start;
+  gap: 14px;
   min-width: 0;
 }
 .form-row.two {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .form-row.one {
   grid-template-columns: minmax(0, 1fr);
 }
 .form-row.three {
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .form-row.date-time-row {
-  grid-template-columns: minmax(0, 1.35fr) minmax(150px, 0.65fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.form-row label,
-.form-grid > label,
 .form-grid .fui-Field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--font-caption);
+  min-width: 0;
+  row-gap: 6px;
 }
 .form-grid .fui-Field__label {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-height: 20px;
+  align-items: center;
   color: var(--muted);
   font-size: var(--font-caption);
   font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
 }
 .form-grid .fui-Input,
 .form-grid .fui-Select,
-.form-grid .fui-Textarea,
 .form-grid .fluent-date-field,
 .form-grid .fluent-time-field {
   width: 100%;
+  height: var(--control-height);
   min-width: 0;
+  min-height: var(--control-height);
 }
-.form-grid .fluent-date-field,
-.form-grid .fluent-time-field {
-  min-height: 40px;
+.form-grid .fui-Textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 88px;
+}
+.form-grid .fui-Textarea textarea {
+  min-height: 84px;
+  padding-block: 9px;
 }
 .form-grid .fluent-date-field input,
 .form-grid .fluent-time-field input {
   font-size: var(--font-body);
 }
+.form-grid .fui-TagPickerControl {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+}
 .task-tag-field {
   min-width: 0;
 }
 .task-tag-picker-control {
-  min-height: 38px;
+  min-height: var(--control-height);
   color: var(--text);
   background: var(--surface);
   border-radius: 4px;
@@ -743,6 +757,39 @@ button {
 .import-preview-dialog .fui-DialogContent {
   min-height: 0;
   overflow-y: auto;
+}
+.editor-dialog .fui-DialogActions {
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.editor-dialog .fui-DialogActions .fui-Button {
+  min-width: 96px;
+  min-height: var(--control-height);
+}
+.editor-dialog .fui-DialogContent::-webkit-scrollbar {
+  width: 8px;
+}
+.editor-dialog .fui-DialogContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+.editor-dialog .fui-DialogContent::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: padding-box;
+}
+.editor-dialog .fui-DialogContent::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted) 68%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+@container editor-form (max-width: 620px) {
+  .form-row.two,
+  .form-row.three,
+  .form-row.date-time-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .search-dialog {
   width: min(700px, calc(100vw - 40px));
@@ -2687,11 +2734,6 @@ button {
   .filter-bar {
     align-items: stretch;
     flex-direction: column;
-  }
-  .form-row.two,
-  .form-row.three,
-  .form-row.date-time-row {
-    grid-template-columns: 1fr;
   }
   .form-grid {
     min-width: 0;

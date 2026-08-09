@@ -63,6 +63,11 @@ describe("task editor", () => {
     } as unknown as ZhixuApi);
 
     const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog)
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["任务内容", "时间安排", "任务属性"]);
     const tagInput = within(dialog).getByRole("combobox", {
       name: "搜索或新建标签",
     });

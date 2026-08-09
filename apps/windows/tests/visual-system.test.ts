@@ -10,9 +10,11 @@ const styles = readFileSync(
 );
 const formSources = [
   "../src/renderer/src/components/TaskEditor.tsx",
+  "../src/renderer/src/pages/MemosPage.tsx",
   "../src/renderer/src/pages/CountdownsPage.tsx",
   "../src/renderer/src/pages/CalendarPage.tsx",
   "../src/renderer/src/pages/SleepPage.tsx",
+  "../src/renderer/src/pages/SettingsPage.tsx",
 ].map((path) =>
   readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8"),
 );
@@ -55,6 +57,29 @@ describe("visual system", () => {
     expect(styles).toMatch(
       /\.editor-dialog \.fui-DialogContent,[\s\S]*overflow-y: auto;/,
     );
+  });
+
+  it("keeps Fluent fields aligned without styling their internal inputs", () => {
+    const fieldRule = styles.match(/\.form-grid \.fui-Field \{([^}]*)\}/s);
+    expect(fieldRule?.[1]).not.toContain("display: flex");
+    expect(styles).not.toContain(".form-row input");
+    expect(styles).not.toContain(".form-grid input:focus-visible");
+    expect(styles).toMatch(
+      /\.form-grid \.fui-Field__label \{[^}]*white-space: nowrap;/s,
+    );
+    expect(styles).toMatch(
+      /\.form-row\.two \{[^}]*repeat\(2, minmax\(0, 1fr\)\);/s,
+    );
+    expect(styles).toContain("@container editor-form (max-width: 620px)");
+    expect(styles).toMatch(
+      /\.form-grid \.fui-Input,[\s\S]*height: var\(--control-height\);/,
+    );
+  });
+
+  it("applies the editor dialog contract to every editing form", () => {
+    for (const source of formSources) {
+      expect(source).toContain('DialogSurface className="editor-dialog"');
+    }
   });
 
   it("renders the import preview as grouped records instead of a table", () => {
