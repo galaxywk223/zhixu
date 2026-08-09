@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
-  Checkbox,
   Dialog,
   DialogActions,
   DialogBody,
@@ -12,11 +11,25 @@ import {
   Field,
   Input,
   Select,
+  Tag,
+  TagPicker,
+  TagPickerControl,
+  TagPickerGroup,
+  TagPickerInput,
+  TagPickerList,
+  TagPickerOption,
   Textarea,
 } from "@fluentui/react-components";
 import type { TaskDraft } from "@zhixu/contracts";
-import type { TaskRecord } from "../../../preload/api-types";
+import type { TagRecord, TaskRecord } from "../../../preload/api-types";
+import {
+  normalizeTagName,
+  tagColorHex,
+  tagTone,
+} from "../../../shared/tag-colors";
 import { queryKeys } from "../query";
+
+const CREATE_TAG_OPTION = "__create-tag__";
 
 function toLocalInput(value: string | null): string {
   if (!value) return "";
@@ -53,6 +66,7 @@ export function TaskEditor({
   const [estimatedMinutes, setEstimatedMinutes] = useState(0);
   const [categoryId, setCategoryId] = useState("");
   const [tagIds, setTagIds] = useState<string[]>([]);
+  const [tagQuery, setTagQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,6 +79,7 @@ export function TaskEditor({
     setEstimatedMinutes(task?.estimatedMinutes ?? 0);
     setCategoryId(task?.categoryId ?? "");
     setTagIds(task?.tagIds ?? []);
+    setTagQuery("");
     setError(null);
   }, [open, task]);
 
@@ -77,6 +92,53 @@ export function TaskEditor({
     onError: (value) =>
       setError(value instanceof Error ? value.message : String(value)),
   });
+  const createTag = useMutation({
+    mutationFn: (name: string) => window.zhixu.tasks.saveTag({ name }),
+  });
+
+  const availableTags = (tags.data ?? []).filter((tag) => !tag.isArchived);
+  const selectedTags = tagIds
+    .map((id) => availableTags.find((tag) => tag.id === id))
+    .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag));
+  const normalizedTagQuery = normalizeTagName(tagQuery);
+  const exactTag = availableTags.find(
+    (tag) => normalizeTagName(tag.name) === normalizedTagQuery,
+  );
+  const matchingTags = availableTags.filter(
+    (tag) =>
+      !tagIds.includes(tag.id) &&
+      normalizeTagName(tag.name).includes(normalizedTagQuery),
+  );
+  const canCreateTag = normalizedTagQuery.length > 0 && !exactTag;
+
+  const handleCreateTag = async (): Promise<void> => {
+    const name = tagQuery.trim();
+    if (!name || createTag.isPending) return;
+    setError(null);
+    try {
+      const id = await createTag.mutateAsync(name);
+      client.setQueryData<TagRecord[]>(queryKeys.tags, (current = []) =>
+        current.some((tag) => tag.id === id)
+          ? current
+          : [
+              ...current,
+              {
+                id,
+                name,
+                colorHex: tagColorHex(name),
+                isArchived: false,
+              },
+            ],
+      );
+      setTagIds((current) =>
+        current.includes(id) ? current : [...current, id],
+      );
+      setTagQuery("");
+      void client.invalidateQueries({ queryKey: queryKeys.tags });
+    } catch (value) {
+      setError(value instanceof Error ? value.message : String(value));
+    }
+  };
 
   const submit = (): void => {
     if (!title.trim()) return setError("任务标题不能为空");
@@ -178,34 +240,72 @@ export function TaskEditor({
                 </Select>
               </Field>
             </div>
-            <div
-              className="tag-fieldset"
-              role="group"
-              aria-labelledby="task-tag-label"
-            >
-              <span id="task-tag-label" className="tag-field-label">
-                标签
-              </span>
-              {(tags.data ?? [])
-                .filter((tag) => !tag.isArchived)
-                .map((tag) => (
-                  <Checkbox
-                    key={tag.id}
-                    checked={tagIds.includes(tag.id)}
-                    label={tag.name}
-                    onChange={(_, data) =>
-                      setTagIds((current) =>
-                        data.checked
-                          ? [...current, tag.id]
-                          : current.filter((id) => id !== tag.id),
-                      )
-                    }
+            <Field label="标签" className="task-tag-field">
+              <TagPicker
+                selectedOptions={tagIds}
+                disabled={createTag.isPending}
+                onOptionSelect={(_, data) => {
+                  if (data.value === CREATE_TAG_OPTION) {
+                    void handleCreateTag();
+                    return;
+                  }
+                  setTagIds(
+                    data.selectedOptions.filter(
+                      (value) => value !== CREATE_TAG_OPTION,
+                    ),
+                  );
+                  setTagQuery("");
+                }}
+              >
+                <TagPickerControl className="task-tag-picker-control">
+                  <TagPickerGroup>
+                    {selectedTags.map((tag) => (
+                      <Tag
+                        key={tag.id}
+                        value={tag.id}
+                        dismissible
+                        shape="rounded"
+                        className="task-editor-tag"
+                        data-tag-tone={tagTone(tag.name)}
+                      >
+                        {tag.name}
+                      </Tag>
+                    ))}
+                  </TagPickerGroup>
+                  <TagPickerInput
+                    aria-label="搜索或新建标签"
+                    placeholder={tagIds.length === 0 ? "搜索或新建标签" : ""}
+                    value={tagQuery}
+                    onChange={(event) => setTagQuery(event.target.value)}
                   />
-                ))}
-              {(tags.data ?? []).length === 0 ? (
-                <span className="muted">可在设置页创建标签</span>
-              ) : null}
-            </div>
+                </TagPickerControl>
+                <TagPickerList>
+                  {matchingTags.map((tag) => (
+                    <TagPickerOption
+                      key={tag.id}
+                      value={tag.id}
+                      text={tag.name}
+                      media={
+                        <span
+                          className="tag-tone-dot"
+                          data-tag-tone={tagTone(tag.name)}
+                        />
+                      }
+                    >
+                      {tag.name}
+                    </TagPickerOption>
+                  ))}
+                  {canCreateTag ? (
+                    <TagPickerOption
+                      value={CREATE_TAG_OPTION}
+                      text={`新建“${tagQuery.trim()}”`}
+                    >
+                      新建“{tagQuery.trim()}”
+                    </TagPickerOption>
+                  ) : null}
+                </TagPickerList>
+              </TagPicker>
+            </Field>
             {error ? <div className="error-message">{error}</div> : null}
           </DialogContent>
           <DialogActions>
@@ -215,7 +315,7 @@ export function TaskEditor({
             <Button
               appearance="primary"
               onClick={submit}
-              disabled={save.isPending}
+              disabled={save.isPending || createTag.isPending}
             >
               {save.isPending ? "保存中" : "保存"}
             </Button>

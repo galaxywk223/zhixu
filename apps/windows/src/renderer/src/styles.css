@@ -60,6 +60,108 @@ button {
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
   color: var(--text);
 }
+[data-tag-tone] {
+  --tag-foreground: var(--accent);
+  --tag-background: var(--accentSoft);
+  --tag-border: color-mix(in srgb, var(--accent) 28%, var(--border));
+  --tag-dot: var(--accent);
+}
+.theme-light [data-tag-tone="blue"] {
+  --tag-foreground: #2f6fb7;
+  --tag-background: #edf5fe;
+  --tag-border: #c8ddf3;
+  --tag-dot: #397bc6;
+}
+.theme-light [data-tag-tone="cyan"] {
+  --tag-foreground: #24768b;
+  --tag-background: #edf8fa;
+  --tag-border: #c5e3e9;
+  --tag-dot: #2389a4;
+}
+.theme-light [data-tag-tone="teal"] {
+  --tag-foreground: #276f66;
+  --tag-background: #eef8f6;
+  --tag-border: #c8e3dd;
+  --tag-dot: #278779;
+}
+.theme-light [data-tag-tone="green"] {
+  --tag-foreground: #287b55;
+  --tag-background: #eef8f2;
+  --tag-border: #c8e3d4;
+  --tag-dot: #319b69;
+}
+.theme-light [data-tag-tone="amber"] {
+  --tag-foreground: #96631c;
+  --tag-background: #fdf7eb;
+  --tag-border: #ead9b9;
+  --tag-dot: #b7791f;
+}
+.theme-light [data-tag-tone="coral"] {
+  --tag-foreground: #a45a36;
+  --tag-background: #fdf3ee;
+  --tag-border: #ebd2c5;
+  --tag-dot: #c56b3c;
+}
+.theme-light [data-tag-tone="rose"] {
+  --tag-foreground: #a94f65;
+  --tag-background: #fdf1f4;
+  --tag-border: #ebccd4;
+  --tag-dot: #c45b72;
+}
+.theme-light [data-tag-tone="violet"] {
+  --tag-foreground: #6659a0;
+  --tag-background: #f4f2fb;
+  --tag-border: #d8d2ec;
+  --tag-dot: #7566b8;
+}
+.theme-dark [data-tag-tone="blue"] {
+  --tag-foreground: #9bc3f2;
+  --tag-background: #293b50;
+  --tag-border: #405b78;
+  --tag-dot: #72a7e8;
+}
+.theme-dark [data-tag-tone="cyan"] {
+  --tag-foreground: #8ecddd;
+  --tag-background: #263d43;
+  --tag-border: #3a5d66;
+  --tag-dot: #65b4c8;
+}
+.theme-dark [data-tag-tone="teal"] {
+  --tag-foreground: #8dcec3;
+  --tag-background: #263d39;
+  --tag-border: #3b5c56;
+  --tag-dot: #68b6aa;
+}
+.theme-dark [data-tag-tone="green"] {
+  --tag-foreground: #94d0ae;
+  --tag-background: #293c32;
+  --tag-border: #405b4b;
+  --tag-dot: #70b98d;
+}
+.theme-dark [data-tag-tone="amber"] {
+  --tag-foreground: #e4be79;
+  --tag-background: #433827;
+  --tag-border: #66543a;
+  --tag-dot: #d2a556;
+}
+.theme-dark [data-tag-tone="coral"] {
+  --tag-foreground: #e4a184;
+  --tag-background: #443129;
+  --tag-border: #674a3d;
+  --tag-dot: #d08765;
+}
+.theme-dark [data-tag-tone="rose"] {
+  --tag-foreground: #e6a0b1;
+  --tag-background: #432e34;
+  --tag-border: #654650;
+  --tag-dot: #d48296;
+}
+.theme-dark [data-tag-tone="violet"] {
+  --tag-foreground: #b9afe3;
+  --tag-background: #353248;
+  --tag-border: #504b6d;
+  --tag-dot: #9d90d1;
+}
 /* Fluent copies provider class names to portals; only the root owns layout. */
 #root > .app-provider {
   width: 100%;
@@ -472,8 +574,10 @@ button {
 }
 .task-tags span {
   padding: 2px 7px;
-  border: 1px solid;
-  border-radius: 10px;
+  color: var(--tag-foreground);
+  background: var(--tag-background);
+  border: 1px solid var(--tag-border);
+  border-radius: 4px;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -549,18 +653,31 @@ button {
 .form-grid .fui-Textarea {
   width: 100%;
 }
-.tag-fieldset {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-  padding: 2px 0 0;
+.task-tag-field {
+  min-width: 0;
 }
-.tag-field-label {
-  flex-basis: 100%;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
+.task-tag-picker-control {
+  min-height: 38px;
+  color: var(--text);
+  background: var(--surface);
+  border-radius: 4px;
+}
+.task-tag-picker-control input {
+  min-width: 140px;
+  font-size: 14px;
+}
+.app-provider .task-editor-tag {
+  color: var(--tag-foreground);
+  background: var(--tag-background);
+  border: 1px solid var(--tag-border);
+  border-radius: 4px;
+}
+.tag-tone-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: var(--tag-dot);
+  border-radius: 50%;
 }
 .editor-dialog {
   width: min(680px, calc(100vw - 40px));
@@ -976,6 +1093,7 @@ button {
 .tag-settings > div > span {
   width: 10px;
   height: 10px;
+  background: var(--tag-dot);
   border-radius: 50%;
 }
 .details-list {
@@ -1694,6 +1812,7 @@ button {
   width: 9px;
   height: 9px;
   margin-left: 4px;
+  background: var(--tag-dot);
   border-radius: 50%;
 }
 .task-overview dl {
@@ -1887,26 +2006,29 @@ button {
   color: var(--danger);
 }
 .task-priority {
-  display: inline-grid;
-  place-items: center;
-  min-width: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 22px;
-  padding: 0 7px;
-  border: 1px solid;
-  border-radius: 4px;
+  color: var(--priority-color);
   font-size: 13px;
+  font-weight: 500;
+}
+.task-priority::before {
+  width: 7px;
+  height: 7px;
+  background: var(--priority-color);
+  border-radius: 50%;
+  content: "";
 }
 .task-priority.priority-3 {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  --priority-color: var(--danger);
 }
 .task-priority.priority-2 {
-  color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  --priority-color: var(--warning);
 }
 .task-priority.priority-1 {
-  color: var(--success);
-  background: color-mix(in srgb, var(--success) 10%, transparent);
+  --priority-color: var(--muted);
 }
 .workspace-task-tags {
   display: flex;
@@ -1918,8 +2040,9 @@ button {
   overflow: hidden;
   max-width: 72px;
   padding: 2px 6px;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  border: 1px solid;
+  color: var(--tag-foreground);
+  background: var(--tag-background);
+  border: 1px solid var(--tag-border);
   border-radius: 4px;
   font-size: 13px;
   text-overflow: ellipsis;

@@ -28,6 +28,7 @@ import type {
   TomatoPreview,
 } from "../preload/api-types";
 import { classifyLifeEvent, normalizeLegacyTomatoText } from "../shared/domain";
+import { normalizeTagName, tagColorHex } from "../shared/tag-colors";
 
 const dataTables = [
   "task_categories",
@@ -269,26 +270,27 @@ export class ZhixuStore {
            WHERE deleted_at IS NULL ORDER BY is_archived, name COLLATE NOCASE`,
         )
         .all() as SqlRow[]
-    ).map((row) => ({
-      id: String(row.id),
-      name: String(row.name),
-      colorHex: String(row.color_hex),
-      isArchived: bool(row.is_archived),
-    }));
+    ).map((row) => {
+      const name = String(row.name);
+      return {
+        id: String(row.id),
+        name,
+        colorHex: tagColorHex(name),
+        isArchived: bool(row.is_archived),
+      };
+    });
   }
 
-  saveTag(input: { id?: string; name: string; colorHex: string }): string {
+  saveTag(input: { id?: string; name: string }): string {
     const name = input.name.trim();
     if (!name) throw new Error("标签名称不能为空");
-    if (!/^#[0-9a-f]{6}$/i.test(input.colorHex))
-      throw new Error("标签颜色格式无效");
     const id = input.id ?? randomUUID();
     const now = nowSeconds();
     const conflict = this.db
       .prepare(
         "SELECT id FROM tags WHERE normalized_name = ? AND deleted_at IS NULL AND id <> ?",
       )
-      .get(normalizedName(name), id);
+      .get(normalizeTagName(name), id);
     if (conflict) throw new Error("已存在同名标签");
     this.db
       .prepare(
@@ -298,7 +300,7 @@ export class ZhixuStore {
          ON CONFLICT(id) DO UPDATE SET name = excluded.name, normalized_name = excluded.normalized_name,
            color_hex = excluded.color_hex, is_archived = 0, deleted_at = NULL, updated_at = excluded.updated_at`,
       )
-      .run(id, name, normalizedName(name), input.colorHex, now, now);
+      .run(id, name, normalizeTagName(name), tagColorHex(name), now, now);
     this.enqueue(
       "tag",
       id,

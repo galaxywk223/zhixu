@@ -10,6 +10,7 @@ import type {
   TagRecord,
   TaskRecord,
 } from "../../../preload/api-types";
+import { tagTone } from "../../../shared/tag-colors";
 
 interface TaskListProps {
   tasks: TaskRecord[];
@@ -82,7 +83,7 @@ export function TaskList(props: TaskListProps): React.JSX.Element {
               .map((id) => tagMap.get(id))
               .filter(Boolean)
               .map((tag) => (
-                <span key={tag!.id} style={{ borderColor: tag!.colorHex }}>
+                <span key={tag!.id} data-tag-tone={tagTone(tag!.name)}>
                   {tag!.name}
                 </span>
               ))}

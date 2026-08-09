@@ -13,6 +13,7 @@ import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { initializeDatabase } from "../src/main/database";
 import { ZhixuStore } from "../src/main/store";
+import { tagColorHex } from "../src/shared/tag-colors";
 
 const directories: string[] = [];
 afterEach(() => {
@@ -242,6 +243,34 @@ describe("schema 6 migration", () => {
     expect(store.getSettings().uiScale).toBe(125);
     store.saveUiScale(150);
     expect(store.getSettings().uiScale).toBe(150);
+    context.db.close();
+  });
+
+  it("generates compatibility colors and ignores legacy custom tag colors", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+    const id = store.saveTag({ name: "算法" });
+
+    expect(
+      context.db
+        .prepare("SELECT color_hex AS colorHex FROM tags WHERE id = ?")
+        .get(id),
+    ).toEqual({ colorHex: tagColorHex("算法") });
+
+    context.db
+      .prepare("UPDATE tags SET color_hex = '#FF00FF' WHERE id = ?")
+      .run(id);
+    expect(store.listTags().find((tag) => tag.id === id)?.colorHex).toBe(
+      tagColorHex("算法"),
+    );
+
+    store.saveTag({ id, name: "保研" });
+    expect(
+      context.db
+        .prepare("SELECT color_hex AS colorHex FROM tags WHERE id = ?")
+        .get(id),
+    ).toEqual({ colorHex: tagColorHex("保研") });
     context.db.close();
   });
 });

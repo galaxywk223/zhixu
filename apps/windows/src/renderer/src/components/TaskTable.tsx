@@ -10,6 +10,7 @@ import type {
   TagRecord,
   TaskRecord,
 } from "../../../preload/api-types";
+import { tagTone } from "../../../shared/tag-colors";
 import type { TaskGroup } from "../../../shared/domain";
 import { formatEstimatedMinutes } from "../pages/task-workspace-model";
 
@@ -153,10 +154,7 @@ export function TaskTable(props: TaskTableProps): React.JSX.Element {
                           <span
                             className="workspace-task-tag"
                             key={tag.id}
-                            style={{
-                              borderColor: tag.colorHex,
-                              color: tag.colorHex,
-                            }}
+                            data-tag-tone={tagTone(tag.name)}
                           >
                             {tag.name}
                           </span>

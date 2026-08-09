@@ -201,11 +201,7 @@ export interface ZhixuApi {
     remove(id: string): Promise<void>;
     categories(): Promise<CategoryRecord[]>;
     tags(): Promise<TagRecord[]>;
-    saveTag(input: {
-      id?: string;
-      name: string;
-      colorHex: string;
-    }): Promise<string>;
+    saveTag(input: { id?: string; name: string }): Promise<string>;
     removeTag(id: string): Promise<void>;
   };
   calendar: {

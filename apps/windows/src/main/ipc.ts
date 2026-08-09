@@ -32,7 +32,6 @@ const idSchema = z.string().min(1).max(200);
 const tagInputSchema = z.object({
   id: idSchema.optional(),
   name: z.string().trim().min(1).max(100),
-  colorHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
 });
 const settingsSchema = z.object({
   themeMode: themeModeSchema,

@@ -10,6 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TaskRecord, ZhixuApi } from "../src/preload/api-types";
 import { TasksPage } from "../src/renderer/src/pages/TasksPage";
+import { tagTone } from "../src/shared/tag-colors";
 
 afterEach(cleanup);
 
@@ -42,7 +43,7 @@ function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
 
 describe("tasks page", () => {
   it("renders real metrics, dynamic views, grouped table columns, and task actions", async () => {
-    const activeTask = task("线性代数复习");
+    const activeTask = task("线性代数复习", { priority: 3 });
     const doneTask = task("归档课堂笔记", {
       status: "done",
       completedAt: new Date().toISOString(),
@@ -104,6 +105,16 @@ describe("tasks page", () => {
     expect(
       screen.getByText("今天", { selector: ".task-table-group-label strong" }),
     ).toBeTruthy();
+    expect(
+      screen
+        .getByText("高", { selector: ".task-priority" })
+        .classList.contains("priority-3"),
+    ).toBe(true);
+    expect(
+      screen
+        .getByText("学习", { selector: ".workspace-task-tag" })
+        .getAttribute("data-tag-tone"),
+    ).toBe(tagTone("学习"));
 
     fireEvent.doubleClick(screen.getByText("线性代数复习"));
     expect(onEdit).toHaveBeenCalledWith(activeTask);

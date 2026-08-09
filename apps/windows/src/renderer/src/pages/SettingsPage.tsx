@@ -27,6 +27,7 @@ import type {
   TagRecord,
   UpdateState,
 } from "../../../preload/api-types";
+import { tagTone } from "../../../shared/tag-colors";
 import { Loading, PageHeader } from "../components/Page";
 import { queryKeys } from "../query";
 import { DEFAULT_UI_SCALE, stepUiScale } from "../../../shared/ui-scale";
@@ -218,7 +219,7 @@ export function SettingsPage(): React.JSX.Element {
           <div className="tag-settings">
             {(tags.data ?? []).map((tag) => (
               <div key={tag.id}>
-                <span style={{ background: tag.colorHex }} />
+                <span data-tag-tone={tagTone(tag.name)} />
                 <strong>{tag.name}</strong>
                 <Button
                   appearance="subtle"
@@ -351,11 +352,9 @@ function TagEditor(props: {
   const client = useQueryClient();
   const record = props.value && props.value !== "new" ? props.value : null;
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#397BC6");
   useEffect(() => {
     if (props.value) {
       setName(record?.name ?? "");
-      setColor(record?.colorHex ?? "#397BC6");
     }
   }, [props.value, record?.id]);
   const save = useMutation({
@@ -379,14 +378,6 @@ function TagEditor(props: {
             <Field label="名称">
               <Input value={name} onChange={(_, data) => setName(data.value)} />
             </Field>
-            <Field label="颜色">
-              <input
-                className="native-control color-control"
-                type="color"
-                value={color}
-                onChange={(event) => setColor(event.target.value)}
-              />
-            </Field>
             {save.error ? (
               <p className="error-message">{String(save.error)}</p>
             ) : null}
@@ -397,11 +388,11 @@ function TagEditor(props: {
               appearance="primary"
               disabled={!name.trim()}
               onClick={() =>
-                save.mutate({
-                  id: record?.id,
-                  name: name.trim(),
-                  colorHex: color,
-                })
+                save.mutate(
+                  record
+                    ? { id: record.id, name: name.trim() }
+                    : { name: name.trim() },
+                )
               }
             >
               保存

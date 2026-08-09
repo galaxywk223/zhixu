@@ -19,6 +19,7 @@ import {
   Warning20Regular,
 } from "@fluentui/react-icons";
 import type { TaskRecord } from "../../../preload/api-types";
+import { tagTone } from "../../../shared/tag-colors";
 import { EmptyState, Loading } from "../components/Page";
 import { TaskTable } from "../components/TaskTable";
 import { queryKeys } from "../query";
@@ -295,7 +296,7 @@ export function TasksPage(props: {
                       }))
                     }
                   >
-                    <i style={{ backgroundColor: tag.colorHex }} />
+                    <i data-tag-tone={tagTone(tag.name)} />
                     <span>{tag.name}</span>
                     <strong>{workspace.tagCounts[tag.id] ?? 0}</strong>
                   </button>

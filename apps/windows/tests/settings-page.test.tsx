@@ -6,11 +6,13 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, ZhixuApi } from "../src/preload/api-types";
 import { SettingsPage } from "../src/renderer/src/pages/SettingsPage";
 import { zhixuLightTheme } from "../src/renderer/src/theme";
+import { tagTone } from "../src/shared/tag-colors";
 
 afterEach(cleanup);
 
@@ -24,6 +26,7 @@ describe("settings page", () => {
     };
     const setUiScale = vi.fn().mockResolvedValue(undefined);
     const saveSettings = vi.fn().mockResolvedValue(undefined);
+    const saveTag = vi.fn().mockResolvedValue("tag-algorithm");
     const api = {
       app: {
         bootstrap: vi.fn().mockResolvedValue({
@@ -47,7 +50,15 @@ describe("settings page", () => {
         setUiScale,
       },
       tasks: {
-        tags: vi.fn().mockResolvedValue([]),
+        tags: vi.fn().mockResolvedValue([
+          {
+            id: "tag-study",
+            name: "学习",
+            colorHex: "#FF00FF",
+            isArchived: false,
+          },
+        ]),
+        saveTag,
       },
       sync: {
         getState: vi
@@ -83,6 +94,11 @@ describe("settings page", () => {
     );
 
     expect(await screen.findByText("100%")).toBeTruthy();
+    expect(
+      document
+        .querySelector(".tag-settings [data-tag-tone]")
+        ?.getAttribute("data-tag-tone"),
+    ).toBe(tagTone("学习"));
     fireEvent.click(screen.getByRole("button", { name: "深色" }));
     fireEvent.click(screen.getByRole("button", { name: "放大界面" }));
     await waitFor(() => expect(setUiScale).toHaveBeenCalledWith(110));
@@ -97,5 +113,15 @@ describe("settings page", () => {
       uiScale: 125,
     });
     expect(screen.getByRole("button", { name: "恢复默认缩放" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "新建标签" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByLabelText("颜色")).toBeNull();
+    fireEvent.change(within(dialog).getByLabelText("名称"), {
+      target: { value: "算法" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(saveTag).toHaveBeenCalled());
+    expect(saveTag.mock.calls[0]?.[0]).toEqual({ name: "算法" });
   });
 });
