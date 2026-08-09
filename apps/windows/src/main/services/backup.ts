@@ -5,7 +5,8 @@ import { dialog } from "electron";
 import JSZip from "jszip";
 import {
   backupManifestV6Schema,
-  type BackupManifestV6,
+  backupManifestV7Schema,
+  type BackupManifestV7,
 } from "@zhixu/contracts";
 import { ZhixuStore } from "../store";
 
@@ -24,8 +25,8 @@ export class BackupService {
     if (result.canceled || !result.filePath) return null;
     const payload = JSON.stringify(this.store.exportData());
     const payloadSha256 = createHash("sha256").update(payload).digest("hex");
-    const manifest: BackupManifestV6 = {
-      schemaVersion: 6,
+    const manifest: BackupManifestV7 = {
+      schemaVersion: 7,
       appVersion: this.appVersion,
       exportedAt: new Date().toISOString(),
       payloadFile: "data.json",
@@ -66,8 +67,11 @@ export class BackupService {
     ) as Record<string, unknown>;
     const current = this.store.exportData();
     try {
-      if (rawManifest.schemaVersion === 6) {
-        const manifest = backupManifestV6Schema.parse(rawManifest);
+      if (rawManifest.schemaVersion === 6 || rawManifest.schemaVersion === 7) {
+        const manifest =
+          rawManifest.schemaVersion === 7
+            ? backupManifestV7Schema.parse(rawManifest)
+            : backupManifestV6Schema.parse(rawManifest);
         const payloadEntry = zip.file(manifest.payloadFile);
         if (!payloadEntry) throw new Error("备份缺少 data.json");
         const payloadText = await payloadEntry.async("string");

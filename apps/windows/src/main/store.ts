@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
+  countdownDraftSchema,
   lifeEventDraftSchema,
   memoDraftSchema,
   noteDraftSchema,
@@ -10,6 +11,7 @@ import {
   themeModeSchema,
   uiScaleSchema,
   type LifeEventDraft,
+  type CountdownDraft,
   type MemoDraft,
   type NoteDraft,
   type ScheduleDraft,
@@ -19,6 +21,7 @@ import {
 import type {
   AppSettings,
   CategoryRecord,
+  CountdownRecord,
   DashboardSummary,
   FocusSessionRecord,
   ImportBatchRecord,
@@ -53,6 +56,7 @@ const dataTables = [
   "reminders",
   "focus_sessions",
   "life_events",
+  "countdowns",
   "import_batches",
   "import_batch_changes",
 ] as const;
@@ -137,6 +141,17 @@ function asEvent(row: SqlRow): LifeEventRecord {
     note: row.note == null ? null : String(row.note),
     importBatchId:
       row.import_batch_id == null ? null : String(row.import_batch_id),
+  };
+}
+
+function asCountdown(row: SqlRow): CountdownRecord {
+  return {
+    id: String(row.id),
+    title: String(row.title),
+    targetDate: String(row.target_date),
+    note: row.note == null ? null : String(row.note),
+    createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+    updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
   };
 }
 
@@ -361,6 +376,63 @@ export class ZhixuStore {
     });
     run();
     return id;
+  }
+
+  listCountdowns(): CountdownRecord[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM countdowns
+           WHERE deleted_at IS NULL
+           ORDER BY target_date, title COLLATE NOCASE`,
+        )
+        .all() as SqlRow[]
+    ).map(asCountdown);
+  }
+
+  saveCountdown(input: CountdownDraft): string {
+    const draft = countdownDraftSchema.parse(input);
+    const id = draft.id ?? randomUUID();
+    const now = nowSeconds();
+    const existing = this.db
+      .prepare("SELECT id FROM countdowns WHERE id = ?")
+      .get(id) as SqlRow | undefined;
+    if (existing) {
+      this.db
+        .prepare(
+          `UPDATE countdowns
+           SET title = ?, target_date = ?, note = ?, updated_at = ?, deleted_at = NULL
+           WHERE id = ?`,
+        )
+        .run(draft.title, draft.targetDate, draft.note, now, id);
+    } else {
+      this.db
+        .prepare(
+          `INSERT INTO countdowns
+           (id, title, target_date, note, created_at, updated_at, device_id, server_revision)
+           VALUES (?, ?, ?, ?, ?, ?, 'electron-windows', 0)`,
+        )
+        .run(id, draft.title, draft.targetDate, draft.note, now, now);
+    }
+    this.enqueue(
+      "countdown",
+      id,
+      "upsert",
+      this.db
+        .prepare("SELECT * FROM countdowns WHERE id = ?")
+        .get(id) as SqlRow,
+    );
+    return id;
+  }
+
+  removeCountdown(id: string): void {
+    const now = nowSeconds();
+    this.db
+      .prepare(
+        "UPDATE countdowns SET deleted_at = ?, updated_at = ? WHERE id = ?",
+      )
+      .run(now, now, id);
+    this.enqueue("countdown", id, "delete", { id, deleted_at: now });
   }
 
   setTaskStatus(id: string, status: TaskRecord["status"]): void {
@@ -1129,6 +1201,12 @@ export class ZhixuStore {
          WHERE deleted_at IS NULL AND (task_name LIKE ? ESCAPE '\\' OR reflection LIKE ? ESCAPE '\\') LIMIT 20`,
       )
       .all(pattern, pattern) as SqlRow[];
+    const countdownRows = this.db
+      .prepare(
+        `SELECT id, title, target_date AS subtitle FROM countdowns
+         WHERE deleted_at IS NULL AND (title LIKE ? ESCAPE '\\' OR note LIKE ? ESCAPE '\\') LIMIT 20`,
+      )
+      .all(pattern, pattern) as SqlRow[];
     return [
       ...taskRows.map((row) => ({
         id: String(row.id),
@@ -1145,6 +1223,12 @@ export class ZhixuStore {
       ...focusRows.map((row) => ({
         id: String(row.id),
         entityType: "focus" as const,
+        title: String(row.title),
+        subtitle: String(row.subtitle),
+      })),
+      ...countdownRows.map((row) => ({
+        id: String(row.id),
+        entityType: "countdown" as const,
         title: String(row.title),
         subtitle: String(row.subtitle),
       })),

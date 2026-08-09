@@ -9,6 +9,7 @@ export const entityTypeSchema = z.enum([
   "schedule_block",
   "focus_session",
   "life_event",
+  "countdown",
 ]);
 
 export const taskStatusSchema = z.enum(["todo", "in_progress", "done"]);
@@ -22,6 +23,19 @@ export const uiScaleSchema = z.union([
   z.literal(125),
   z.literal(150),
 ]);
+
+export const localDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(year!, month! - 1, day!);
+    return (
+      date.getFullYear() === year &&
+      date.getMonth() === month! - 1 &&
+      date.getDate() === day
+    );
+  }, "日期无效");
 
 export const taskDraftSchema = z.object({
   id: z.string().min(1).optional(),
@@ -65,6 +79,13 @@ export const memoDraftSchema = z.object({
   descriptionMd: z.string().max(100_000).nullable().default(null),
   categoryId: z.string().nullable().default(null),
   tagIds: z.array(z.string()).default([]),
+});
+
+export const countdownDraftSchema = z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().trim().min(1).max(200),
+  targetDate: localDateSchema,
+  note: z.string().max(10_000).nullable().default(null),
 });
 
 export const noteDraftSchema = z.object({
@@ -118,14 +139,25 @@ export const backupManifestV6Schema = z.object({
   entityCounts: z.record(z.string(), z.number().int().nonnegative()),
 });
 
+export const backupManifestV7Schema = z.object({
+  schemaVersion: z.literal(7),
+  appVersion: z.string(),
+  exportedAt: z.string().datetime(),
+  payloadFile: z.literal("data.json"),
+  payloadSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  entityCounts: z.record(z.string(), z.number().int().nonnegative()),
+});
+
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 export type TaskBatchDraft = z.infer<typeof taskBatchDraftSchema>;
 export type MemoDraft = z.infer<typeof memoDraftSchema>;
+export type CountdownDraft = z.infer<typeof countdownDraftSchema>;
 export type RecurrenceFrequency = z.infer<typeof recurrenceFrequencySchema>;
 export type NoteDraft = z.infer<typeof noteDraftSchema>;
 export type ScheduleDraft = z.infer<typeof scheduleDraftSchema>;
 export type LifeEventDraft = z.infer<typeof lifeEventDraftSchema>;
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
 export type BackupManifestV6 = z.infer<typeof backupManifestV6Schema>;
+export type BackupManifestV7 = z.infer<typeof backupManifestV7Schema>;
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 export type UiScale = z.infer<typeof uiScaleSchema>;

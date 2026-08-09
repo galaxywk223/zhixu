@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@fluentui/react-components";
 import {
   Add20Regular,
+  CalendarClock20Regular,
   ChevronRight20Regular,
   Note24Regular,
   Search20Regular,
@@ -13,6 +14,12 @@ import { TaskList } from "../components/TaskList";
 import { queryKeys } from "../query";
 import { buildTodayDashboard } from "./today-page-model";
 import { isImplicitEndOfDay } from "../../../shared/task-schedule";
+import {
+  countdownDays,
+  countdownLabel,
+  countdownPreview,
+  parseLocalDate,
+} from "../../../shared/countdown";
 
 function formatToday(date: Date): string {
   const weekday = new Intl.DateTimeFormat("zh-CN", {
@@ -94,6 +101,7 @@ export function TodayPage(props: {
   onEdit(task: TaskRecord): void;
   onSearch(): void;
   onOpenNotes(noteId: string | null): void;
+  onOpenCountdowns(countdownId: string | null): void;
 }): React.JSX.Element {
   const client = useQueryClient();
   const tasks = useQuery({
@@ -112,6 +120,10 @@ export function TodayPage(props: {
     queryKey: queryKeys.notes,
     queryFn: window.zhixu.notes.list,
   });
+  const countdowns = useQuery({
+    queryKey: queryKeys.countdowns,
+    queryFn: window.zhixu.countdowns.list,
+  });
   const summary = useQuery({
     queryKey: queryKeys.summary,
     queryFn: window.zhixu.dashboard.summary,
@@ -125,7 +137,12 @@ export function TodayPage(props: {
     mutationFn: window.zhixu.tasks.remove,
     onSuccess: () => client.invalidateQueries(),
   });
-  if (tasks.isLoading || summary.isLoading || notes.isLoading)
+  if (
+    tasks.isLoading ||
+    summary.isLoading ||
+    notes.isLoading ||
+    countdowns.isLoading
+  )
     return <Loading />;
 
   const now = new Date();
@@ -136,6 +153,7 @@ export function TodayPage(props: {
       (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
     )
     .slice(0, 4);
+  const upcomingCountdowns = countdownPreview(countdowns.data ?? [], now);
   const focusByDay = summary.data?.focusByDay ?? [];
   const maxFocusMinutes = Math.max(
     1,
@@ -170,6 +188,56 @@ export function TodayPage(props: {
           </Button>
         </div>
       </header>
+
+      <section className="today-countdown-strip">
+        <div className="today-countdown-heading">
+          <CalendarClock20Regular />
+          <h2>倒数日</h2>
+          <button
+            type="button"
+            className="panel-link"
+            onClick={() => props.onOpenCountdowns(null)}
+          >
+            查看全部
+            <ChevronRight20Regular />
+          </button>
+        </div>
+        {upcomingCountdowns.length ? (
+          <div className="today-countdown-list">
+            {upcomingCountdowns.map((item) => {
+              const days = countdownDays(item.targetDate, now);
+              return (
+                <button
+                  type="button"
+                  className={`today-countdown-item ${days === 0 ? "today" : days <= 7 ? "soon" : "future"}`}
+                  key={item.id}
+                  onClick={() => props.onOpenCountdowns(item.id)}
+                >
+                  <span>
+                    <strong>{item.title}</strong>
+                    <time dateTime={item.targetDate}>
+                      {parseLocalDate(item.targetDate).toLocaleDateString(
+                        "zh-CN",
+                        { month: "long", day: "numeric" },
+                      )}
+                    </time>
+                  </span>
+                  <b>{countdownLabel(days)}</b>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="today-countdown-empty"
+            onClick={() => props.onOpenCountdowns(null)}
+          >
+            暂无倒数日，添加重要日期
+            <Add20Regular />
+          </button>
+        )}
+      </section>
 
       <div className="today-dashboard-grid">
         <section className="today-panel today-task-panel">

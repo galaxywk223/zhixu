@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BrowserWindow, ipcMain, nativeTheme, Notification } from "electron";
 import {
+  countdownDraftSchema,
   lifeEventDraftSchema,
   memoDraftSchema,
   noteDraftSchema,
@@ -121,6 +122,17 @@ export function registerIpc(dependencies: IpcDependencies): void {
     "memos:remove",
     mutation("memos", (id) => store.removeTask(idSchema.parse(id))),
   );
+  ipcMain.handle("countdowns:list", () => store.listCountdowns());
+  ipcMain.handle(
+    "countdowns:save",
+    mutation("countdowns", (value) =>
+      store.saveCountdown(countdownDraftSchema.parse(value)),
+    ),
+  );
+  ipcMain.handle(
+    "countdowns:remove",
+    mutation("countdowns", (id) => store.removeCountdown(idSchema.parse(id))),
+  );
 
   ipcMain.handle("calendar:list", (_event, value) => {
     const parsed = z
@@ -220,6 +232,6 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle("updates:install", () => dependencies.updates.install());
   ipcMain.handle("sync:get-state", () => ({
     status: "deferred" as const,
-    message: "本地完整版本验收后启用 Supabase schema 6 同步。",
+    message: "本地完整版本验收后启用 Supabase schema 7 同步。",
   }));
 }

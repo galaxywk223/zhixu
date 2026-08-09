@@ -133,7 +133,7 @@ function createLegacyDatabase(path: string, version: 1 | 2 | 3 | 4 | 5): void {
   db.close();
 }
 
-describe("schema 6 migration", () => {
+describe("schema 7 migration", () => {
   it.each([1, 2, 3, 4, 5] as const)(
     "copies and migrates v%i without changing the source file",
     (version) => {
@@ -171,17 +171,41 @@ describe("schema 6 migration", () => {
     },
   );
 
-  it("is idempotent when schema 6 is opened again", () => {
+  it("is idempotent when schema 7 is opened again", () => {
     const paths = temporaryPaths();
     createLegacyDatabase(paths.source, 5);
     const first = initializeDatabase(paths);
     first.db.close();
     const second = initializeDatabase(paths);
     expect(second.report.status).toBe("current");
-    expect(second.report.fromVersion).toBe(6);
+    expect(second.report.fromVersion).toBe(7);
     expect(second.report.entityCounts.tasks).toBe(2);
     expect(second.db.pragma("integrity_check", { simple: true })).toBe("ok");
     second.db.close();
+  });
+
+  it("adds countdown storage when upgrading an existing schema 6 database", () => {
+    const paths = temporaryPaths();
+    const initial = initializeDatabase(paths);
+    initial.db.exec(`
+      DROP INDEX IF EXISTS countdowns_target_idx;
+      DROP TABLE countdowns;
+      PRAGMA user_version = 6;
+    `);
+    initial.db.close();
+
+    const upgraded = initializeDatabase(paths);
+    expect(upgraded.report.fromVersion).toBe(6);
+    expect(upgraded.report.toVersion).toBe(7);
+    expect(
+      upgraded.db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'countdowns'",
+        )
+        .get(),
+    ).toEqual({ name: "countdowns" });
+    expect(upgraded.report.entityCounts.countdowns).toBe(0);
+    upgraded.db.close();
   });
 
   it("keeps a corrupt source and diagnostic copy without leaking a handle", () => {
@@ -216,7 +240,7 @@ describe("schema 6 migration", () => {
     expect(
       store.listTasks().find((item) => item.id === id)?.estimatedMinutes,
     ).toBe(30);
-    expect(context.db.pragma("user_version", { simple: true })).toBe(6);
+    expect(context.db.pragma("user_version", { simple: true })).toBe(7);
     expect(store.integrityCheck()).toBe("ok");
     context.db.close();
   });
@@ -309,6 +333,46 @@ describe("schema 6 migration", () => {
       id: memoId,
       entityType: "memo",
     });
+    context.db.close();
+  });
+
+  it("persists, searches, updates, and removes countdowns", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+    const id = store.saveCountdown({
+      title: "大学英语六级",
+      targetDate: "2026-12-12",
+      note: "打印准考证",
+    });
+
+    expect(store.listCountdowns()).toEqual([
+      expect.objectContaining({
+        id,
+        title: "大学英语六级",
+        targetDate: "2026-12-12",
+        note: "打印准考证",
+      }),
+    ]);
+    expect(store.search("六级")[0]).toMatchObject({
+      id,
+      entityType: "countdown",
+      subtitle: "2026-12-12",
+    });
+
+    store.saveCountdown({
+      id,
+      title: "大学英语六级考试",
+      targetDate: "2026-12-13",
+      note: null,
+    });
+    expect(store.listCountdowns()[0]).toMatchObject({
+      title: "大学英语六级考试",
+      targetDate: "2026-12-13",
+      note: null,
+    });
+    store.removeCountdown(id);
+    expect(store.listCountdowns()).toEqual([]);
     context.db.close();
   });
 

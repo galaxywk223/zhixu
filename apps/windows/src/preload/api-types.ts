@@ -1,4 +1,5 @@
 import type {
+  CountdownDraft,
   LifeEventDraft,
   MemoDraft,
   NoteDraft,
@@ -35,6 +36,15 @@ export interface MemoRecord {
   createdAt: string;
   updatedAt: string;
   tagIds: string[];
+}
+
+export interface CountdownRecord {
+  id: string;
+  title: string;
+  targetDate: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TaskBatchResult {
@@ -160,7 +170,7 @@ export interface DashboardSummary {
 
 export interface SearchHit {
   id: string;
-  entityType: "task" | "memo" | "note" | "focus";
+  entityType: "task" | "memo" | "countdown" | "note" | "focus";
   title: string;
   subtitle: string;
 }
@@ -178,7 +188,7 @@ export interface MigrationReport {
   sourceHash: string | null;
   backupPath: string | null;
   fromVersion: number;
-  toVersion: 6;
+  toVersion: 7;
   integrity: string;
   entityCounts: Record<string, number>;
 }
@@ -226,6 +236,11 @@ export interface ZhixuApi {
   memos: {
     list(): Promise<MemoRecord[]>;
     save(draft: MemoDraft): Promise<string>;
+    remove(id: string): Promise<void>;
+  };
+  countdowns: {
+    list(): Promise<CountdownRecord[]>;
+    save(draft: CountdownDraft): Promise<string>;
     remove(id: string): Promise<void>;
   };
   calendar: {

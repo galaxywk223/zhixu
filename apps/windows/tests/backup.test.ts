@@ -136,4 +136,38 @@ describe("backup compatibility", () => {
     expect(context.store.listTasks()[0]?.title).toBe("恢复前任务");
     context.close();
   });
+
+  it("round-trips countdowns through a schema 7 backup payload", async () => {
+    const source = setup();
+    source.store.saveCountdown({
+      title: "研究生考试",
+      targetDate: "2026-12-20",
+      note: "提前查看考场",
+    });
+    const payload = JSON.stringify(source.store.exportData());
+    const backupPath = join(source.root, "schema-v7.zip");
+    await writeZip(backupPath, {
+      "manifest.json": JSON.stringify({
+        schemaVersion: 7,
+        appVersion: "0.2.0",
+        exportedAt: "2026-08-09T00:00:00.000Z",
+        payloadFile: "data.json",
+        payloadSha256: createHash("sha256").update(payload).digest("hex"),
+        entityCounts: source.store.entityCounts(),
+      }),
+      "data.json": payload,
+    });
+
+    const target = setup();
+    await expect(target.service.restoreFromPath(backupPath)).resolves.toBe(
+      true,
+    );
+    expect(target.store.listCountdowns()[0]).toMatchObject({
+      title: "研究生考试",
+      targetDate: "2026-12-20",
+      note: "提前查看考场",
+    });
+    source.close();
+    target.close();
+  });
 });

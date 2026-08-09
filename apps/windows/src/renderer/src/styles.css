@@ -1,7 +1,13 @@
 :root {
   font-family:
     "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
-  font-size: 14px;
+  --font-caption: 14px;
+  --font-body: 15px;
+  --font-prominent: 16px;
+  --font-panel-title: 18px;
+  --font-page-title: 31px;
+  --control-height: 40px;
+  font-size: var(--font-body);
   font-weight: 400;
   color-scheme: light dark;
 }
@@ -174,22 +180,22 @@ button {
     "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
 }
 .app-provider .fui-Button {
-  min-height: 38px;
+  min-height: var(--control-height);
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 .app-provider .fui-Input,
 .app-provider .fui-Select,
 .app-provider .fui-Textarea {
-  min-height: 38px;
+  min-height: var(--control-height);
   border-radius: 4px;
   background: var(--surface);
 }
 .app-provider .fui-Input input,
 .app-provider .fui-Select select,
 .app-provider .fui-Textarea textarea {
-  font-size: 14px;
+  font-size: var(--font-body);
 }
 .app-provider .fui-Input:focus-within,
 .app-provider .fui-Select:focus-within,
@@ -232,7 +238,7 @@ button {
 }
 .app-frame {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   width: 100%;
   height: 100%;
@@ -259,13 +265,13 @@ button {
   padding: 2px 9px 22px;
 }
 .brand-block img {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 6px;
 }
 .brand-block strong {
   overflow: hidden;
-  font-size: 18px;
+  font-size: 20px;
   white-space: nowrap;
 }
 .sidebar nav {
@@ -281,7 +287,7 @@ button {
   align-items: center;
   gap: 12px;
   width: 100%;
-  height: 42px;
+  height: 48px;
   padding: 0 11px;
   border-radius: 4px;
   text-align: left;
@@ -305,7 +311,14 @@ button {
   background: var(--accent);
 }
 .nav-item svg {
-  flex: none;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+.nav-item span {
+  min-width: 0;
+  font-size: var(--font-body);
+  line-height: 1.3;
 }
 .sidebar-spacer {
   flex: 1;
@@ -352,7 +365,7 @@ button {
 }
 .page-header h1 {
   margin: 0;
-  font-size: 27px;
+  font-size: var(--font-page-title);
   line-height: 1.25;
   font-weight: 700;
 }
@@ -380,7 +393,7 @@ button {
 }
 .stat-card span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .stat-card strong {
   margin-top: 8px;
@@ -391,7 +404,7 @@ button {
 .stat-card small {
   margin-top: auto;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .stat-card.blue {
   border-top: 3px solid var(--accent);
@@ -430,7 +443,7 @@ button {
 }
 .section-heading > span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .section-heading > :last-child {
   margin-left: auto;
@@ -545,7 +558,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: var(--font-body);
 }
 .task-main > strong.completed {
   text-decoration: line-through;
@@ -556,7 +569,7 @@ button {
   gap: 10px;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .status {
   color: var(--accent);
@@ -578,7 +591,7 @@ button {
   background: var(--tag-background);
   border: 1px solid var(--tag-border);
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 .row-actions {
@@ -644,11 +657,11 @@ button {
   flex-direction: column;
   gap: 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .form-grid .fui-Field__label {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 .form-grid .fui-Input,
@@ -713,7 +726,7 @@ button {
   grid-row: 1/3;
   align-self: center;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .search-results small {
   color: var(--muted);
@@ -769,7 +782,7 @@ button {
   color: var(--muted);
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .day-cell {
   min-height: 104px;
@@ -847,7 +860,7 @@ button {
 }
 .schedule-row time {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .notes-workspace {
   display: grid;
@@ -884,7 +897,7 @@ button {
 }
 .note-list small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .note-editor {
   display: flex;
@@ -904,7 +917,7 @@ button {
 .pin-control {
   display: flex;
   gap: 4px;
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .markdown-editor {
   flex: 1;
@@ -945,11 +958,11 @@ button {
   align-items: center;
   min-height: 42px;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .data-head {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   border-top: 0;
 }
 .data-row > * {
@@ -988,7 +1001,7 @@ button {
 .event-list small,
 .sleep-records small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .sleep-records .invalid {
   border-left: 3px solid var(--warning);
@@ -997,7 +1010,7 @@ button {
 .event-kind {
   min-width: 45px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .event-kind.sleep {
   color: #8764b8;
@@ -1220,13 +1233,13 @@ button {
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 50%;
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 .panel-meta {
   margin-left: auto;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .today-panel .empty-state {
   min-height: 190px;
@@ -1241,7 +1254,7 @@ button {
   padding-block: 6px;
 }
 .today-task-panel .task-main > strong {
-  font-size: 14px;
+  font-size: var(--font-body);
 }
 .today-task-panel .task-meta {
   margin-top: 3px;
@@ -1258,7 +1271,7 @@ button {
   background: transparent;
   border: 0;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .panel-footer-action:hover {
   background: var(--surface2);
@@ -1306,19 +1319,19 @@ button {
 }
 .upcoming-main strong {
   overflow: hidden;
-  font-size: 14px;
+  font-size: var(--font-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .upcoming-main small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .upcoming-item time {
   align-self: end;
   padding-bottom: 7px;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1348,7 +1361,7 @@ button {
 .today-progress-grid span,
 .today-progress-grid > div > small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .completion-metric {
   display: flex;
@@ -1498,7 +1511,7 @@ button {
   color: var(--accent);
   background: transparent;
   border: 0;
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .recent-notes-grid {
   display: grid;
@@ -1541,20 +1554,20 @@ button {
 .note-card-main strong {
   overflow: hidden;
   padding-right: 26px;
-  font-size: 14px;
+  font-size: var(--font-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .note-card-main small {
   margin: 2px 0 7px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .note-card-main > span {
   display: -webkit-box;
   overflow: hidden;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1564,11 +1577,14 @@ button {
   top: 12px;
   right: 10px;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-style: normal;
 }
 
 .tasks-page {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
   width: min(1600px, 100%);
   padding: 24px 26px 36px;
   overflow-x: hidden;
@@ -1582,7 +1598,7 @@ button {
 }
 .task-workspace-header h1 {
   margin: 0;
-  font-size: 29px;
+  font-size: var(--font-page-title);
   line-height: 1.25;
   font-weight: 700;
 }
@@ -1615,7 +1631,7 @@ button {
   color: white;
   background: var(--accent);
   border-radius: 9px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 .task-filter-popover {
@@ -1642,13 +1658,13 @@ button {
   color: var(--accent);
   background: transparent;
   border: 0;
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .task-filter-popover .fui-Field {
   display: grid;
   gap: 5px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .task-filter-popover select,
 .task-table-toolbar select {
@@ -1671,7 +1687,7 @@ button {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  min-height: 76px;
+  min-height: 84px;
   padding: 12px 13px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1691,14 +1707,14 @@ button {
 .task-metric-card span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .task-metric-card strong {
   overflow: hidden;
   margin-top: 2px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
@@ -1720,12 +1736,13 @@ button {
   color: var(--muted);
 }
 .task-metric-card.estimate strong {
-  font-size: 15px;
+  font-size: var(--font-prominent);
 }
 .task-workspace-layout {
   display: grid;
-  grid-template-columns: 218px minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: stretch;
+  flex: 1;
   gap: 14px;
   min-width: 0;
 }
@@ -1738,6 +1755,9 @@ button {
   box-shadow: var(--shadow);
 }
 .task-filter-rail {
+  display: flex;
+  min-height: 470px;
+  flex-direction: column;
   overflow: hidden;
 }
 .task-filter-rail > section {
@@ -1754,7 +1774,7 @@ button {
   min-height: 22px;
   margin: 0 8px 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 .task-filter-rail h2 svg {
@@ -1772,7 +1792,7 @@ button {
   align-items: center;
   gap: 7px;
   width: 100%;
-  min-height: 34px;
+  min-height: 40px;
   padding: 0 8px;
   color: var(--text);
   background: transparent;
@@ -1793,13 +1813,13 @@ button {
 }
 .task-filter-rail nav button > span {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--font-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .task-filter-rail nav button > strong {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -1809,7 +1829,10 @@ button {
 .task-tag-navigation > p {
   margin: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
+}
+.task-tag-navigation {
+  flex: 1;
 }
 .task-tag-navigation nav button > i {
   width: 9px;
@@ -1839,12 +1862,12 @@ button {
 }
 .task-overview dt {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .task-overview dd {
   margin: 0;
   color: var(--accent);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1858,6 +1881,9 @@ button {
   color: var(--success);
 }
 .task-table-panel {
+  display: flex;
+  min-height: 470px;
+  flex-direction: column;
   overflow: hidden;
 }
 .task-table-toolbar {
@@ -1865,7 +1891,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 53px;
+  min-height: 58px;
   padding: 0 14px 0 17px;
   border-bottom: 1px solid var(--border);
 }
@@ -1878,7 +1904,7 @@ button {
 .task-table-toolbar h2 {
   overflow: hidden;
   margin: 0;
-  font-size: 17px;
+  font-size: var(--font-panel-title);
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1893,7 +1919,7 @@ button {
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 11px;
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 .task-table-toolbar .fui-Field {
@@ -1901,13 +1927,14 @@ button {
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 .task-table-toolbar select {
   min-height: 31px;
 }
 .task-table-scroll {
+  flex: 1;
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
@@ -1920,7 +1947,7 @@ button {
 .workspace-task-table th,
 .workspace-task-table td {
   min-width: 0;
-  padding: 10px 7px;
+  padding: 12px 8px;
   overflow-wrap: anywhere;
   text-align: left;
   vertical-align: middle;
@@ -1929,7 +1956,7 @@ button {
   color: var(--muted);
   background: color-mix(in srgb, var(--surface2) 70%, var(--surface));
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .workspace-task-table thead th {
   padding-block: 11px;
@@ -1943,7 +1970,7 @@ button {
   color: var(--accent);
   background: color-mix(in srgb, var(--surface2) 55%, var(--surface));
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .task-table-group-label strong {
   margin-right: 7px;
@@ -1963,7 +1990,7 @@ button {
 }
 .workspace-task-row {
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .workspace-task-row:last-child {
   border-bottom: 0;
@@ -1975,7 +2002,7 @@ button {
   line-height: 1.45;
 }
 .workspace-task-title strong {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 .workspace-task-title strong.completed {
@@ -1984,7 +2011,7 @@ button {
 }
 .task-category {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .task-due {
   color: var(--muted);
@@ -1999,7 +2026,7 @@ button {
   gap: 6px;
   height: 22px;
   color: var(--priority-color);
-  font-size: 13px;
+  font-size: var(--font-caption);
   font-weight: 500;
 }
 .task-priority::before {
@@ -2030,11 +2057,11 @@ button {
   background: var(--tag-background);
   border: 1px solid var(--tag-border);
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .table-empty-value {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 .task-estimate {
@@ -2062,26 +2089,33 @@ button {
   justify-content: space-between;
   gap: 12px;
 }
+.memo-header {
+  margin-bottom: 20px;
+}
 .memo-header h1 {
   margin: 0;
-  font-size: 25px;
+  font-size: var(--font-page-title);
 }
 .memo-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+.memo-row {
+  position: relative;
+  display: flex;
+  min-height: 166px;
+  align-items: stretch;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-}
-.memo-row {
-  display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid var(--border);
-}
-.memo-row:last-child {
-  border-bottom: 0;
+  box-shadow: var(--shadow);
 }
 .memo-row:hover {
   background: color-mix(in srgb, var(--accentSoft) 30%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 .memo-row-main {
   display: flex;
@@ -2089,8 +2123,8 @@ button {
   flex: 1;
   flex-direction: column;
   align-items: flex-start;
-  gap: 7px;
-  padding: 14px 16px;
+  gap: 10px;
+  padding: 18px 76px 18px 18px;
   color: inherit;
   background: transparent;
   border: 0;
@@ -2099,6 +2133,10 @@ button {
 .memo-row-main strong,
 .memo-row-main p {
   overflow-wrap: anywhere;
+}
+.memo-row-main strong {
+  font-size: var(--font-prominent);
+  line-height: 1.4;
 }
 .memo-row-main p {
   display: -webkit-box;
@@ -2116,7 +2154,7 @@ button {
   gap: 8px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--font-caption);
 }
 .memo-meta time {
   font-variant-numeric: tabular-nums;
@@ -2129,13 +2167,247 @@ button {
   border-radius: 4px;
 }
 .memo-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 10px;
+  padding: 0;
+}
+.countdown-sections {
+  display: grid;
+  gap: 24px;
+}
+.countdown-section > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.countdown-section h2 {
+  margin: 0;
+  font-size: var(--font-panel-title);
+}
+.countdown-section > header > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding-inline: 6px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: var(--font-caption);
+}
+.countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.countdown-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  min-height: 152px;
+  padding: 18px 82px 18px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.countdown-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+}
+.countdown-card-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  color: var(--accent);
+  background: var(--accentSoft);
+  border-radius: 6px;
+}
+.countdown-card.soon .countdown-card-icon,
+.countdown-card.soon .countdown-value {
+  color: var(--warning);
+}
+.countdown-card.today {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: color-mix(in srgb, var(--accentSoft) 36%, var(--surface));
+}
+.countdown-card.past {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface2) 44%, var(--surface));
+}
+.countdown-card.past .countdown-card-icon,
+.countdown-card.past .countdown-value {
+  color: var(--muted);
+  background: var(--surface2);
+}
+.countdown-card-main {
+  min-width: 0;
+}
+.countdown-card-main strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: var(--font-prominent);
+  line-height: 1.4;
+}
+.countdown-card-main time {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+.countdown-card-main p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.countdown-value {
+  min-width: 92px;
+  color: var(--accent);
+  text-align: right;
+}
+.countdown-value strong {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.countdown-value span {
+  display: block;
+  margin-top: 5px;
+  font-size: var(--font-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.countdown-card.today .countdown-value span {
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: var(--font-prominent);
+}
+.countdown-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+}
+.countdown-actions .fui-Button,
+.memo-actions .fui-Button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.countdown-empty {
+  margin: 0;
+  padding: 18px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+.today-countdown-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.today-countdown-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+.today-countdown-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-panel-title);
+}
+.today-countdown-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.today-countdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 11px;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  text-align: left;
+}
+.today-countdown-item:hover {
+  border-color: var(--border);
+  background: var(--surfaceHover);
+}
+.today-countdown-item > span {
+  min-width: 0;
+}
+.today-countdown-item strong,
+.today-countdown-item time {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-countdown-item strong {
+  font-size: var(--font-caption);
+}
+.today-countdown-item time {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+.today-countdown-item b {
+  flex: none;
+  color: var(--accent);
+  font-size: var(--font-caption);
+  white-space: nowrap;
+}
+.today-countdown-item.soon b {
+  color: var(--warning);
+}
+.today-countdown-item.today {
+  background: var(--accentSoft);
+}
+.today-countdown-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 52px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
 }
 .task-table-panel > .empty-state {
-  min-height: 300px;
+  min-height: 360px;
+  flex: 1;
 }
 
 @media (max-width: 1250px) {
@@ -2143,7 +2415,10 @@ button {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .task-workspace-layout {
-    grid-template-columns: 204px minmax(0, 1fr);
+    grid-template-columns: 218px minmax(0, 1fr);
+  }
+  .today-countdown-strip {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2281,10 +2556,15 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .task-workspace-layout {
-    grid-template-columns: 178px minmax(0, 1fr);
+    grid-template-columns: 190px minmax(0, 1fr);
     gap: 10px;
   }
   .task-filter-rail nav button {
     padding-inline: 6px;
+  }
+  .memo-list,
+  .countdown-grid,
+  .today-countdown-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

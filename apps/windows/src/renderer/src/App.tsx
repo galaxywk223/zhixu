@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { FluentProvider, Spinner } from "@fluentui/react-components";
 import type { TaskRecord } from "../../preload/api-types";
 import { SearchDialog } from "./components/SearchDialog";
-import { Shell, type Route } from "./components/Shell";
+import { routeForNumericShortcut, Shell, type Route } from "./components/Shell";
 import { TaskEditor } from "./components/TaskEditor";
 import { CalendarPage } from "./pages/CalendarPage";
+import { CountdownsPage } from "./pages/CountdownsPage";
 import { FocusPage } from "./pages/FocusPage";
 import { NotesPage } from "./pages/NotesPage";
 import { MemosPage } from "./pages/MemosPage";
@@ -35,6 +36,9 @@ export function App(): React.JSX.Element {
   const [search, setSearch] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
+  const [selectedCountdownId, setSelectedCountdownId] = useState<string | null>(
+    null,
+  );
   const [dragging, setDragging] = useState(false);
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
@@ -63,6 +67,7 @@ export function App(): React.JSX.Element {
             "today",
             "tasks",
             "memos",
+            "countdowns",
             "calendar",
             "focus",
             "sleep",
@@ -95,21 +100,15 @@ export function App(): React.JSX.Element {
         event.preventDefault();
         setEditor({ open: true, task: null });
       }
-      const routes: Route[] = [
-        "today",
-        "tasks",
-        "memos",
-        "calendar",
-        "notes",
-        "focus",
-        "sleep",
-        "stats",
-        "settings",
-      ];
-      const index = Number(event.key) - 1;
-      if (index >= 0 && routes[index]) {
+      if (event.key === ",") {
         event.preventDefault();
-        setRoute(routes[index]);
+        setRoute("settings");
+        return;
+      }
+      const nextRoute = routeForNumericShortcut(event.key);
+      if (nextRoute) {
+        event.preventDefault();
+        setRoute(nextRoute);
       }
     };
     window.addEventListener("keydown", handler);
@@ -168,10 +167,15 @@ export function App(): React.JSX.Element {
           setSelectedNoteId(noteId);
           setRoute("notes");
         }}
+        onOpenCountdowns={(countdownId) => {
+          setSelectedCountdownId(countdownId);
+          setRoute("countdowns");
+        }}
       />
     ),
     tasks: <TasksPage onNew={openNew} onEdit={openEdit} />,
     memos: <MemosPage initialSelectedId={selectedMemoId} />,
+    countdowns: <CountdownsPage initialSelectedId={selectedCountdownId} />,
     calendar: <CalendarPage onNewTask={openNew} />,
     focus: <FocusPage />,
     sleep: <SleepPage />,
@@ -201,6 +205,7 @@ export function App(): React.JSX.Element {
           onRouteChange={(nextRoute) => {
             if (nextRoute === "notes") setSelectedNoteId(null);
             if (nextRoute === "memos") setSelectedMemoId(null);
+            if (nextRoute === "countdowns") setSelectedCountdownId(null);
             setRoute(nextRoute);
           }}
         >
@@ -223,6 +228,7 @@ export function App(): React.JSX.Element {
         onClose={() => setSearch(false)}
         onNavigate={(target, id) => {
           if (target === "memos") setSelectedMemoId(id ?? null);
+          if (target === "countdowns") setSelectedCountdownId(id ?? null);
           setRoute(target);
         }}
       />

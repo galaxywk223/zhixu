@@ -29,6 +29,7 @@ export function SearchDialog(props: {
   const routeMap = {
     task: "tasks",
     memo: "memos",
+    countdown: "countdowns",
     note: "notes",
     focus: "focus",
   } as const;
@@ -47,7 +48,7 @@ export function SearchDialog(props: {
               autoFocus
               size="large"
               contentBefore={<Search24Regular />}
-              placeholder="搜索任务、备忘、笔记或专注事项"
+              placeholder="搜索任务、备忘、倒数日、笔记或专注事项"
               value={query}
               onChange={(_, data) => setQuery(data.value)}
             />
@@ -67,9 +68,11 @@ export function SearchDialog(props: {
                       ? "任务"
                       : result.entityType === "memo"
                         ? "备忘"
-                        : result.entityType === "note"
-                          ? "笔记"
-                          : "专注"}
+                        : result.entityType === "countdown"
+                          ? "倒数日"
+                          : result.entityType === "note"
+                            ? "笔记"
+                            : "专注"}
                   </span>
                   <strong>{result.title}</strong>
                   <small>{result.subtitle}</small>

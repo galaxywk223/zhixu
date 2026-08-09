@@ -8,6 +8,7 @@ import type {
   ZhixuApi,
 } from "../src/preload/api-types";
 import { TodayPage } from "../src/renderer/src/pages/TodayPage";
+import { localDateKey } from "../src/shared/countdown";
 
 describe("today page", () => {
   it("renders task, focus, and recent-note data and opens a selected note", async () => {
@@ -47,6 +48,9 @@ describe("today page", () => {
       focusByDay: [{ date: now.toISOString().slice(0, 10), minutes: 35 }],
     };
     const openNotes = vi.fn();
+    const openCountdowns = vi.fn();
+    const examDate = new Date(now);
+    examDate.setDate(examDate.getDate() + 6);
     const api = {
       tasks: {
         list: vi.fn().mockResolvedValue([task]),
@@ -62,6 +66,18 @@ describe("today page", () => {
             title: "测试笔记",
             contentMd: "最近整理的内容",
             isPinned: false,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          },
+        ]),
+      },
+      countdowns: {
+        list: vi.fn().mockResolvedValue([
+          {
+            id: "exam-1",
+            title: "英语六级考试",
+            targetDate: localDateKey(examDate),
+            note: null,
             createdAt: now.toISOString(),
             updatedAt: now.toISOString(),
           },
@@ -85,6 +101,7 @@ describe("today page", () => {
             onEdit={() => undefined}
             onSearch={() => undefined}
             onOpenNotes={openNotes}
+            onOpenCountdowns={openCountdowns}
           />
         </FluentProvider>
       </QueryClientProvider>,
@@ -92,11 +109,15 @@ describe("today page", () => {
 
     expect(await screen.findByText("今日测试任务")).toBeTruthy();
     expect(screen.getByText("35 分钟")).toBeTruthy();
+    expect(screen.getByText("英语六级考试")).toBeTruthy();
+    expect(screen.getByText("还有 6 天")).toBeTruthy();
     expect(screen.getByRole("heading", { name: /^今天 \/ / })).toBeTruthy();
     expect(
       screen.queryByText("聚焦今天最重要的事，稳步推进当前计划。"),
     ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /测试笔记/ }));
     expect(openNotes).toHaveBeenCalledWith("note-1");
+    fireEvent.click(screen.getByRole("button", { name: /英语六级考试/ }));
+    expect(openCountdowns).toHaveBeenCalledWith("exam-1");
   });
 });

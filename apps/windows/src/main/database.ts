@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { MigrationReport } from "../preload/api-types";
 
-export const SCHEMA_VERSION = 6 as const;
+export const SCHEMA_VERSION = 7 as const;
 
 const preservedTables = [
   "tasks",
@@ -19,6 +19,7 @@ const preservedTables = [
   "reminders",
   "focus_sessions",
   "life_events",
+  "countdowns",
   "import_batches",
   "import_batch_changes",
 ] as const;
@@ -326,6 +327,17 @@ function createSchema(db: Database.Database): void {
       device_id TEXT NOT NULL,
       server_revision INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS countdowns (
+      id TEXT PRIMARY KEY NOT NULL,
+      title TEXT NOT NULL,
+      target_date TEXT NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      device_id TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0
+    );
     CREATE TABLE IF NOT EXISTS import_batches (
       id TEXT PRIMARY KEY NOT NULL,
       source TEXT NOT NULL,
@@ -402,7 +414,7 @@ function createSchema(db: Database.Database): void {
   `);
 }
 
-function migrateToV6(db: Database.Database, fromVersion: number): void {
+function migrateToV7(db: Database.Database, fromVersion: number): void {
   if (fromVersion > SCHEMA_VERSION)
     throw new Error(`数据库版本 ${fromVersion} 高于客户端支持版本`);
   const run = db.transaction(() => {
@@ -475,7 +487,8 @@ function migrateToV6(db: Database.Database, fromVersion: number): void {
       CREATE INDEX IF NOT EXISTS tasks_due_idx ON tasks(due_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS focus_start_idx ON focus_sessions(start_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS life_events_time_idx ON life_events(occurred_at) WHERE deleted_at IS NULL;
-      PRAGMA user_version = 6;
+      CREATE INDEX IF NOT EXISTS countdowns_target_idx ON countdowns(target_date) WHERE deleted_at IS NULL;
+      PRAGMA user_version = 7;
     `);
   });
   run();
@@ -521,7 +534,7 @@ export function initializeDatabase(
     db.pragma("busy_timeout = 5000");
     const fromVersion = Number(db.pragma("user_version", { simple: true }));
     const before = snapshot(db);
-    migrateToV6(db, fromVersion);
+    migrateToV7(db, fromVersion);
     verifySnapshot(before, db);
     const integrity = String(db.pragma("integrity_check", { simple: true }));
     if (integrity !== "ok")

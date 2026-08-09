@@ -90,7 +90,7 @@ export function MemosPage(props: {
   const tagMap = new Map((tags.data ?? []).map((item) => [item.id, item]));
   return (
     <div className="page memos-page">
-      <header className="memo-header">
+      <header className="task-workspace-header memo-header">
         <h1>备忘</h1>
         <div>
           <Input
