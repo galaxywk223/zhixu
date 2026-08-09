@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FluentProvider, Spinner } from "@fluentui/react-components";
-import type { TaskRecord } from "../../preload/api-types";
+import type { TaskRecord, TomatoPreview } from "../../preload/api-types";
 import { SearchDialog } from "./components/SearchDialog";
 import { routeForNumericShortcut, Shell, type Route } from "./components/Shell";
 import { TaskEditor } from "./components/TaskEditor";
@@ -39,6 +39,7 @@ export function App(): React.JSX.Element {
   const [selectedCountdownId, setSelectedCountdownId] = useState<string | null>(
     null,
   );
+  const [focusPreview, setFocusPreview] = useState<TomatoPreview | null>(null);
   const [dragging, setDragging] = useState(false);
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
@@ -136,17 +137,8 @@ export function App(): React.JSX.Element {
     if (!file) return;
     if (file.name.toLocaleLowerCase().endsWith(".xls")) {
       const preview = await window.zhixu.focus.previewDropped(file);
+      setFocusPreview(preview);
       setRoute("focus");
-      if (
-        confirm(
-          `导入 ${preview.fileName} 的 ${preview.sessions.length} 条记录？`,
-        )
-      ) {
-        const result = await window.zhixu.focus.confirm(preview.token);
-        alert(
-          `导入完成：新增 ${result.importedCount}，更新 ${result.updatedCount}，跳过 ${result.skippedCount}`,
-        );
-      }
       return;
     }
     if (file.name.toLocaleLowerCase().endsWith(".zip")) {
@@ -177,7 +169,9 @@ export function App(): React.JSX.Element {
     memos: <MemosPage initialSelectedId={selectedMemoId} />,
     countdowns: <CountdownsPage initialSelectedId={selectedCountdownId} />,
     calendar: <CalendarPage onNewTask={openNew} />,
-    focus: <FocusPage />,
+    focus: (
+      <FocusPage preview={focusPreview} onPreviewChange={setFocusPreview} />
+    ),
     sleep: <SleepPage />,
     notes: <NotesPage initialSelectedId={selectedNoteId} />,
     stats: <StatsPage />,

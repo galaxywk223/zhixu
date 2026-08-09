@@ -34,7 +34,10 @@ import type {
   TagRecord,
   TaskRecord,
   TaskBatchResult,
+  TomatoImportRow,
   TomatoPreview,
+  TomatoPreviewCounts,
+  TomatoRowAction,
 } from "../preload/api-types";
 import { classifyLifeEvent, normalizeLegacyTomatoText } from "../shared/domain";
 import { normalizeTagName, tagColorHex } from "../shared/tag-colors";
@@ -62,6 +65,13 @@ const dataTables = [
 ] as const;
 
 type SqlRow = Record<string, unknown>;
+
+type TomatoEntityType = "focus_session" | "life_event";
+
+interface TomatoEntity {
+  entityType: TomatoEntityType;
+  row: SqlRow;
+}
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -755,7 +765,32 @@ export class ZhixuStore {
     }));
   }
 
-  importTomato(preview: TomatoPreview): ImportResult {
+  previewTomatoImport(preview: TomatoPreview): TomatoPreview {
+    const rows = preview.rows.map((row) => ({
+      ...row,
+      action: this.tomatoRowAction(row),
+    }));
+    const counts: TomatoPreviewCounts = {
+      create: 0,
+      update: 0,
+      unchanged: 0,
+      reconcile: 0,
+      excluded: 0,
+      error: 0,
+    };
+    for (const row of rows) counts[row.action] += 1;
+    return {
+      ...preview,
+      rows,
+      counts,
+      canCommit: counts.error === 0 && rows.length > 0,
+    };
+  }
+
+  importTomato(input: TomatoPreview): ImportResult {
+    const preview = this.previewTomatoImport(input);
+    if (!preview.canCommit) throw new Error("导入预检包含错误，无法提交");
+
     const batchId = randomUUID();
     const now = nowSeconds();
     let importedCount = 0;
@@ -763,6 +798,8 @@ export class ZhixuStore {
     let skippedCount = 0;
     let focusImportedCount = 0;
     let lifeEventImportedCount = 0;
+    let reconciledCount = 0;
+    let excludedCount = 0;
 
     const run = this.db.transaction(() => {
       this.db
@@ -784,199 +821,63 @@ export class ZhixuStore {
           now,
         );
 
-      for (const session of preview.sessions) {
-        const taskName =
-          normalizeLegacyTomatoText(session.taskName).trim() || "未命名记录";
-        if (session.durationMinutes > 0) {
-          const existing = this.db
-            .prepare(
-              "SELECT * FROM focus_sessions WHERE source_key IN (?, ?) ORDER BY updated_at DESC LIMIT 1",
+      for (const row of preview.rows) {
+        const action = this.tomatoRowAction(row);
+        if (action === "error")
+          throw new Error(
+            `第 ${row.sourceRow} 行预检失败：${row.reason ?? "未知错误"}`,
+          );
+        if (row.classification === "excluded") excludedCount += 1;
+        if (action === "excluded") continue;
+        if (action === "unchanged") {
+          skippedCount += 1;
+          continue;
+        }
+
+        const targetType = this.tomatoTargetType(row);
+        const entities = this.findTomatoEntities(row);
+        if (action === "reconcile") {
+          const keep = targetType
+            ? entities.find((entity) => entity.entityType === targetType)
+            : undefined;
+          for (const entity of entities) {
+            if (
+              keep &&
+              entity.entityType === keep.entityType &&
+              entity.row.id === keep.row.id
             )
-            .get(
-              session.sourceKey,
-              session.legacySourceKey ?? session.sourceKey,
-            ) as SqlRow | undefined;
-          const payload = {
-            source_key: session.sourceKey,
-            task_name: taskName,
-            start_at: toEpoch(session.startAt),
-            end_at: toEpoch(session.endAt),
-            duration_minutes: session.durationMinutes,
-            reflection: session.reflection,
-            status: normalizeLegacyTomatoText(session.status),
-          };
-          if (!existing) {
-            const id = randomUUID();
-            this.db
-              .prepare(
-                `INSERT INTO focus_sessions
-                 (id, source_key, source, start_at, end_at, task_name, duration_minutes, reflection, status,
-                  import_batch_id, created_at, updated_at, device_id, server_revision)
-                 VALUES (?, ?, 'tomatodo', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'electron-windows', 0)`,
-              )
-              .run(
-                id,
-                payload.source_key,
-                payload.start_at,
-                payload.end_at,
-                payload.task_name,
-                payload.duration_minutes,
-                payload.reflection,
-                payload.status,
-                batchId,
-                now,
-                now,
-              );
-            this.recordImportChange(
-              batchId,
-              "focus_session",
-              id,
-              "insert",
-              null,
-              payload,
-              now,
-            );
-            this.enqueue(
-              "focus_session",
-              id,
-              "upsert",
-              this.db
-                .prepare("SELECT * FROM focus_sessions WHERE id = ?")
-                .get(id) as SqlRow,
-            );
-            importedCount += 1;
-            focusImportedCount += 1;
-          } else {
-            const unchanged =
-              String(existing.task_name) === payload.task_name &&
-              Number(existing.duration_minutes) === payload.duration_minutes &&
-              String(existing.status) === payload.status &&
-              existing.deleted_at == null;
-            if (unchanged) {
-              skippedCount += 1;
-            } else {
-              const before = { ...existing };
-              this.db
-                .prepare(
-                  `UPDATE focus_sessions SET source_key = ?, task_name = ?, start_at = ?, end_at = ?,
-                   duration_minutes = ?, reflection = ?, status = ?, import_batch_id = ?, updated_at = ?, deleted_at = NULL
-                   WHERE id = ?`,
-                )
-                .run(
-                  payload.source_key,
-                  payload.task_name,
-                  payload.start_at,
-                  payload.end_at,
-                  payload.duration_minutes,
-                  payload.reflection,
-                  payload.status,
-                  batchId,
-                  now,
-                  existing.id,
-                );
-              this.recordImportChange(
-                batchId,
-                "focus_session",
-                String(existing.id),
-                "update",
-                before,
-                payload,
-                now,
-              );
-              updatedCount += 1;
-            }
+              continue;
+            if (entity.row.deleted_at == null)
+              this.softDeleteTomatoEntity(batchId, entity, now);
           }
-          this.ensureTomatoCategory(taskName, now);
+          if (targetType) this.upsertTomatoRow(batchId, row, keep, now);
+          reconciledCount += 1;
+          continue;
+        }
+
+        if (!targetType)
+          throw new Error(`第 ${row.sourceRow} 行缺少可导入的记录类型`);
+        const existing = entities.find(
+          (entity) => entity.entityType === targetType,
+        );
+        const inserted = this.upsertTomatoRow(batchId, row, existing, now);
+        if (inserted) {
+          importedCount += 1;
+          if (targetType === "focus_session") focusImportedCount += 1;
+          else lifeEventImportedCount += 1;
         } else {
-          const kind = classifyLifeEvent(taskName);
-          const existing = this.db
-            .prepare(
-              "SELECT * FROM life_events WHERE source_key IN (?, ?) ORDER BY updated_at DESC LIMIT 1",
-            )
-            .get(
-              session.sourceKey,
-              session.legacySourceKey ?? session.sourceKey,
-            ) as SqlRow | undefined;
-          if (
-            existing &&
-            existing.deleted_at == null &&
-            String(existing.title) === taskName
-          ) {
-            skippedCount += 1;
-          } else if (existing) {
-            const before = { ...existing };
-            this.db
-              .prepare(
-                `UPDATE life_events SET source_key = ?, kind = ?, title = ?, occurred_at = ?, note = ?,
-                 import_batch_id = ?, updated_at = ?, deleted_at = NULL WHERE id = ?`,
-              )
-              .run(
-                session.sourceKey,
-                kind,
-                taskName,
-                toEpoch(session.startAt),
-                session.reflection,
-                batchId,
-                now,
-                existing.id,
-              );
-            this.recordImportChange(
-              batchId,
-              "life_event",
-              String(existing.id),
-              "update",
-              before,
-              null,
-              now,
-            );
-            updatedCount += 1;
-          } else {
-            const id = randomUUID();
-            this.db
-              .prepare(
-                `INSERT INTO life_events
-                 (id, source_key, source, kind, title, occurred_at, note, import_batch_id,
-                  created_at, updated_at, device_id, server_revision)
-                 VALUES (?, ?, 'tomatodo', ?, ?, ?, ?, ?, ?, ?, 'electron-windows', 0)`,
-              )
-              .run(
-                id,
-                session.sourceKey,
-                kind,
-                taskName,
-                toEpoch(session.startAt),
-                session.reflection,
-                batchId,
-                now,
-                now,
-              );
-            this.recordImportChange(
-              batchId,
-              "life_event",
-              id,
-              "insert",
-              null,
-              null,
-              now,
-            );
-            this.enqueue(
-              "life_event",
-              id,
-              "upsert",
-              this.db
-                .prepare("SELECT * FROM life_events WHERE id = ?")
-                .get(id) as SqlRow,
-            );
-            importedCount += 1;
-            lifeEventImportedCount += 1;
-          }
+          updatedCount += 1;
         }
       }
       this.db
         .prepare(
           "UPDATE import_batches SET imported_count = ?, skipped_count = ? WHERE id = ?",
         )
-        .run(importedCount + updatedCount, skippedCount, batchId);
+        .run(
+          importedCount + updatedCount + reconciledCount,
+          skippedCount + excludedCount,
+          batchId,
+        );
     });
     run();
     return {
@@ -985,7 +886,284 @@ export class ZhixuStore {
       skippedCount,
       focusImportedCount,
       lifeEventImportedCount,
+      reconciledCount,
+      excludedCount,
+      errorCount: 0,
     };
+  }
+
+  private tomatoTargetType(row: TomatoImportRow): TomatoEntityType | null {
+    if (row.classification === "focus") return "focus_session";
+    if (row.classification === "life_event") return "life_event";
+    return null;
+  }
+
+  private findTomatoEntities(row: TomatoImportRow): TomatoEntity[] {
+    if (!row.sourceKey) return [];
+    const alias = row.legacySourceKey ?? row.sourceKey;
+    const collect = (
+      table: "focus_sessions" | "life_events",
+      entityType: TomatoEntityType,
+    ): TomatoEntity[] =>
+      (
+        this.db
+          .prepare(
+            `SELECT * FROM ${table}
+             WHERE source = 'tomatodo' AND source_key IN (?, ?)
+             ORDER BY CASE WHEN source_key = ? THEN 0 ELSE 1 END,
+                      CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END,
+                      updated_at DESC`,
+          )
+          .all(row.sourceKey, alias, row.sourceKey) as SqlRow[]
+      ).map((value) => ({ entityType, row: value }));
+    return [
+      ...collect("focus_sessions", "focus_session"),
+      ...collect("life_events", "life_event"),
+    ];
+  }
+
+  private tomatoRowAction(row: TomatoImportRow): TomatoRowAction {
+    if (row.classification === "error") return "error";
+    const entities = this.findTomatoEntities(row);
+    const active = entities.filter((entity) => entity.row.deleted_at == null);
+    const targetType = this.tomatoTargetType(row);
+    if (!targetType) return active.length > 0 ? "reconcile" : "excluded";
+
+    const targets = entities.filter(
+      (entity) => entity.entityType === targetType,
+    );
+    const target = targets[0];
+    const extraActive = active.some(
+      (entity) =>
+        !target ||
+        entity.entityType !== target.entityType ||
+        entity.row.id !== target.row.id,
+    );
+    if (!target) return active.length > 0 ? "reconcile" : "create";
+    if (extraActive) return "reconcile";
+    return this.tomatoEntityMatches(target, row) ? "unchanged" : "update";
+  }
+
+  private tomatoEntityMatches(
+    entity: TomatoEntity,
+    row: TomatoImportRow,
+  ): boolean {
+    if (!row.sourceKey || !row.startAt || row.durationMinutes == null)
+      return false;
+    if (entity.row.deleted_at != null) return false;
+    if (entity.entityType === "focus_session") {
+      return (
+        String(entity.row.source_key) === row.sourceKey &&
+        String(entity.row.task_name) === row.taskName.trim() &&
+        Number(entity.row.start_at) === toEpoch(row.startAt) &&
+        Number(entity.row.end_at) === toEpoch(row.endAt) &&
+        Number(entity.row.duration_minutes) === row.durationMinutes &&
+        (entity.row.reflection == null
+          ? null
+          : String(entity.row.reflection)) === row.reflection &&
+        String(entity.row.status) === row.status
+      );
+    }
+    return (
+      String(entity.row.source_key) === row.sourceKey &&
+      String(entity.row.kind) === classifyLifeEvent(row.taskName) &&
+      String(entity.row.title) === row.taskName.trim() &&
+      Number(entity.row.occurred_at) === toEpoch(row.startAt) &&
+      (entity.row.note == null ? null : String(entity.row.note)) ===
+        row.reflection
+    );
+  }
+
+  private upsertTomatoRow(
+    batchId: string,
+    row: TomatoImportRow,
+    existing: TomatoEntity | undefined,
+    now: number,
+  ): boolean {
+    if (
+      !row.sourceKey ||
+      !row.startAt ||
+      !row.endAt ||
+      row.durationMinutes == null
+    )
+      throw new Error(`第 ${row.sourceRow} 行缺少导入字段`);
+    const taskName = normalizeLegacyTomatoText(row.taskName).trim();
+    const targetType = this.tomatoTargetType(row);
+    if (!targetType) throw new Error(`第 ${row.sourceRow} 行没有目标记录类型`);
+
+    if (targetType === "focus_session") {
+      if (!existing) {
+        const id = randomUUID();
+        this.db
+          .prepare(
+            `INSERT INTO focus_sessions
+             (id, source_key, source, start_at, end_at, task_name, duration_minutes, reflection, status,
+              import_batch_id, created_at, updated_at, device_id, server_revision)
+             VALUES (?, ?, 'tomatodo', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'electron-windows', 0)`,
+          )
+          .run(
+            id,
+            row.sourceKey,
+            toEpoch(row.startAt),
+            toEpoch(row.endAt),
+            taskName,
+            row.durationMinutes,
+            row.reflection,
+            row.status,
+            batchId,
+            now,
+            now,
+          );
+        const after = this.db
+          .prepare("SELECT * FROM focus_sessions WHERE id = ?")
+          .get(id) as SqlRow;
+        this.recordImportChange(
+          batchId,
+          targetType,
+          id,
+          "insert",
+          null,
+          after,
+          now,
+        );
+        this.enqueue(targetType, id, "upsert", after);
+        this.ensureTomatoCategory(taskName, now);
+        return true;
+      }
+      const before = { ...existing.row };
+      this.db
+        .prepare(
+          `UPDATE focus_sessions SET source_key = ?, task_name = ?, start_at = ?, end_at = ?,
+           duration_minutes = ?, reflection = ?, status = ?, import_batch_id = ?, updated_at = ?, deleted_at = NULL
+           WHERE id = ?`,
+        )
+        .run(
+          row.sourceKey,
+          taskName,
+          toEpoch(row.startAt),
+          toEpoch(row.endAt),
+          row.durationMinutes,
+          row.reflection,
+          row.status,
+          batchId,
+          now,
+          existing.row.id,
+        );
+      const after = this.db
+        .prepare("SELECT * FROM focus_sessions WHERE id = ?")
+        .get(existing.row.id) as SqlRow;
+      this.recordImportChange(
+        batchId,
+        targetType,
+        String(existing.row.id),
+        "update",
+        before,
+        after,
+        now,
+      );
+      this.enqueue(targetType, String(existing.row.id), "upsert", after);
+      this.ensureTomatoCategory(taskName, now);
+      return false;
+    }
+
+    const kind = classifyLifeEvent(taskName);
+    if (!existing) {
+      const id = randomUUID();
+      this.db
+        .prepare(
+          `INSERT INTO life_events
+           (id, source_key, source, kind, title, occurred_at, note, import_batch_id,
+            created_at, updated_at, device_id, server_revision)
+           VALUES (?, ?, 'tomatodo', ?, ?, ?, ?, ?, ?, ?, 'electron-windows', 0)`,
+        )
+        .run(
+          id,
+          row.sourceKey,
+          kind,
+          taskName,
+          toEpoch(row.startAt),
+          row.reflection,
+          batchId,
+          now,
+          now,
+        );
+      const after = this.db
+        .prepare("SELECT * FROM life_events WHERE id = ?")
+        .get(id) as SqlRow;
+      this.recordImportChange(
+        batchId,
+        targetType,
+        id,
+        "insert",
+        null,
+        after,
+        now,
+      );
+      this.enqueue(targetType, id, "upsert", after);
+      return true;
+    }
+    const before = { ...existing.row };
+    this.db
+      .prepare(
+        `UPDATE life_events SET source_key = ?, kind = ?, title = ?, occurred_at = ?, note = ?,
+         import_batch_id = ?, updated_at = ?, deleted_at = NULL WHERE id = ?`,
+      )
+      .run(
+        row.sourceKey,
+        kind,
+        taskName,
+        toEpoch(row.startAt),
+        row.reflection,
+        batchId,
+        now,
+        existing.row.id,
+      );
+    const after = this.db
+      .prepare("SELECT * FROM life_events WHERE id = ?")
+      .get(existing.row.id) as SqlRow;
+    this.recordImportChange(
+      batchId,
+      targetType,
+      String(existing.row.id),
+      "update",
+      before,
+      after,
+      now,
+    );
+    this.enqueue(targetType, String(existing.row.id), "upsert", after);
+    return false;
+  }
+
+  private softDeleteTomatoEntity(
+    batchId: string,
+    entity: TomatoEntity,
+    now: number,
+  ): void {
+    const table =
+      entity.entityType === "focus_session" ? "focus_sessions" : "life_events";
+    const before = { ...entity.row };
+    this.db
+      .prepare(
+        `UPDATE ${table} SET deleted_at = ?, import_batch_id = ?, updated_at = ? WHERE id = ?`,
+      )
+      .run(now, batchId, now, entity.row.id);
+    const after = this.db
+      .prepare(`SELECT * FROM ${table} WHERE id = ?`)
+      .get(entity.row.id) as SqlRow;
+    this.recordImportChange(
+      batchId,
+      entity.entityType,
+      String(entity.row.id),
+      "update",
+      before,
+      after,
+      now,
+    );
+    this.enqueue(entity.entityType, String(entity.row.id), "delete", {
+      id: String(entity.row.id),
+      deleted_at: now,
+      server_revision: entity.row.server_revision ?? 0,
+    });
   }
 
   rollbackImportBatch(batchId: string): void {
@@ -1007,9 +1185,40 @@ export class ZhixuStore {
               `UPDATE ${table} SET deleted_at = ?, updated_at = ? WHERE id = ?`,
             )
             .run(now, now, change.entity_id);
+          this.enqueue(
+            String(change.entity_type),
+            String(change.entity_id),
+            "delete",
+            {
+              id: String(change.entity_id),
+              deleted_at: now,
+            },
+          );
         } else if (change.before_json) {
           const before = JSON.parse(String(change.before_json)) as SqlRow;
           this.updateFromObject(table, String(change.entity_id), before);
+          const restored = this.db
+            .prepare(`SELECT * FROM ${table} WHERE id = ?`)
+            .get(change.entity_id) as SqlRow;
+          if (restored.deleted_at == null) {
+            this.enqueue(
+              String(change.entity_type),
+              String(change.entity_id),
+              "upsert",
+              restored,
+            );
+          } else {
+            this.enqueue(
+              String(change.entity_type),
+              String(change.entity_id),
+              "delete",
+              {
+                id: String(change.entity_id),
+                deleted_at: restored.deleted_at,
+                server_revision: restored.server_revision ?? 0,
+              },
+            );
+          }
         }
       }
       this.db

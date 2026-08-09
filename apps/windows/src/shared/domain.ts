@@ -150,7 +150,7 @@ export function normalizeLegacyTomatoText(value: string): string {
 
 export function classifyLifeEvent(value: string): "sleep" | "wake" | "other" {
   const normalized = normalizeLegacyTomatoText(value).toLowerCase();
-  if (/(睡觉|入睡|sleep)/.test(normalized)) return "sleep";
+  if (/(睡眠|睡觉|入睡|sleep)/.test(normalized)) return "sleep";
   if (/(起床|醒来|wake)/.test(normalized)) return "wake";
   return "other";
 }

@@ -13,11 +13,38 @@ import {
   ArrowUpload20Regular,
   ArrowUndo20Regular,
 } from "@fluentui/react-icons";
-import type { TomatoPreview } from "../../../preload/api-types";
+import type {
+  TomatoImportRow,
+  TomatoPreview,
+  TomatoRowAction,
+} from "../../../preload/api-types";
 import { EmptyState, Loading, PageHeader, StatCard } from "../components/Page";
 import { queryKeys } from "../query";
 
-export function FocusPage(): React.JSX.Element {
+interface FocusPageProps {
+  preview: TomatoPreview | null;
+  onPreviewChange(preview: TomatoPreview | null): void;
+}
+
+const actionLabels: Record<TomatoRowAction, string> = {
+  create: "新增",
+  update: "更新",
+  unchanged: "重复",
+  reconcile: "纠正",
+  excluded: "排除",
+  error: "错误",
+};
+
+function rowType(row: TomatoImportRow): string {
+  if (row.classification === "focus") return "专注";
+  if (row.classification === "life_event") return "生活事件";
+  return "不导入";
+}
+
+export function FocusPage({
+  preview,
+  onPreviewChange,
+}: FocusPageProps): React.JSX.Element {
   const client = useQueryClient();
   const sessions = useQuery({
     queryKey: queryKeys.focus,
@@ -32,21 +59,27 @@ export function FocusPage(): React.JSX.Element {
     queryFn: window.zhixu.dashboard.summary,
   });
   const [range, setRange] = useState<"today" | "7" | "30" | "all">("30");
-  const [preview, setPreview] = useState<TomatoPreview | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const previewImport = useMutation({
     mutationFn: window.zhixu.focus.preview,
-    onSuccess: setPreview,
+    onSuccess: (value) => {
+      setImportError(null);
+      if (value) onPreviewChange(value);
+    },
+    onError: (error) => setImportError(String(error)),
   });
   const confirmImport = useMutation({
     mutationFn: (token: string) => window.zhixu.focus.confirm(token),
     onSuccess: async (result) => {
-      setPreview(null);
+      onPreviewChange(null);
+      setImportError(null);
       setMessage(
-        `新增 ${result.importedCount} 条，更新 ${result.updatedCount} 条，跳过 ${result.skippedCount} 条`,
+        `新增 ${result.importedCount} 条，更新 ${result.updatedCount} 条，纠正 ${result.reconciledCount} 条，重复 ${result.skippedCount} 条，排除 ${result.excludedCount} 条`,
       );
       await client.invalidateQueries();
     },
+    onError: (error) => setImportError(String(error)),
   });
   const rollback = useMutation({
     mutationFn: window.zhixu.focus.rollback,
@@ -60,6 +93,9 @@ export function FocusPage(): React.JSX.Element {
   const filtered = (sessions.data ?? []).filter(
     (item) => Date.parse(item.startAt) >= cutoff,
   );
+  const declaredMismatch =
+    preview?.declaredMinutes != null &&
+    preview.declaredMinutes !== preview.calculatedMinutes;
   return (
     <div className="page">
       <PageHeader
@@ -93,6 +129,9 @@ export function FocusPage(): React.JSX.Element {
         <StatCard label="当前记录" value={sessions.data?.length ?? 0} />
       </div>
       {message ? <div className="success-message">{message}</div> : null}
+      {importError && !preview ? (
+        <div className="error-message">{importError}</div>
+      ) : null}
       <div className="filter-bar">
         <div className="segmented">
           {(
@@ -180,42 +219,125 @@ export function FocusPage(): React.JSX.Element {
       <Dialog
         open={preview !== null}
         onOpenChange={(_, data) => {
-          if (!data.open) setPreview(null);
+          if (!data.open) onPreviewChange(null);
         }}
       >
-        <DialogSurface>
+        <DialogSurface className="import-preview-dialog">
           <DialogBody>
-            <DialogTitle>确认导入番茄记录</DialogTitle>
+            <DialogTitle>导入番茄记录</DialogTitle>
             <DialogContent>
               {preview ? (
-                <div className="preview-summary">
-                  <p>
+                <div className="import-preview">
+                  <div className="import-preview-file">
                     <strong>{preview.fileName}</strong>
-                  </p>
-                  <p>导出用户：{preview.exportUser ?? "未知"}</p>
-                  <p>
-                    记录：{preview.sessions.length} 条，其中正时长{" "}
-                    {
-                      preview.sessions.filter(
-                        (item) => item.durationMinutes > 0,
-                      ).length
-                    }{" "}
-                    条
-                  </p>
-                  <p>声明专注：{preview.declaredMinutes ?? 0} 分钟</p>
-                  <p className="muted">
-                    重复记录按时间键跳过，零分钟记录只作为生活事件导入。
-                  </p>
+                    <span>
+                      {preview.exportUser ?? "未知用户"} · {preview.rows.length}{" "}
+                      条
+                    </span>
+                  </div>
+                  <div className="import-preview-metrics">
+                    <div>
+                      <span>专注</span>
+                      <strong>{preview.focusCount} 条</strong>
+                    </div>
+                    <div>
+                      <span>生活事件</span>
+                      <strong>{preview.lifeEventCount} 条</strong>
+                    </div>
+                    <div>
+                      <span>有效时长</span>
+                      <strong>{preview.calculatedMinutes} 分钟</strong>
+                    </div>
+                    <div>
+                      <span>数据变更</span>
+                      <strong>
+                        {preview.counts.create +
+                          preview.counts.update +
+                          preview.counts.reconcile}{" "}
+                        条
+                      </strong>
+                    </div>
+                  </div>
+                  <div className="import-preview-outcomes">
+                    <span>新增 {preview.counts.create}</span>
+                    <span>更新 {preview.counts.update}</span>
+                    <span>纠正 {preview.counts.reconcile}</span>
+                    <span>重复 {preview.counts.unchanged}</span>
+                    <span>排除 {preview.counts.excluded}</span>
+                    <span className={preview.counts.error ? "danger" : ""}>
+                      错误 {preview.counts.error}
+                    </span>
+                  </div>
+                  {declaredMismatch ? (
+                    <div className="warning-message">
+                      文件声明 {preview.declaredMinutes} 分钟，按有效记录计算为{" "}
+                      {preview.calculatedMinutes} 分钟。
+                    </div>
+                  ) : null}
+                  {importError ? (
+                    <div className="error-message">{importError}</div>
+                  ) : null}
+                  <div className="import-preview-table-wrap">
+                    <table className="import-preview-table">
+                      <thead>
+                        <tr>
+                          <th>行</th>
+                          <th>时间</th>
+                          <th>事项</th>
+                          <th>类型</th>
+                          <th>时长</th>
+                          <th>处理</th>
+                          <th>说明</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.rows.map((row) => (
+                          <tr key={row.sourceRow} data-action={row.action}>
+                            <td>{row.sourceRow}</td>
+                            <td>
+                              {row.startAt
+                                ? new Date(row.startAt).toLocaleString(
+                                    "zh-CN",
+                                    {
+                                      month: "2-digit",
+                                      day: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )
+                                : "—"}
+                            </td>
+                            <td>{row.taskName || "—"}</td>
+                            <td>{rowType(row)}</td>
+                            <td>
+                              {row.durationMinutes == null
+                                ? "—"
+                                : `${row.durationMinutes} 分钟`}
+                            </td>
+                            <td>
+                              <span className="import-action">
+                                {actionLabels[row.action]}
+                              </span>
+                            </td>
+                            <td>
+                              {row.reason || row.warnings.join("；") || "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : null}
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setPreview(null)}>取消</Button>
+              <Button onClick={() => onPreviewChange(null)}>取消</Button>
               <Button
                 appearance="primary"
+                disabled={!preview?.canCommit || confirmImport.isPending}
                 onClick={() => preview && confirmImport.mutate(preview.token)}
               >
-                确认导入
+                {confirmImport.isPending ? "正在导入" : "确认导入"}
               </Button>
             </DialogActions>
           </DialogBody>

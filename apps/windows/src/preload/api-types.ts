@@ -135,16 +135,43 @@ export interface TomatoPreview {
   declaredRecords: number | null;
   rangeStart: string | null;
   rangeEnd: string | null;
-  sessions: Array<{
-    sourceKey: string;
-    legacySourceKey: string | null;
-    startAt: string;
-    endAt: string;
-    taskName: string;
-    durationMinutes: number;
-    reflection: string | null;
-    status: string;
-  }>;
+  calculatedMinutes: number;
+  focusCount: number;
+  lifeEventCount: number;
+  counts: TomatoPreviewCounts;
+  canCommit: boolean;
+  rows: TomatoImportRow[];
+}
+
+export type TomatoRowClassification =
+  "focus" | "life_event" | "excluded" | "error";
+
+export type TomatoRowAction =
+  "create" | "update" | "unchanged" | "reconcile" | "excluded" | "error";
+
+export interface TomatoPreviewCounts {
+  create: number;
+  update: number;
+  unchanged: number;
+  reconcile: number;
+  excluded: number;
+  error: number;
+}
+
+export interface TomatoImportRow {
+  sourceRow: number;
+  sourceKey: string | null;
+  legacySourceKey: string | null;
+  startAt: string | null;
+  endAt: string | null;
+  taskName: string;
+  durationMinutes: number | null;
+  reflection: string | null;
+  status: string;
+  classification: TomatoRowClassification;
+  action: TomatoRowAction;
+  reason: string | null;
+  warnings: string[];
 }
 
 export interface ImportResult {
@@ -153,6 +180,9 @@ export interface ImportResult {
   skippedCount: number;
   focusImportedCount: number;
   lifeEventImportedCount: number;
+  reconciledCount: number;
+  excludedCount: number;
+  errorCount: number;
 }
 
 export interface DashboardSummary {

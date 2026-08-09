@@ -970,6 +970,119 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.import-preview-dialog {
+  width: min(1040px, calc(100vw - 48px));
+  max-width: none;
+}
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.import-preview-file {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.import-preview-file strong {
+  overflow-wrap: anywhere;
+  font-size: var(--font-important);
+}
+.import-preview-file span {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+.import-preview-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block: 1px solid var(--border);
+}
+.import-preview-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-left: 1px solid var(--border);
+}
+.import-preview-metrics > div:first-child {
+  border-left: 0;
+}
+.import-preview-metrics span {
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+.import-preview-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  color: var(--muted);
+}
+.import-preview-outcomes .danger {
+  color: var(--danger);
+}
+.warning-message {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border));
+  padding: 9px 11px;
+  border-radius: 4px;
+}
+.import-preview-table-wrap {
+  max-height: min(430px, 48vh);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.import-preview-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-caption);
+}
+.import-preview-table th,
+.import-preview-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.import-preview-table th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  color: var(--muted);
+  background: var(--surface2);
+  font-weight: 600;
+}
+.import-preview-table th:nth-child(1) {
+  width: 46px;
+}
+.import-preview-table th:nth-child(2) {
+  width: 126px;
+}
+.import-preview-table th:nth-child(4),
+.import-preview-table th:nth-child(5),
+.import-preview-table th:nth-child(6) {
+  width: 90px;
+}
+.import-preview-table tr:last-child td {
+  border-bottom: 0;
+}
+.import-action {
+  font-weight: 600;
+}
+.import-preview-table tr[data-action="create"] .import-action,
+.import-preview-table tr[data-action="update"] .import-action {
+  color: var(--accent);
+}
+.import-preview-table tr[data-action="reconcile"] .import-action {
+  color: var(--warning);
+}
+.import-preview-table tr[data-action="error"] .import-action {
+  color: var(--danger);
+}
 .batch-list,
 .event-list,
 .sleep-records {

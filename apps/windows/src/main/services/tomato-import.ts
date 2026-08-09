@@ -7,15 +7,19 @@ import { spawn } from "node:child_process";
 import type { ImportResult, TomatoPreview } from "../../preload/api-types";
 import { ZhixuStore } from "../store";
 
-interface RawTomatoSession {
-  source_key: string;
+interface RawTomatoRow {
+  source_row: number;
+  source_key?: string;
   legacy_source_key?: string;
-  start_local: string;
-  end_local: string;
+  start_local?: string;
+  end_local?: string;
   task_name?: string;
   duration_minutes?: number;
   reflection?: string;
   status?: string;
+  classification?: "focus" | "life_event" | "excluded" | "error";
+  reason?: string;
+  warnings?: string[];
 }
 
 interface RawTomatoPayload {
@@ -27,7 +31,7 @@ interface RawTomatoPayload {
   declared_records?: number;
   range_start?: string;
   range_end?: string;
-  sessions?: RawTomatoSession[];
+  rows?: RawTomatoRow[];
 }
 
 function localToIso(value: string | undefined): string | null {
@@ -70,11 +74,26 @@ export class TomatoImportService {
     const executable = this.resolveExecutable();
     const stdout = await this.run(executable, filePath);
     const raw = JSON.parse(stdout) as RawTomatoPayload;
-    if (raw.schema_version !== 3 || raw.source !== "tomatodo")
+    if (raw.schema_version !== 4 || raw.source !== "tomatodo")
       throw new Error("不支持的番茄 TODO 解析结果");
     const token = randomUUID();
     const bytes = await readFile(filePath);
-    const preview: TomatoPreview = {
+    const rows = (raw.rows ?? []).map((row) => ({
+      sourceRow: row.source_row,
+      sourceKey: row.source_key ?? null,
+      legacySourceKey: row.legacy_source_key ?? null,
+      startAt: localToIso(row.start_local),
+      endAt: localToIso(row.end_local),
+      taskName: row.task_name ?? "",
+      durationMinutes: row.duration_minutes ?? null,
+      reflection: row.reflection ?? null,
+      status: row.status ?? "",
+      classification: row.classification ?? ("error" as const),
+      action: "error" as const,
+      reason: row.reason ?? null,
+      warnings: row.warnings ?? [],
+    }));
+    const parsed: TomatoPreview = {
       token,
       fileName: basename(filePath),
       fileHash: createHash("sha256").update(bytes).digest("hex"),
@@ -83,17 +102,24 @@ export class TomatoImportService {
       declaredRecords: raw.declared_records ?? null,
       rangeStart: localToIso(raw.range_start),
       rangeEnd: localToIso(raw.range_end),
-      sessions: (raw.sessions ?? []).map((session) => ({
-        sourceKey: session.source_key,
-        legacySourceKey: session.legacy_source_key ?? null,
-        startAt: localToIso(session.start_local) ?? new Date(0).toISOString(),
-        endAt: localToIso(session.end_local) ?? new Date(0).toISOString(),
-        taskName: session.task_name ?? "",
-        durationMinutes: session.duration_minutes ?? 0,
-        reflection: session.reflection ?? null,
-        status: session.status ?? "",
-      })),
+      calculatedMinutes: rows
+        .filter((row) => row.classification === "focus")
+        .reduce((sum, row) => sum + Math.max(0, row.durationMinutes ?? 0), 0),
+      focusCount: rows.filter((row) => row.classification === "focus").length,
+      lifeEventCount: rows.filter((row) => row.classification === "life_event")
+        .length,
+      counts: {
+        create: 0,
+        update: 0,
+        unchanged: 0,
+        reconcile: 0,
+        excluded: 0,
+        error: 0,
+      },
+      canCommit: false,
+      rows,
     };
+    const preview = this.store.previewTomatoImport(parsed);
     this.pending.set(token, preview);
     return preview;
   }
@@ -101,8 +127,9 @@ export class TomatoImportService {
   confirm(token: string): ImportResult {
     const preview = this.pending.get(token);
     if (!preview) throw new Error("导入预览已失效，请重新选择文件");
+    const result = this.store.importTomato(preview);
     this.pending.delete(token);
-    return this.store.importTomato(preview);
+    return result;
   }
 
   private resolveExecutable(): string {
