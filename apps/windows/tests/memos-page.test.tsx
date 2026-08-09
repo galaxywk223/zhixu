@@ -24,6 +24,7 @@ describe("memos page", () => {
             id: "memo-1",
             title: "联系导师",
             descriptionMd: "整理邮件内容",
+            priority: 3,
             categoryId: "study",
             tagIds: ["tag-1"],
             createdAt: new Date(2026, 7, 8).toISOString(),
@@ -69,6 +70,17 @@ describe("memos page", () => {
     );
 
     expect(await screen.findByText("联系导师")).toBeTruthy();
+    for (const column of [
+      "备忘",
+      "分类",
+      "优先级",
+      "标签",
+      "更新时间",
+      "操作",
+    ]) {
+      expect(screen.getByRole("columnheader", { name: column })).toBeTruthy();
+    }
+    expect(screen.getByText("高", { selector: ".task-priority" })).toBeTruthy();
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByLabelText("日期")).toBeNull();
     expect(within(dialog).queryByLabelText("状态")).toBeNull();
@@ -81,6 +93,7 @@ describe("memos page", () => {
       id: "memo-1",
       title: "联系目标导师",
       descriptionMd: "整理邮件内容",
+      priority: 3,
       categoryId: "study",
       tagIds: ["tag-1"],
     });

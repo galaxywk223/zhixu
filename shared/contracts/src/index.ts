@@ -77,6 +77,7 @@ export const memoDraftSchema = z.object({
   id: z.string().min(1).optional(),
   title: z.string().trim().min(1).max(200),
   descriptionMd: z.string().max(100_000).nullable().default(null),
+  priority: z.number().int().min(1).max(3).default(1),
   categoryId: z.string().nullable().default(null),
   tagIds: z.array(z.string()).default([]),
 });
@@ -150,7 +151,9 @@ export const backupManifestV7Schema = z.object({
 
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 export type TaskBatchDraft = z.infer<typeof taskBatchDraftSchema>;
-export type MemoDraft = z.infer<typeof memoDraftSchema>;
+export type MemoDraft = Omit<z.infer<typeof memoDraftSchema>, "priority"> & {
+  priority?: number;
+};
 export type CountdownDraft = z.infer<typeof countdownDraftSchema>;
 export type RecurrenceFrequency = z.infer<typeof recurrenceFrequencySchema>;
 export type NoteDraft = z.infer<typeof noteDraftSchema>;

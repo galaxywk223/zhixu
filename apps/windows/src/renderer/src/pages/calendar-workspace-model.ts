@@ -55,8 +55,11 @@ export interface FocusWeekModel {
   start: Date;
   end: Date;
   days: FocusWeekDay[];
-  startHour: number;
-  endHour: number;
+  timeline: {
+    startMinutes: number;
+    endMinutes: number;
+    minuteScale: number;
+  } | null;
   metrics: {
     count: number;
     minutes: number;
@@ -64,6 +67,14 @@ export interface FocusWeekModel {
     averageMinutes: number;
   };
 }
+
+const timelinePaddingMinutes = 30;
+const timelineStepMinutes = 30;
+const minimumTimelineMinutes = 120;
+const minimumBlockHeight = 64;
+const minimumScaleDuration = 10;
+const minimumMinuteScale = 1;
+const maximumMinuteScale = 6.4;
 
 function validDate(value: string): Date | null {
   const date = new Date(value);
@@ -287,12 +298,41 @@ export function buildFocusWeek(
       ),
     };
   });
-  const earliest = rawSegments.length
-    ? Math.min(...rawSegments.map((item) => item.startMinutes))
-    : 7 * 60;
-  const latest = rawSegments.length
-    ? Math.max(...rawSegments.map((item) => item.endMinutes))
-    : 22 * 60;
+  let timeline: FocusWeekModel["timeline"] = null;
+  if (rawSegments.length) {
+    const earliest = Math.min(...rawSegments.map((item) => item.startMinutes));
+    const latest = Math.max(...rawSegments.map((item) => item.endMinutes));
+    let startMinutes = Math.max(
+      0,
+      Math.floor((earliest - timelinePaddingMinutes) / timelineStepMinutes) *
+        timelineStepMinutes,
+    );
+    let endMinutes = Math.min(
+      1440,
+      Math.ceil((latest + timelinePaddingMinutes) / timelineStepMinutes) *
+        timelineStepMinutes,
+    );
+    while (endMinutes - startMinutes < minimumTimelineMinutes) {
+      if (startMinutes >= timelineStepMinutes) {
+        startMinutes -= timelineStepMinutes;
+      } else if (endMinutes <= 1440 - timelineStepMinutes) {
+        endMinutes += timelineStepMinutes;
+      } else {
+        break;
+      }
+    }
+    const shortestDuration = Math.min(
+      ...rawSegments.map((item) => item.endMinutes - item.startMinutes),
+    );
+    const minuteScale = Math.min(
+      maximumMinuteScale,
+      Math.max(
+        minimumMinuteScale,
+        minimumBlockHeight / Math.max(shortestDuration, minimumScaleDuration),
+      ),
+    );
+    timeline = { startMinutes, endMinutes, minuteScale };
+  }
   const totalMinutes = validSessions.reduce(
     (sum, session) => sum + Math.max(0, session.durationMinutes),
     0,
@@ -307,8 +347,7 @@ export function buildFocusWeek(
     start,
     end,
     days,
-    startHour: Math.max(0, Math.min(7, Math.floor(earliest / 60))),
-    endHour: Math.min(24, Math.max(22, Math.ceil(latest / 60))),
+    timeline,
     metrics: {
       count: validSessions.length,
       minutes: totalMinutes,

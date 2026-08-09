@@ -328,6 +328,16 @@ describe("schema 7 migration", () => {
     });
 
     expect(store.listMemos().map((item) => item.id)).toEqual([memoId]);
+    expect(store.listMemos()[0]?.priority).toBe(1);
+    store.saveMemo({
+      id: memoId,
+      title: "联系导师",
+      descriptionMd: "整理邮件内容",
+      priority: 3,
+      categoryId: null,
+      tagIds: [],
+    });
+    expect(store.listMemos()[0]?.priority).toBe(3);
     expect(store.listTasks().map((item) => item.title)).toEqual(["提交材料"]);
     expect(store.search("导师")[0]).toMatchObject({
       id: memoId,

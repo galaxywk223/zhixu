@@ -4,6 +4,9 @@ import {
   Button,
   Field,
   Input,
+  Popover,
+  PopoverSurface,
+  PopoverTrigger,
   Select,
   Tooltip,
 } from "@fluentui/react-components";
@@ -109,21 +112,27 @@ export function TasksPage(props: {
             }
           />
           <div className="task-filter-trigger">
-            <Button
-              appearance="secondary"
-              icon={<Filter20Regular />}
-              aria-expanded={filterOpen}
-              onClick={() => setFilterOpen((open) => !open)}
+            <Popover
+              open={filterOpen}
+              positioning="below-end"
+              onOpenChange={(_, data) => setFilterOpen(data.open)}
             >
-              筛选
-              {activeFilterCount > 0 ? (
-                <span className="active-filter-count">{activeFilterCount}</span>
-              ) : null}
-            </Button>
-            {filterOpen ? (
-              <div
+              <PopoverTrigger disableButtonEnhancement>
+                <Button
+                  appearance="secondary"
+                  icon={<Filter20Regular />}
+                  aria-expanded={filterOpen}
+                >
+                  筛选
+                  {activeFilterCount > 0 ? (
+                    <span className="active-filter-count">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </Button>
+              </PopoverTrigger>
+              <PopoverSurface
                 className="task-filter-popover"
-                role="dialog"
                 aria-label="任务筛选"
               >
                 <div className="task-filter-popover-heading">
@@ -168,8 +177,8 @@ export function TasksPage(props: {
                     ))}
                   </Select>
                 </Field>
-              </div>
-            ) : null}
+              </PopoverSurface>
+            </Popover>
           </div>
           <Button
             appearance="primary"

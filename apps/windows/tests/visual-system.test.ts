@@ -29,6 +29,22 @@ const calendarSource = readFileSync(
   ),
   "utf8",
 );
+const sleepSource = readFileSync(
+  fileURLToPath(
+    new URL("../src/renderer/src/pages/SleepPage.tsx", import.meta.url),
+  ),
+  "utf8",
+);
+const countdownSource = readFileSync(
+  fileURLToPath(
+    new URL("../src/renderer/src/pages/CountdownsPage.tsx", import.meta.url),
+  ),
+  "utf8",
+);
+const appSource = readFileSync(
+  fileURLToPath(new URL("../src/renderer/src/App.tsx", import.meta.url)),
+  "utf8",
+);
 const preloadSource = readFileSync(
   fileURLToPath(new URL("../src/preload/index.ts", import.meta.url)),
   "utf8",
@@ -50,18 +66,28 @@ describe("visual system", () => {
     expect(styles).toContain("--font-caption: 14px");
   });
 
+  it("reflows metric grids at high application zoom", () => {
+    expect(appSource).toContain("ui-scale-${renderedUiScale}");
+    expect(appSource).toContain("setRenderedUiScale(nextScale)");
+    expect(styles).toContain(".ui-scale-125");
+    expect(styles).toContain(".ui-scale-150");
+    expect(styles).toMatch(
+      /\.ui-scale-150[\s\S]*\.focus-metrics-grid[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/,
+    );
+  });
+
   it("locks sidebar icons to one aligned slot", () => {
     expect(styles).toMatch(
       /\.nav-item svg \{[^}]*width: 24px;[^}]*height: 24px;[^}]*flex: 0 0 24px;/s,
     );
   });
 
-  it("stretches the task workspace and uses a responsive memo grid", () => {
+  it("stretches task and memo workspaces with internal tables", () => {
     expect(styles).toMatch(/\.tasks-page \{[^}]*display: flex;/s);
     expect(styles).toMatch(/\.task-workspace-layout \{[^}]*flex: 1;/s);
-    expect(styles).toMatch(
-      /\.memo-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s,
-    );
+    expect(styles).toMatch(/\.memos-page \{[^}]*display: flex;/s);
+    expect(styles).toMatch(/\.memo-workspace-layout \{[^}]*flex: 1;/s);
+    expect(styles).toMatch(/\.memo-table-scroll \{[^}]*overflow-y: auto;/s);
   });
 
   it("uses the task workspace structure for focus analytics", () => {
@@ -76,6 +102,29 @@ describe("visual system", () => {
     expect(focusSource).not.toContain('className="filter-bar"');
   });
 
+  it("uses the same fixed workspace structure for sleep analytics", () => {
+    expect(styles).toMatch(/\.sleep-page \{[^}]*display: flex;/s);
+    expect(styles).toMatch(/\.sleep-workspace-layout \{[^}]*flex: 1;/s);
+    expect(styles).toContain(".sleep-filter-rail");
+    expect(styles).toContain(".sleep-workspace-panel");
+    expect(sleepSource).toContain('role="tablist"');
+    expect(sleepSource).toContain("LineChart");
+    expect(sleepSource).toContain("AreaChart");
+    expect(sleepSource).toContain("BarChart");
+    expect(sleepSource).not.toContain('className="stats-grid"');
+  });
+
+  it("renders countdown urgency in circular cards without fake progress", () => {
+    expect(countdownSource).toContain('className="countdown-ring"');
+    expect(countdownSource).not.toContain("countdown-value");
+    expect(styles).toMatch(
+      /\.countdown-ring \{[^}]*width: 132px;[^}]*height: 132px;[^}]*border-radius: 50%;/s,
+    );
+    expect(styles).toMatch(
+      /\.countdown-grid \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/s,
+    );
+  });
+
   it("keeps the app shell fixed and scrolls long workspace content internally", () => {
     expect(styles).toMatch(/\.content \{[^}]*overflow: hidden;/s);
     expect(styles).toMatch(
@@ -86,6 +135,7 @@ describe("visual system", () => {
     );
     for (const className of [
       "memo-workspace-scroll",
+      "memo-table-scroll",
       "countdown-workspace-scroll",
       "settings-workspace-scroll",
       "today-workspace-scroll",
@@ -131,6 +181,10 @@ describe("visual system", () => {
       /\.form-row\.two \{[^}]*repeat\(2, minmax\(0, 1fr\)\);/s,
     );
     expect(styles).toContain("@container editor-form (max-width: 620px)");
+    expect(styles).toContain("@container editor-form (max-width: 440px)");
+    expect(styles).toMatch(
+      /\.form-row\.two:not\(\.paired-row\)[\s\S]*grid-template-columns: minmax\(0, 1fr\);/,
+    );
     expect(styles).toMatch(
       /\.form-grid \.fui-Input,[\s\S]*height: var\(--control-height\);/,
     );

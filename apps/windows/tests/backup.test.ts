@@ -137,12 +137,19 @@ describe("backup compatibility", () => {
     context.close();
   });
 
-  it("round-trips countdowns through a schema 7 backup payload", async () => {
+  it("round-trips countdowns and memo priority through schema 7", async () => {
     const source = setup();
     source.store.saveCountdown({
       title: "研究生考试",
       targetDate: "2026-12-20",
       note: "提前查看考场",
+    });
+    source.store.saveMemo({
+      title: "高优先级备忘",
+      descriptionMd: null,
+      priority: 3,
+      categoryId: null,
+      tagIds: [],
     });
     const payload = JSON.stringify(source.store.exportData());
     const backupPath = join(source.root, "schema-v7.zip");
@@ -166,6 +173,10 @@ describe("backup compatibility", () => {
       title: "研究生考试",
       targetDate: "2026-12-20",
       note: "提前查看考场",
+    });
+    expect(target.store.listMemos()[0]).toMatchObject({
+      title: "高优先级备忘",
+      priority: 3,
     });
     source.close();
     target.close();

@@ -160,7 +160,7 @@ export function FocusAnalytics(props: {
       <section className="focus-chart-section focus-total-trend">
         <header>
           <div>
-            <h3>全部专注趋势</h3>
+            <h3>专注趋势</h3>
             <span>
               {model.trendGranularity === "day" ? "按日汇总" : "按周汇总"}
             </span>
@@ -169,7 +169,7 @@ export function FocusAnalytics(props: {
         {model.trend.length === 0 ? (
           <ChartEmpty text="暂无可展示的历史趋势" />
         ) : (
-          <div className="focus-trend-canvas" aria-label="全部专注历史趋势图">
+          <div className="focus-trend-canvas" aria-label="当前范围专注趋势图">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={model.trend}

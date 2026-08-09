@@ -181,4 +181,51 @@ describe("tasks page", () => {
     expect(screen.getByText("待完成任务")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "未完成" })).toBeTruthy();
   });
+
+  it("light-dismisses the filter popover without clearing selected filters", async () => {
+    const api = {
+      tasks: {
+        list: vi.fn().mockResolvedValue([task("筛选测试")]),
+        categories: vi.fn().mockResolvedValue([
+          {
+            id: "study",
+            name: "课程学习",
+            colorHex: "#397BC6",
+            isArchived: false,
+          },
+        ]),
+        tags: vi.fn().mockResolvedValue([]),
+        setStatus: vi.fn(),
+        remove: vi.fn(),
+      },
+    } as unknown as ZhixuApi;
+    Object.defineProperty(window, "zhixu", { configurable: true, value: api });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <FluentProvider theme={webLightTheme}>
+          <TasksPage onNew={() => undefined} onEdit={() => undefined} />
+        </FluentProvider>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText("筛选测试");
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    const category = await screen.findByLabelText("分类");
+    fireEvent.change(category, { target: { value: "study" } });
+    expect((category as HTMLSelectElement).value).toBe("study");
+
+    fireEvent.mouseDown(document.body);
+    fireEvent.click(document.body);
+    await waitFor(() => expect(screen.queryByLabelText("任务筛选")).toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: /^筛选/ }));
+    expect(
+      ((await screen.findByLabelText("分类")) as HTMLSelectElement).value,
+    ).toBe("study");
+    fireEvent.keyDown(screen.getByLabelText("任务筛选"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByLabelText("任务筛选")).toBeNull());
+  });
 });

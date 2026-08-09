@@ -263,7 +263,7 @@ export function TaskEditor({
                   </div>
                 </Field>
               ) : null}
-              <div className="form-row two">
+              <div className="form-row two paired-row">
                 <Field
                   label={
                     creationMode === "range" && !task ? "开始日期" : "日期"
@@ -323,7 +323,7 @@ export function TaskEditor({
             </section>
             <section className="form-section">
               <h3>任务属性</h3>
-              <div className="form-row two">
+              <div className="form-row two paired-row">
                 <Field label="优先级">
                   <Select
                     value={priority}

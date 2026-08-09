@@ -122,8 +122,11 @@ describe("calendar workspace model", () => {
     );
     expect(localDateKey(model.start)).toBe("2026-08-03");
     expect(localDateKey(new Date(model.end.getTime() - 1))).toBe("2026-08-09");
-    expect(model.startHour).toBe(6);
-    expect(model.endHour).toBe(23);
+    expect(model.timeline).toEqual({
+      startMinutes: 360,
+      endMinutes: 1380,
+      minuteScale: 64 / 30,
+    });
     expect(model.metrics).toEqual({
       count: 2,
       minutes: 70,
@@ -180,8 +183,28 @@ describe("calendar workspace model", () => {
     expect(model.metrics.minutes).toBe(60);
   });
 
-  it("uses the default 07:00 to 22:00 range when the week is empty", () => {
+  it("uses an empty state instead of an all-day timeline when the week is empty", () => {
     const model = buildFocusWeek([], new Date(2026, 7, 5));
-    expect([model.startHour, model.endHour]).toEqual([7, 22]);
+    expect(model.timeline).toBeNull();
+  });
+
+  it("pads and scales a short focus range without drawing unused hours", () => {
+    const model = buildFocusWeek(
+      [
+        session(
+          "short",
+          new Date(2026, 7, 4, 13, 10),
+          new Date(2026, 7, 4, 13, 30),
+          20,
+        ),
+      ],
+      new Date(2026, 7, 5),
+    );
+
+    expect(model.timeline).toEqual({
+      startMinutes: 720,
+      endMinutes: 840,
+      minuteScale: 3.2,
+    });
   });
 });

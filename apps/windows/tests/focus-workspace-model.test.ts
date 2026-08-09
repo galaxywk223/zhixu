@@ -109,17 +109,26 @@ describe("focus workspace model", () => {
     ).toBe(100);
   });
 
-  it("keeps the full history and changes long trends to weekly buckets", () => {
+  it("keeps the full history only for the all view and uses weekly buckets", () => {
     const longHistory = [
       session("first", new Date(2026, 0, 1, 10, 0), 30),
       session("last", new Date(2026, 7, 9, 10, 0), 45),
     ];
-    const model = buildFocusWorkspace(longHistory, filters("today"), now);
+    const model = buildFocusWorkspace(longHistory, filters("all"), now);
     expect(model.trendGranularity).toBe("week");
     expect(model.trend[0]?.minutes).toBe(30);
     expect(model.trend.at(-1)?.minutes).toBe(45);
     expect(model.trend.length).toBeGreaterThan(30);
     expect(model.trend.some((item) => item.minutes === 0)).toBe(true);
+  });
+
+  it("fills the selected calendar range instead of leaking older history", () => {
+    const model = buildFocusWorkspace(rows, filters("week"), now);
+    expect(model.trend).toHaveLength(7);
+    expect(model.trend[0]?.key).toBe("2026-08-03");
+    expect(model.trend.at(-1)?.key).toBe("2026-08-09");
+    expect(model.trend.reduce((sum, item) => sum + item.minutes, 0)).toBe(240);
+    expect(model.trend.some((item) => item.key === "2026-07-20")).toBe(false);
   });
 
   it("formats compact hour and minute values", () => {

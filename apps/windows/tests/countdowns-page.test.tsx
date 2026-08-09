@@ -72,8 +72,8 @@ describe("countdowns page", () => {
       await screen.findByRole("heading", { name: "即将到来" }),
     ).toBeTruthy();
     expect(screen.getByRole("heading", { name: "已经过去" })).toBeTruthy();
-    expect(screen.getByText("还有 12 天")).toBeTruthy();
-    expect(screen.getByText("已过去 2 天")).toBeTruthy();
+    expect(screen.getByLabelText("还有 12 天")).toBeTruthy();
+    expect(screen.getByLabelText("已过去 2 天")).toBeTruthy();
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText(/^日期/)).toBeTruthy();

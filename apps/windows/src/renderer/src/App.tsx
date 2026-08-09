@@ -45,11 +45,15 @@ export function App(): React.JSX.Element {
     matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const uiScale = useRef(100);
+  const [renderedUiScale, setRenderedUiScale] = useState(100);
   useDataInvalidation();
 
   useEffect(() => {
     const current = settings.data ?? bootstrap.data?.settings;
-    if (current) uiScale.current = current.uiScale;
+    if (current) {
+      uiScale.current = current.uiScale;
+      setRenderedUiScale(current.uiScale);
+    }
   }, [bootstrap.data, settings.data]);
 
   useEffect(() => {
@@ -89,6 +93,7 @@ export function App(): React.JSX.Element {
         event.preventDefault();
         if (nextScale !== uiScale.current) {
           uiScale.current = nextScale;
+          setRenderedUiScale(nextScale);
           void window.zhixu.settings.update({ uiScale: nextScale });
         }
         return;
@@ -183,7 +188,7 @@ export function App(): React.JSX.Element {
   return (
     <FluentProvider
       theme={dark ? zhixuDarkTheme : zhixuLightTheme}
-      className={`app-provider ${dark ? "theme-dark" : "theme-light"}`}
+      className={`app-provider ${dark ? "theme-dark" : "theme-light"} ui-scale-${renderedUiScale}`}
     >
       <div
         className="drop-root"

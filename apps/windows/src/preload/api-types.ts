@@ -31,6 +31,7 @@ export interface MemoRecord {
   id: string;
   title: string;
   descriptionMd: string | null;
+  priority: number;
   categoryId: string | null;
   createdAt: string;
   updatedAt: string;

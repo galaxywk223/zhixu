@@ -31,8 +31,6 @@ interface CalendarPageProps {
 }
 
 const weekLabels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-const hourHeight = 64;
-
 function formatTaskTime(value: string | null): string {
   if (!value) return "";
   const date = new Date(value);
@@ -251,8 +249,7 @@ export function CalendarPage(props: CalendarPageProps): React.JSX.Element {
             <FocusWeekTimeline
               days={week.days}
               selectedKey={localDateKey(selected)}
-              startHour={week.startHour}
-              endHour={week.endHour}
+              timeline={week.timeline}
               onSelect={selectDay}
             />
           )}
@@ -435,15 +432,23 @@ function MonthDayDetails(props: {
 function FocusWeekTimeline(props: {
   days: FocusWeekModel["days"];
   selectedKey: string;
-  startHour: number;
-  endHour: number;
+  timeline: FocusWeekModel["timeline"];
   onSelect(date: Date): void;
 }): React.JSX.Element {
+  const firstHour = props.timeline
+    ? Math.ceil(props.timeline.startMinutes / 60)
+    : 0;
+  const lastHour = props.timeline
+    ? Math.floor(props.timeline.endMinutes / 60)
+    : -1;
   const hours = Array.from(
-    { length: props.endHour - props.startHour + 1 },
-    (_, index) => props.startHour + index,
+    { length: Math.max(0, lastHour - firstHour + 1) },
+    (_, index) => firstHour + index,
   );
-  const timelineHeight = (props.endHour - props.startHour) * hourHeight;
+  const timelineHeight = props.timeline
+    ? (props.timeline.endMinutes - props.timeline.startMinutes) *
+      props.timeline.minuteScale
+    : 0;
   return (
     <div className="week-timeline">
       <div className="week-timeline-header">
@@ -460,51 +465,72 @@ function FocusWeekTimeline(props: {
           </button>
         ))}
       </div>
-      <div className="week-timeline-scroll">
-        <div className="week-timeline-body" style={{ height: timelineHeight }}>
-          <div className="week-hour-axis">
-            {hours.map((hour) => (
-              <time
-                key={hour}
-                style={{ top: (hour - props.startHour) * hourHeight }}
-              >
-                {String(hour).padStart(2, "0")}:00
-              </time>
-            ))}
-          </div>
-          <div className="week-day-columns">
-            {props.days.map((day) => (
-              <button
-                type="button"
-                className={`week-day-column ${day.key === props.selectedKey ? "selected" : ""}`}
-                key={day.key}
-                onClick={() => props.onSelect(day.date)}
-              >
-                {day.segments.map((segment) => (
-                  <FocusSegment
-                    key={segment.id}
-                    segment={segment}
-                    startHour={props.startHour}
-                  />
-                ))}
-              </button>
-            ))}
+      {!props.timeline ? (
+        <EmptyState
+          title="本周暂无专注记录"
+          detail="导入的专注记录会按实际时间显示在周视图中。"
+        />
+      ) : (
+        <div className="week-timeline-scroll">
+          <div
+            className="week-timeline-body"
+            style={
+              {
+                height: timelineHeight,
+                "--hour-height": `${props.timeline.minuteScale * 60}px`,
+              } as CSSProperties
+            }
+          >
+            <div className="week-hour-axis">
+              {hours.map((hour) => (
+                <time
+                  key={hour}
+                  style={{
+                    top:
+                      (hour * 60 - props.timeline!.startMinutes) *
+                      props.timeline!.minuteScale,
+                  }}
+                >
+                  {String(hour).padStart(2, "0")}:00
+                </time>
+              ))}
+            </div>
+            <div className="week-day-columns">
+              {props.days.map((day) => (
+                <button
+                  type="button"
+                  className={`week-day-column ${day.key === props.selectedKey ? "selected" : ""}`}
+                  key={day.key}
+                  onClick={() => props.onSelect(day.date)}
+                >
+                  {day.segments.map((segment) => (
+                    <FocusSegment
+                      key={segment.id}
+                      segment={segment}
+                      rangeStartMinutes={props.timeline!.startMinutes}
+                      minuteScale={props.timeline!.minuteScale}
+                    />
+                  ))}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function FocusSegment(props: {
   segment: FocusTimelineSegment;
-  startHour: number;
+  rangeStartMinutes: number;
+  minuteScale: number;
 }): React.JSX.Element {
   const top =
-    ((props.segment.startMinutes - props.startHour * 60) / 60) * hourHeight;
+    (props.segment.startMinutes - props.rangeStartMinutes) * props.minuteScale;
   const height = Math.max(
-    25,
-    ((props.segment.endMinutes - props.segment.startMinutes) / 60) * hourHeight,
+    64,
+    (props.segment.endMinutes - props.segment.startMinutes) * props.minuteScale,
   );
   const style = {
     top,

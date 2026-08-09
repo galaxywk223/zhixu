@@ -125,8 +125,14 @@ function filterForView(
   sessions: FocusSessionRecord[],
   filters: FocusFilters,
   now: Date,
-): { sessions: FocusSessionRecord[]; error: string | null } {
-  if (filters.view === "all") return { sessions: [...sessions], error: null };
+): {
+  sessions: FocusSessionRecord[];
+  error: string | null;
+  start: number | null;
+  end: number | null;
+} {
+  if (filters.view === "all")
+    return { sessions: [...sessions], error: null, start: null, end: null };
   if (filters.view === "custom") {
     const bounds = customBounds(filters);
     return {
@@ -134,12 +140,16 @@ function filterForView(
         ? []
         : filterByBounds(sessions, bounds.start, bounds.end),
       error: bounds.error,
+      start: bounds.error ? null : bounds.start,
+      end: bounds.error ? null : bounds.end,
     };
   }
   const bounds = boundsForView(filters.view, now);
   return {
     sessions: filterByBounds(sessions, bounds.start, bounds.end),
     error: null,
+    start: bounds.start,
+    end: bounds.end,
   };
 }
 
@@ -216,7 +226,10 @@ function mondayFor(value: Date): Date {
   return addLocalDays(value, -((value.getDay() + 6) % 7));
 }
 
-function buildTrend(sessions: FocusSessionRecord[]): {
+function buildTrend(
+  sessions: FocusSessionRecord[],
+  selectedRange?: { start: number; end: number },
+): {
   points: FocusTrendPoint[];
   granularity: "day" | "week";
 } {
@@ -225,9 +238,14 @@ function buildTrend(sessions: FocusSessionRecord[]): {
     .sort(
       (left, right) => Date.parse(left.startAt) - Date.parse(right.startAt),
     );
-  if (valid.length === 0) return { points: [], granularity: "day" };
-  const first = localDayStart(new Date(valid[0]!.startAt));
-  const last = localDayStart(new Date(valid[valid.length - 1]!.startAt));
+  if (valid.length === 0 && !selectedRange)
+    return { points: [], granularity: "day" };
+  const first = selectedRange
+    ? localDayStart(new Date(selectedRange.start))
+    : localDayStart(new Date(valid[0]!.startAt));
+  const last = selectedRange
+    ? localDayStart(new Date(selectedRange.end - 1))
+    : localDayStart(new Date(valid[valid.length - 1]!.startAt));
   const daySpan =
     Math.round((last.getTime() - first.getTime()) / 86_400_000) + 1;
   const granularity = daySpan > 120 ? "week" : "day";
@@ -277,7 +295,12 @@ export function buildFocusWorkspace(
   const totalMinutes = sumMinutes(validSessions);
   const selectedDays = countFocusDays(selected.sessions);
   const selectedMinutes = sumMinutes(selected.sessions);
-  const trend = buildTrend(validSessions);
+  const trend = buildTrend(
+    selected.sessions,
+    selected.start !== null && selected.end !== null
+      ? { start: selected.start, end: selected.end }
+      : undefined,
+  );
   const viewCounts = Object.fromEntries(
     (["today", "week", "month", "all", "custom"] as const).map((view) => [
       view,

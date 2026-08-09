@@ -336,6 +336,7 @@ export class ZhixuStore {
         id: task.id,
         title: task.title,
         descriptionMd: task.descriptionMd,
+        priority: task.priority,
         categoryId: task.categoryId,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
@@ -357,22 +358,30 @@ export class ZhixuStore {
       if (existing) {
         this.db
           .prepare(
-            `UPDATE tasks SET title = ?, description_md = ?, category_id = ?, updated_at = ?,
+            `UPDATE tasks SET title = ?, description_md = ?, priority = ?, category_id = ?, updated_at = ?,
              deleted_at = NULL, is_archived = 0 WHERE id = ? AND due_at IS NULL`,
           )
-          .run(draft.title, draft.descriptionMd, draft.categoryId, now, id);
+          .run(
+            draft.title,
+            draft.descriptionMd,
+            draft.priority,
+            draft.categoryId,
+            now,
+            id,
+          );
       } else {
         this.db
           .prepare(
             `INSERT INTO tasks
              (id, title, description_md, status, priority, due_at, estimated_minutes, category_id,
               repeat_rule, completed_at, is_archived, created_at, updated_at, device_id, server_revision)
-             VALUES (?, ?, ?, 'todo', 1, NULL, 0, ?, NULL, NULL, 0, ?, ?, 'electron-windows', 0)`,
+             VALUES (?, ?, ?, 'todo', ?, NULL, 0, ?, NULL, NULL, 0, ?, ?, 'electron-windows', 0)`,
           )
           .run(
             id,
             draft.title,
             draft.descriptionMd,
+            draft.priority,
             draft.categoryId,
             now,
             now,

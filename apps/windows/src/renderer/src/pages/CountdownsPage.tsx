@@ -14,7 +14,6 @@ import {
 } from "@fluentui/react-components";
 import {
   Add20Regular,
-  CalendarClock24Regular,
   Delete20Regular,
   Edit20Regular,
 } from "@fluentui/react-icons";
@@ -162,8 +161,15 @@ function CountdownCard(props: {
           : "future";
   return (
     <article className={`countdown-card ${tone}`}>
-      <div className="countdown-card-icon">
-        <CalendarClock24Regular />
+      <div className="countdown-ring" aria-label={countdownLabel(days)}>
+        {days === 0 ? (
+          <strong>今天</strong>
+        ) : (
+          <>
+            <strong>{Math.abs(days)}</strong>
+            <span>{days > 0 ? "天后" : "天前"}</span>
+          </>
+        )}
       </div>
       <div className="countdown-card-main">
         <strong>{props.item.title}</strong>
@@ -176,10 +182,6 @@ function CountdownCard(props: {
           })}
         </time>
         {props.item.note ? <p>{props.item.note}</p> : null}
-      </div>
-      <div className="countdown-value">
-        {days !== 0 ? <strong>{Math.abs(days)}</strong> : null}
-        <span>{countdownLabel(days)}</span>
       </div>
       <div className="countdown-actions">
         <Button
