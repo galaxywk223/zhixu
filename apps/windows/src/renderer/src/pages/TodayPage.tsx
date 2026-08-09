@@ -256,6 +256,7 @@ export function TodayPage(props: {
                 tasks={dashboard.todayTasks}
                 categories={categories.data ?? []}
                 tags={tags.data ?? []}
+                variant="today"
                 onEdit={props.onEdit}
                 onStatus={(task, value) =>
                   status.mutate({ id: task.id, value })

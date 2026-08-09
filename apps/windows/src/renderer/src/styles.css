@@ -1666,6 +1666,59 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
+.settings-workspace-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+.settings-section-nav,
+.settings-content-panel {
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.settings-section-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+}
+.settings-section-nav button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-section-nav button:hover {
+  color: var(--text);
+  background: var(--surfaceHover);
+}
+.settings-section-nav button.active {
+  color: var(--accent);
+  background: var(--accentSoft);
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+  font-weight: 600;
+}
+.settings-content-panel {
+  overflow: hidden;
+}
+.settings-content-panel .settings-workspace-scroll {
+  height: 100%;
+  padding: 16px;
+}
 .settings-workspace-scroll {
   flex: 1;
   min-height: 0;
@@ -1675,6 +1728,18 @@ button {
 .settings-section {
   margin: 0;
   min-width: 0;
+}
+.settings-content-panel .settings-section {
+  display: none;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.settings-content-panel .settings-section[data-active="true"] {
+  display: block;
 }
 .settings-section > p {
   color: var(--muted);
@@ -1768,7 +1833,7 @@ button {
 }
 
 .today-page {
-  width: min(1500px, 100%);
+  width: min(1600px, 100%);
   padding: 24px 28px;
 }
 .today-header {
@@ -1886,9 +1951,33 @@ button {
   padding: 0 14px;
 }
 .today-task-panel .task-row {
-  grid-template-columns: 30px minmax(180px, 1fr) minmax(80px, auto) 72px;
+  grid-template-columns:
+    30px minmax(180px, 1fr) minmax(90px, 130px)
+    82px minmax(80px, 160px) 72px;
   min-height: 54px;
   padding-block: 6px;
+}
+.today-task-panel .task-row-today .task-main {
+  min-width: 0;
+}
+.today-task-panel .task-row-today .task-main > strong {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.today-task-panel .task-row-today .task-meta {
+  display: none;
+}
+.task-today-due,
+.task-today-estimate {
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.task-today-estimate {
+  text-align: right;
 }
 .today-task-panel .task-main > strong {
   font-size: var(--font-body);
@@ -4163,25 +4252,25 @@ button {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 300px;
+  min-height: 264px;
   align-items: center;
-  padding: 24px 44px 20px;
+  padding: 18px 24px 16px;
   flex-direction: column;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface2) 42%, var(--surface));
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 .countdown-card:hover {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 .countdown-card.today {
   border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
-  background: color-mix(in srgb, var(--accentSoft) 36%, var(--surface));
+  background: color-mix(in srgb, var(--accentSoft) 34%, var(--surface2));
 }
 .countdown-card.past {
   color: var(--muted);
-  background: color-mix(in srgb, var(--surface2) 44%, var(--surface));
+  background: color-mix(in srgb, var(--surface2) 70%, var(--surface));
 }
 .countdown-ring {
   display: flex;
@@ -4280,13 +4369,10 @@ button {
   border-radius: 6px;
 }
 .today-countdown-strip {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 18px;
+  display: block;
   margin-bottom: 16px;
-  padding: 12px 14px;
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  padding: 0;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: var(--shadow);
@@ -4295,7 +4381,10 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 51px;
+  padding: 0 17px;
   color: var(--accent);
+  border-bottom: 1px solid var(--border);
 }
 .today-countdown-heading h2 {
   margin: 0;
@@ -4306,6 +4395,7 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  padding: 10px 12px 12px;
 }
 .today-countdown-item {
   display: flex;
@@ -4360,7 +4450,9 @@ button {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 52px;
+  min-height: 54px;
+  margin: 10px 12px 12px;
+  padding: 0 12px;
   color: var(--muted);
   background: transparent;
   border: 1px dashed var(--border);
@@ -4448,6 +4540,9 @@ button {
   .settings-layout {
     grid-template-columns: 1fr;
   }
+  .settings-workspace-layout {
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+  }
   .task-tags {
     display: none;
   }
@@ -4459,6 +4554,12 @@ button {
   }
   .today-search {
     width: 250px;
+  }
+  .today-task-panel .task-row-today {
+    grid-template-columns: 30px minmax(150px, 1fr) minmax(88px, 118px) 76px 72px;
+  }
+  .today-task-panel .task-row-today .task-tags {
+    display: none;
   }
   .focus-page,
   .sleep-page,
@@ -4506,6 +4607,29 @@ button {
   }
   .form-grid {
     min-width: 0;
+  }
+  .settings-workspace-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .settings-section-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    flex: none;
+    padding: 4px;
+  }
+  .settings-section-nav button {
+    width: auto;
+    min-width: max-content;
+    min-height: 38px;
+    padding-inline: 12px;
+  }
+  .today-task-panel .task-row-today {
+    grid-template-columns: 30px minmax(130px, 1fr) minmax(82px, 110px) 72px;
+  }
+  .today-task-panel .task-row-today .task-today-estimate {
+    display: none;
   }
   .notes-workspace {
     grid-template-columns: 210px minmax(0, 1fr);

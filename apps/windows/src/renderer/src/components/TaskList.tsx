@@ -12,6 +12,7 @@ interface TaskListProps {
   tasks: TaskRecord[];
   categories: CategoryRecord[];
   tags: TagRecord[];
+  variant?: "default" | "today";
   onEdit(task: TaskRecord): void;
   onStatus(task: TaskRecord, status: TaskRecord["status"]): void;
   onDelete(task: TaskRecord): void;
@@ -25,7 +26,7 @@ export function TaskList(props: TaskListProps): React.JSX.Element {
       {props.tasks.map((task) => (
         <div
           key={task.id}
-          className={`task-row priority-${task.priority}`}
+          className={`task-row priority-${task.priority} ${props.variant === "today" ? "task-row-today" : ""}`}
           role="row"
           onDoubleClick={() => props.onEdit(task)}
         >
@@ -40,31 +41,50 @@ export function TaskList(props: TaskListProps): React.JSX.Element {
             <strong className={task.status === "done" ? "completed" : ""}>
               {task.title}
             </strong>
-            <div className="task-meta">
-              {task.categoryId && categoryMap.get(task.categoryId) ? (
-                <span>{categoryMap.get(task.categoryId)?.name}</span>
-              ) : null}
-              {task.dueAt ? (
-                <time>
-                  {new Date(task.dueAt).toLocaleDateString("zh-CN", {
-                    month: "numeric",
-                    day: "numeric",
-                  })}
-                  {!isImplicitEndOfDay(task.dueAt)
-                    ? ` ${new Date(task.dueAt).toLocaleTimeString("zh-CN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}`
-                    : ""}
-                </time>
-              ) : (
-                <span>无日期</span>
-              )}
-              {task.estimatedMinutes > 0 ? (
-                <span>{task.estimatedMinutes} 分钟</span>
-              ) : null}
-            </div>
+            {props.variant !== "today" ? (
+              <div className="task-meta">
+                {task.categoryId && categoryMap.get(task.categoryId) ? (
+                  <span>{categoryMap.get(task.categoryId)?.name}</span>
+                ) : null}
+                {task.dueAt ? (
+                  <time>
+                    {new Date(task.dueAt).toLocaleDateString("zh-CN", {
+                      month: "numeric",
+                      day: "numeric",
+                    })}
+                    {!isImplicitEndOfDay(task.dueAt)
+                      ? ` ${new Date(task.dueAt).toLocaleTimeString("zh-CN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : ""}
+                  </time>
+                ) : (
+                  <span>无日期</span>
+                )}
+                {task.estimatedMinutes > 0 ? (
+                  <span>{task.estimatedMinutes} 分钟</span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
+          {props.variant === "today" ? (
+            <>
+              <time className="task-today-due">
+                {task.dueAt
+                  ? `${new Date(task.dueAt).toLocaleDateString("zh-CN", {
+                      month: "numeric",
+                      day: "numeric",
+                    })}${!isImplicitEndOfDay(task.dueAt) ? ` ${new Date(task.dueAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}` : ""}`
+                  : "无日期"}
+              </time>
+              <span className="task-today-estimate">
+                {task.estimatedMinutes > 0
+                  ? `${task.estimatedMinutes} 分钟`
+                  : "-"}
+              </span>
+            </>
+          ) : null}
           <div className="task-tags">
             {task.tagIds
               .slice(0, 3)

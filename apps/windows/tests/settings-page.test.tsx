@@ -112,7 +112,6 @@ describe("settings page", () => {
     expect(await screen.findByText("125%")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "保存设置" })).toBeNull();
     expect(screen.getByRole("button", { name: "恢复默认缩放" })).toBeTruthy();
-
     updateSettings.mockRejectedValueOnce(new Error("设置写入失败"));
     const startMinimized = screen.getAllByRole("switch")[1]!;
     fireEvent.click(startMinimized);
@@ -121,6 +120,12 @@ describe("settings page", () => {
       expect((startMinimized as HTMLInputElement).checked).toBe(false),
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "标签管理" }));
+    expect(
+      screen
+        .getByRole("button", { name: "标签管理" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
     fireEvent.click(screen.getByRole("button", { name: "新建标签" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByLabelText("颜色")).toBeNull();

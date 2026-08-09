@@ -108,9 +108,15 @@ describe("today page", () => {
     );
 
     expect(await screen.findByText("今日测试任务")).toBeTruthy();
+    expect(document.querySelector(".task-row-today")).toBeTruthy();
+    expect(
+      document.querySelector(".task-row-today .task-today-due"),
+    ).toBeTruthy();
+    expect(document.querySelector(".task-row-today .task-meta")).toBeNull();
     expect(screen.getByText("35 分钟")).toBeTruthy();
     expect(screen.getByText("英语六级考试")).toBeTruthy();
     expect(screen.getByText("还有 6 天")).toBeTruthy();
+    expect(document.querySelector(".today-countdown-strip")).toBeTruthy();
     expect(screen.getByRole("heading", { name: /^今天 \/ / })).toBeTruthy();
     expect(
       screen.queryByText("聚焦今天最重要的事，稳步推进当前计划。"),
