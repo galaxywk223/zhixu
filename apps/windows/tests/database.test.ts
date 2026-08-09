@@ -219,4 +219,29 @@ describe("schema 6 migration", () => {
     expect(store.integrityCheck()).toBe("ok");
     context.db.close();
   });
+
+  it("persists supported interface scales and ignores invalid stored values", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+
+    expect(store.getSettings().uiScale).toBe(100);
+    context.db
+      .prepare(
+        "INSERT INTO app_settings(key, value_json, updated_at) VALUES ('uiScale', '137', 0)",
+      )
+      .run();
+    expect(store.getSettings().uiScale).toBe(100);
+
+    store.saveSettings({
+      themeMode: "light",
+      uiScale: 125,
+      closeToTray: true,
+      startMinimized: false,
+    });
+    expect(store.getSettings().uiScale).toBe(125);
+    store.saveUiScale(150);
+    expect(store.getSettings().uiScale).toBe(150);
+    context.db.close();
+  });
 });

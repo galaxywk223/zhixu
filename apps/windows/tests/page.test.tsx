@@ -45,12 +45,14 @@ describe("shared page components", () => {
     expect(screen.getByRole("button", { name: "设置" })).toBeTruthy();
     expect(container.querySelector(".app-frame.sidebar-collapsed")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "收起侧边栏" }));
+    const collapseButton = screen.getByRole("button", { name: "折叠侧栏" });
+    expect(collapseButton.querySelector("span")).toBeNull();
+    fireEvent.click(collapseButton);
     expect(
       container.querySelector(".app-frame.sidebar-collapsed"),
     ).toBeTruthy();
     expect(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe("true");
-    expect(screen.getByRole("button", { name: "展开侧边栏" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "展开侧栏" })).toBeTruthy();
 
     unmount();
     const restored = render(
@@ -77,6 +79,6 @@ describe("shared page components", () => {
     );
 
     expect(container.querySelector(".app-frame.sidebar-collapsed")).toBeNull();
-    expect(screen.getByRole("button", { name: "收起侧边栏" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "折叠侧栏" })).toBeTruthy();
   });
 });

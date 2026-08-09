@@ -7,6 +7,8 @@ import {
   taskDraftSchema,
   taskStatusSchema,
   themeModeSchema,
+  uiScaleSchema,
+  type UiScale,
 } from "@zhixu/contracts";
 import type { MigrationReport } from "../preload/api-types";
 import { BackupService } from "./services/backup";
@@ -23,6 +25,7 @@ interface IpcDependencies {
   importer: TomatoImportService;
   updates: UpdateService;
   packaged: boolean;
+  applyUiScale(uiScale: UiScale): void;
 }
 
 const idSchema = z.string().min(1).max(200);
@@ -33,6 +36,7 @@ const tagInputSchema = z.object({
 });
 const settingsSchema = z.object({
   themeMode: themeModeSchema,
+  uiScale: uiScaleSchema,
   closeToTray: z.boolean(),
   startMinimized: z.boolean(),
 });
@@ -183,6 +187,15 @@ export function registerIpc(dependencies: IpcDependencies): void {
       const settings = settingsSchema.parse(value);
       store.saveSettings(settings);
       nativeTheme.themeSource = settings.themeMode;
+      dependencies.applyUiScale(settings.uiScale);
+    }),
+  );
+  ipcMain.handle(
+    "settings:set-ui-scale",
+    mutation("settings", (value) => {
+      const uiScale = uiScaleSchema.parse(value);
+      store.saveUiScale(uiScale);
+      dependencies.applyUiScale(uiScale);
     }),
   );
   ipcMain.handle("updates:get-state", () => dependencies.updates.getState());

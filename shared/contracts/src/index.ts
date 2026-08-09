@@ -14,6 +14,14 @@ export const entityTypeSchema = z.enum([
 export const taskStatusSchema = z.enum(["todo", "in_progress", "done"]);
 export const lifeEventKindSchema = z.enum(["sleep", "wake", "other"]);
 export const themeModeSchema = z.enum(["system", "light", "dark"]);
+export const uiScaleSchema = z.union([
+  z.literal(80),
+  z.literal(90),
+  z.literal(100),
+  z.literal(110),
+  z.literal(125),
+  z.literal(150),
+]);
 
 export const taskDraftSchema = z.object({
   id: z.string().min(1).optional(),
@@ -46,7 +54,7 @@ export const scheduleDraftSchema = z
     colorHex: z
       .string()
       .regex(/^#[0-9A-Fa-f]{6}$/)
-      .default("#2563EB"),
+      .default("#397BC6"),
   })
   .refine((value) => Date.parse(value.endAt) > Date.parse(value.startAt), {
     message: "结束时间必须晚于开始时间",
@@ -86,3 +94,4 @@ export type LifeEventDraft = z.infer<typeof lifeEventDraftSchema>;
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
 export type BackupManifestV6 = z.infer<typeof backupManifestV6Schema>;
 export type ThemeMode = z.infer<typeof themeModeSchema>;
+export type UiScale = z.infer<typeof uiScaleSchema>;

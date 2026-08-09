@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Textarea } from "@fluentui/react-components";
+import { Button, Checkbox, Input, Textarea } from "@fluentui/react-components";
 import {
   Add20Regular,
   Delete20Regular,
@@ -130,17 +130,15 @@ export function NotesPage(props: {
                 setDirty(true);
               }}
             />
-            <label className="pin-control">
-              <input
-                type="checkbox"
-                checked={pinned}
-                onChange={(event) => {
-                  setPinned(event.target.checked);
-                  setDirty(true);
-                }}
-              />
-              置顶
-            </label>
+            <Checkbox
+              className="pin-control"
+              checked={pinned}
+              label="置顶"
+              onChange={(_, data) => {
+                setPinned(data.checked === true);
+                setDirty(true);
+              }}
+            />
             <Button
               appearance={preview ? "primary" : "subtle"}
               icon={<Eye20Regular />}

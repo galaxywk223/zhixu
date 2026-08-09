@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Tooltip } from "@fluentui/react-components";
+import {
+  Button,
+  Field,
+  Input,
+  Select,
+  Tooltip,
+} from "@fluentui/react-components";
 import {
   Add20Regular,
   Calendar20Regular,
@@ -129,9 +135,8 @@ export function TasksPage(props: {
                     重置
                   </button>
                 </div>
-                <label>
-                  <span>精确状态</span>
-                  <select
+                <Field label="精确状态">
+                  <Select
                     value={filters.status}
                     onChange={(event) =>
                       setFilters((current) =>
@@ -146,11 +151,10 @@ export function TasksPage(props: {
                     <option value="todo">待完成</option>
                     <option value="in_progress">进行中</option>
                     <option value="done">已完成</option>
-                  </select>
-                </label>
-                <label>
-                  <span>分类</span>
-                  <select
+                  </Select>
+                </Field>
+                <Field label="分类">
+                  <Select
                     value={filters.categoryId}
                     onChange={(event) =>
                       setFilters((current) => ({
@@ -165,11 +169,10 @@ export function TasksPage(props: {
                         {item.name}
                       </option>
                     ))}
-                  </select>
-                </label>
-                <label>
-                  <span>标签</span>
-                  <select
+                  </Select>
+                </Field>
+                <Field label="标签">
+                  <Select
                     value={filters.tagId}
                     onChange={(event) =>
                       setFilters((current) => ({
@@ -184,8 +187,8 @@ export function TasksPage(props: {
                         {item.name}
                       </option>
                     ))}
-                  </select>
-                </label>
+                  </Select>
+                </Field>
               </div>
             ) : null}
           </div>
@@ -329,9 +332,8 @@ export function TasksPage(props: {
               <h2>{TASK_VIEW_LABELS[filters.view]}</h2>
               <span>{workspace.filteredTasks.length}</span>
             </div>
-            <label>
-              <span>排序</span>
-              <select
+            <Field label="排序" orientation="horizontal">
+              <Select
                 aria-label="任务排序"
                 value={sort}
                 onChange={(event) => setSort(event.target.value as TaskSort)}
@@ -339,8 +341,8 @@ export function TasksPage(props: {
                 <option value="due">到期时间</option>
                 <option value="priority">优先级</option>
                 <option value="updated">最近更新</option>
-              </select>
-            </label>
+              </Select>
+            </Field>
           </div>
           {workspace.filteredTasks.length === 0 ? (
             <EmptyState

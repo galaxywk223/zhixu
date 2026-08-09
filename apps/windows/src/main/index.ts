@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import type { UiScale } from "@zhixu/contracts";
 import {
   app,
   BrowserWindow,
@@ -36,6 +37,7 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let forceQuit = false;
 let closeToTray = true;
+let currentUiScale: UiScale = 100;
 
 function statePath(): string {
   return join(app.getPath("userData"), "window-state.json");
@@ -79,7 +81,7 @@ async function createWindow(): Promise<void> {
     minWidth: 1080,
     minHeight: 680,
     show: false,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? "#171717" : "#f5f5f5",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#1C2025" : "#F7F9FC",
     icon: existsSync(icon) ? icon : undefined,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
@@ -90,6 +92,7 @@ async function createWindow(): Promise<void> {
       devTools: !app.isPackaged,
     },
   });
+  mainWindow.webContents.setZoomFactor(currentUiScale / 100);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\/(github\.com|supabase\.com)\//.test(url))
       void shell.openExternal(url);
@@ -142,6 +145,7 @@ else {
       const store = new ZhixuStore(context.db);
       const settings = store.getSettings();
       closeToTray = settings.closeToTray;
+      currentUiScale = settings.uiScale;
       nativeTheme.themeSource = settings.themeMode;
       if (process.argv.includes("--self-test")) {
         const focusSessions = store.listFocusSessions();
@@ -183,6 +187,10 @@ else {
         importer,
         updates,
         packaged: app.isPackaged,
+        applyUiScale: (uiScale) => {
+          currentUiScale = uiScale;
+          mainWindow?.webContents.setZoomFactor(currentUiScale / 100);
+        },
       });
       Menu.setApplicationMenu(null);
       await createWindow();

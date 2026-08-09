@@ -4,6 +4,7 @@ import type {
   ScheduleDraft,
   TaskDraft,
   ThemeMode,
+  UiScale,
 } from "@zhixu/contracts";
 
 export interface TaskRecord {
@@ -148,6 +149,7 @@ export interface SearchHit {
 
 export interface AppSettings {
   themeMode: ThemeMode;
+  uiScale: UiScale;
   closeToTray: boolean;
   startMinimized: boolean;
 }
@@ -243,6 +245,7 @@ export interface ZhixuApi {
   settings: {
     get(): Promise<AppSettings>;
     set(settings: AppSettings): Promise<void>;
+    setUiScale(uiScale: UiScale): Promise<void>;
   };
   updates: {
     getState(): Promise<UpdateState>;

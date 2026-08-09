@@ -69,6 +69,8 @@ const api: ZhixuApi = {
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (settings) => ipcRenderer.invoke("settings:set", settings),
+    setUiScale: (uiScale) =>
+      ipcRenderer.invoke("settings:set-ui-scale", uiScale),
   },
   updates: {
     getState: () => ipcRenderer.invoke("updates:get-state"),

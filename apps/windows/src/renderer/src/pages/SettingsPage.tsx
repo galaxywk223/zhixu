@@ -8,14 +8,19 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Field,
   Input,
   Switch,
+  Tooltip,
 } from "@fluentui/react-components";
 import {
+  ArrowReset20Regular,
   ArrowDownload20Regular,
   ArrowUpload20Regular,
   Delete20Regular,
   Edit20Regular,
+  ZoomIn20Regular,
+  ZoomOut20Regular,
 } from "@fluentui/react-icons";
 import type {
   AppSettings,
@@ -24,6 +29,7 @@ import type {
 } from "../../../preload/api-types";
 import { Loading, PageHeader } from "../components/Page";
 import { queryKeys } from "../query";
+import { DEFAULT_UI_SCALE, stepUiScale } from "../../../shared/ui-scale";
 
 export function SettingsPage(): React.JSX.Element {
   const client = useQueryClient();
@@ -51,7 +57,12 @@ export function SettingsPage(): React.JSX.Element {
   const [editingTag, setEditingTag] = useState<TagRecord | "new" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   useEffect(() => {
-    if (settings.data) setDraft(settings.data);
+    if (settings.data)
+      setDraft((current) =>
+        current
+          ? { ...current, uiScale: settings.data.uiScale }
+          : settings.data,
+      );
   }, [settings.data]);
   useEffect(
     () =>
@@ -65,6 +76,15 @@ export function SettingsPage(): React.JSX.Element {
     onSuccess: () => {
       setMessage("设置已保存");
       client.invalidateQueries();
+    },
+  });
+  const setUiScale = useMutation({
+    mutationFn: async (uiScale: AppSettings["uiScale"]) => {
+      await window.zhixu.settings.setUiScale(uiScale);
+      return uiScale;
+    },
+    onSuccess: (uiScale) => {
+      setDraft((current) => (current ? { ...current, uiScale } : current));
     },
   });
   const removeTag = useMutation({
@@ -122,6 +142,48 @@ export function SettingsPage(): React.JSX.Element {
                     : "深色"}
               </button>
             ))}
+          </div>
+          <div className="setting-row scale-setting-row">
+            <div>
+              <strong>界面缩放</strong>
+              <small>同步调整文字、控件和页面布局。</small>
+            </div>
+            <div className="scale-stepper" role="group" aria-label="界面缩放">
+              <Tooltip content="缩小界面  Ctrl+-" relationship="description">
+                <Button
+                  appearance="subtle"
+                  icon={<ZoomOut20Regular />}
+                  aria-label="缩小界面"
+                  disabled={draft.uiScale === 80 || setUiScale.isPending}
+                  onClick={() =>
+                    setUiScale.mutate(stepUiScale(draft.uiScale, -1))
+                  }
+                />
+              </Tooltip>
+              <output aria-live="polite">{draft.uiScale}%</output>
+              <Tooltip content="放大界面  Ctrl++" relationship="description">
+                <Button
+                  appearance="subtle"
+                  icon={<ZoomIn20Regular />}
+                  aria-label="放大界面"
+                  disabled={draft.uiScale === 150 || setUiScale.isPending}
+                  onClick={() =>
+                    setUiScale.mutate(stepUiScale(draft.uiScale, 1))
+                  }
+                />
+              </Tooltip>
+              <Tooltip content="恢复 100%  Ctrl+0" relationship="description">
+                <Button
+                  appearance="subtle"
+                  icon={<ArrowReset20Regular />}
+                  aria-label="恢复默认缩放"
+                  disabled={
+                    draft.uiScale === DEFAULT_UI_SCALE || setUiScale.isPending
+                  }
+                  onClick={() => setUiScale.mutate(DEFAULT_UI_SCALE)}
+                />
+              </Tooltip>
+            </div>
           </div>
           <div className="setting-row">
             <div>
@@ -289,11 +351,11 @@ function TagEditor(props: {
   const client = useQueryClient();
   const record = props.value && props.value !== "new" ? props.value : null;
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#0F6CBD");
+  const [color, setColor] = useState("#397BC6");
   useEffect(() => {
     if (props.value) {
       setName(record?.name ?? "");
-      setColor(record?.colorHex ?? "#0F6CBD");
+      setColor(record?.colorHex ?? "#397BC6");
     }
   }, [props.value, record?.id]);
   const save = useMutation({
@@ -314,18 +376,17 @@ function TagEditor(props: {
         <DialogBody>
           <DialogTitle>{record ? "编辑标签" : "新建标签"}</DialogTitle>
           <DialogContent className="form-grid">
-            <label>
-              名称
+            <Field label="名称">
               <Input value={name} onChange={(_, data) => setName(data.value)} />
-            </label>
-            <label>
-              颜色
+            </Field>
+            <Field label="颜色">
               <input
+                className="native-control color-control"
                 type="color"
                 value={color}
                 onChange={(event) => setColor(event.target.value)}
               />
-            </label>
+            </Field>
             {save.error ? (
               <p className="error-message">{String(save.error)}</p>
             ) : null}

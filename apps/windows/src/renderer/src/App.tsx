@@ -1,11 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  FluentProvider,
-  Spinner,
-  webDarkTheme,
-  webLightTheme,
-} from "@fluentui/react-components";
+import { FluentProvider, Spinner } from "@fluentui/react-components";
 import type { TaskRecord } from "../../preload/api-types";
 import { SearchDialog } from "./components/SearchDialog";
 import { Shell, type Route } from "./components/Shell";
@@ -19,6 +14,8 @@ import { StatsPage } from "./pages/StatsPage";
 import { TasksPage } from "./pages/TasksPage";
 import { TodayPage } from "./pages/TodayPage";
 import { queryKeys, useDataInvalidation } from "./query";
+import { uiScaleForShortcut } from "../../shared/ui-scale";
+import { zhixuDarkTheme, zhixuLightTheme } from "./theme";
 
 export function App(): React.JSX.Element {
   const bootstrap = useQuery({
@@ -36,7 +33,12 @@ export function App(): React.JSX.Element {
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
   );
+  const uiScale = useRef(100);
   useDataInvalidation();
+
+  useEffect(() => {
+    if (bootstrap.data) uiScale.current = bootstrap.data.settings.uiScale;
+  }, [bootstrap.data]);
 
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
@@ -68,6 +70,15 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     const handler = (event: KeyboardEvent): void => {
       if (!event.ctrlKey) return;
+      const nextScale = uiScaleForShortcut(uiScale.current, event.key);
+      if (nextScale !== null) {
+        event.preventDefault();
+        if (nextScale !== uiScale.current) {
+          uiScale.current = nextScale;
+          void window.zhixu.settings.setUiScale(nextScale);
+        }
+        return;
+      }
       if (event.key.toLowerCase() === "k") {
         event.preventDefault();
         setSearch(true);
@@ -160,7 +171,7 @@ export function App(): React.JSX.Element {
   }[route];
   return (
     <FluentProvider
-      theme={dark ? webDarkTheme : webLightTheme}
+      theme={dark ? zhixuDarkTheme : zhixuLightTheme}
       className={`app-provider ${dark ? "theme-dark" : "theme-light"}`}
     >
       <div

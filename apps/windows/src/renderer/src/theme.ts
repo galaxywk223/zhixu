@@ -1,0 +1,62 @@
+import {
+  webDarkTheme,
+  webLightTheme,
+  type Theme,
+} from "@fluentui/react-components";
+
+const fontFamily =
+  '"Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif';
+
+export const zhixuLightTheme: Theme = {
+  ...webLightTheme,
+  fontFamilyBase: fontFamily,
+  fontSizeBase200: "13px",
+  fontSizeBase300: "14px",
+  fontSizeBase400: "15px",
+  fontWeightRegular: 400,
+  fontWeightMedium: 500,
+  fontWeightSemibold: 600,
+  fontWeightBold: 700,
+  colorBrandBackground: "#397BC6",
+  colorBrandBackgroundHover: "#2F6FB7",
+  colorBrandBackgroundPressed: "#285F9D",
+  colorBrandForeground1: "#397BC6",
+  colorBrandForeground2: "#2F6FB7",
+  colorNeutralForeground1: "#223044",
+  colorNeutralForeground2: "#526477",
+  colorNeutralForeground3: "#68788A",
+  colorNeutralBackground1: "#FFFFFF",
+  colorNeutralBackground2: "#F7F9FC",
+  colorNeutralBackground3: "#F1F5F9",
+  colorNeutralStroke1: "#DCE5EE",
+  colorNeutralStroke2: "#E7EDF3",
+  colorCompoundBrandStroke: "#397BC6",
+  borderRadiusMedium: "4px",
+};
+
+export const zhixuDarkTheme: Theme = {
+  ...webDarkTheme,
+  fontFamilyBase: fontFamily,
+  fontSizeBase200: "13px",
+  fontSizeBase300: "14px",
+  fontSizeBase400: "15px",
+  fontWeightRegular: 400,
+  fontWeightMedium: 500,
+  fontWeightSemibold: 600,
+  fontWeightBold: 700,
+  colorBrandBackground: "#72A7E8",
+  colorBrandBackgroundHover: "#8AB7EE",
+  colorBrandBackgroundPressed: "#5B91D2",
+  colorBrandForeground1: "#72A7E8",
+  colorBrandForeground2: "#8AB7EE",
+  colorNeutralForeground1: "#F4F6F8",
+  colorNeutralForeground2: "#CDD3DA",
+  colorNeutralForeground3: "#AEB7C2",
+  colorNeutralBackground1: "#24292F",
+  colorNeutralBackground2: "#1C2025",
+  colorNeutralBackground3: "#2B3138",
+  colorNeutralStroke1: "#3C444E",
+  colorNeutralStroke2: "#323941",
+  colorCompoundBrandStroke: "#72A7E8",
+  borderRadiusMedium: "4px",
+};

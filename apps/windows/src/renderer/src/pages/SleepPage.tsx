@@ -8,7 +8,9 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Field,
   Input,
+  Select,
   Textarea,
 } from "@fluentui/react-components";
 import {
@@ -207,9 +209,8 @@ function EventEditor(props: {
         <DialogBody>
           <DialogTitle>{record ? "修改生活事件" : "记录生活事件"}</DialogTitle>
           <DialogContent className="form-grid">
-            <label>
-              类型
-              <select
+            <Field label="类型">
+              <Select
                 value={kind}
                 onChange={(event) => {
                   const value = event.target.value as typeof kind;
@@ -227,30 +228,28 @@ function EventEditor(props: {
                 <option value="sleep">睡觉</option>
                 <option value="wake">起床</option>
                 <option value="other">其他</option>
-              </select>
-            </label>
-            <label>
-              标题
+              </Select>
+            </Field>
+            <Field label="标题">
               <Input
                 value={title}
                 onChange={(_, data) => setTitle(data.value)}
               />
-            </label>
-            <label>
-              时间
+            </Field>
+            <Field label="时间">
               <input
+                className="native-control"
                 type="datetime-local"
                 value={occurredAt}
                 onChange={(event) => setOccurredAt(event.target.value)}
               />
-            </label>
-            <label>
-              备注
+            </Field>
+            <Field label="备注">
               <Textarea
                 value={note}
                 onChange={(_, data) => setNote(data.value)}
               />
-            </label>
+            </Field>
           </DialogContent>
           <DialogActions>
             <Button onClick={props.onClose}>取消</Button>

@@ -86,7 +86,7 @@ function readCollapsedPreference(): boolean {
 
 export function Shell(props: ShellProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(readCollapsedPreference);
-  const toggleLabel = collapsed ? "展开侧边栏" : "收起侧边栏";
+  const toggleLabel = collapsed ? "展开侧栏" : "折叠侧栏";
   const toggleSidebar = (): void => {
     setCollapsed((current) => {
       const next = !current;
@@ -136,7 +136,6 @@ export function Shell(props: ShellProps): React.JSX.Element {
             ) : (
               <PanelLeftContract24Regular />
             )}
-            <span>{toggleLabel}</span>
           </button>
         </Tooltip>
         <Tooltip content="设置  Ctrl+8" relationship="description">

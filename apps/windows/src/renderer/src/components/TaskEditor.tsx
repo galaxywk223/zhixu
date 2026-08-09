@@ -9,8 +9,9 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Field,
   Input,
-  Label,
+  Select,
   Textarea,
 } from "@fluentui/react-components";
 import type { TaskDraft } from "@zhixu/contracts";
@@ -104,22 +105,23 @@ export function TaskEditor({
         <DialogBody>
           <DialogTitle>{task ? "编辑任务" : "新建任务"}</DialogTitle>
           <DialogContent className="form-grid">
-            <Label required>标题</Label>
-            <Input
-              value={title}
-              onChange={(_, data) => setTitle(data.value)}
-              autoFocus
-            />
-            <Label>说明</Label>
-            <Textarea
-              resize="vertical"
-              value={description}
-              onChange={(_, data) => setDescription(data.value)}
-            />
+            <Field label="标题" required>
+              <Input
+                value={title}
+                onChange={(_, data) => setTitle(data.value)}
+                autoFocus
+              />
+            </Field>
+            <Field label="说明">
+              <Textarea
+                resize="vertical"
+                value={description}
+                onChange={(_, data) => setDescription(data.value)}
+              />
+            </Field>
             <div className="form-row three">
-              <label>
-                状态
-                <select
+              <Field label="状态">
+                <Select
                   value={status}
                   onChange={(event) =>
                     setStatus(event.target.value as TaskRecord["status"])
@@ -128,43 +130,40 @@ export function TaskEditor({
                   <option value="todo">待完成</option>
                   <option value="in_progress">进行中</option>
                   <option value="done">已完成</option>
-                </select>
-              </label>
-              <label>
-                优先级
-                <select
+                </Select>
+              </Field>
+              <Field label="优先级">
+                <Select
                   value={priority}
                   onChange={(event) => setPriority(Number(event.target.value))}
                 >
                   <option value={1}>低</option>
                   <option value={2}>中</option>
                   <option value={3}>高</option>
-                </select>
-              </label>
-              <label>
-                预计分钟
-                <input
+                </Select>
+              </Field>
+              <Field label="预计分钟">
+                <Input
                   type="number"
-                  min="0"
-                  value={estimatedMinutes}
-                  onChange={(event) =>
-                    setEstimatedMinutes(Number(event.target.value))
+                  min={0}
+                  value={String(estimatedMinutes)}
+                  onChange={(_, data) =>
+                    setEstimatedMinutes(Number(data.value))
                   }
                 />
-              </label>
+              </Field>
             </div>
             <div className="form-row two">
-              <label>
-                到期时间
+              <Field label="到期时间">
                 <input
+                  className="native-control"
                   type="datetime-local"
                   value={dueAt}
                   onChange={(event) => setDueAt(event.target.value)}
                 />
-              </label>
-              <label>
-                分类
-                <select
+              </Field>
+              <Field label="分类">
+                <Select
                   value={categoryId}
                   onChange={(event) => setCategoryId(event.target.value)}
                 >
@@ -176,11 +175,17 @@ export function TaskEditor({
                         {item.name}
                       </option>
                     ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             </div>
-            <fieldset className="tag-fieldset">
-              <legend>标签</legend>
+            <div
+              className="tag-fieldset"
+              role="group"
+              aria-labelledby="task-tag-label"
+            >
+              <span id="task-tag-label" className="tag-field-label">
+                标签
+              </span>
               {(tags.data ?? [])
                 .filter((tag) => !tag.isArchived)
                 .map((tag) => (
@@ -200,7 +205,7 @@ export function TaskEditor({
               {(tags.data ?? []).length === 0 ? (
                 <span className="muted">可在设置页创建标签</span>
               ) : null}
-            </fieldset>
+            </div>
             {error ? <div className="error-message">{error}</div> : null}
           </DialogContent>
           <DialogActions>

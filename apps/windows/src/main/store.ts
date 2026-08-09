@@ -6,6 +6,7 @@ import {
   scheduleDraftSchema,
   taskDraftSchema,
   themeModeSchema,
+  uiScaleSchema,
   type LifeEventDraft,
   type NoteDraft,
   type ScheduleDraft,
@@ -1013,6 +1014,7 @@ export class ZhixuStore {
   getSettings(): AppSettings {
     const defaults: AppSettings = {
       themeMode: "system",
+      uiScale: 100,
       closeToTray: true,
       startMinimized: false,
     };
@@ -1024,6 +1026,8 @@ export class ZhixuStore {
         const value = JSON.parse(String(row.value_json)) as unknown;
         if (row.key === "themeMode")
           defaults.themeMode = themeModeSchema.parse(value);
+        if (row.key === "uiScale")
+          defaults.uiScale = uiScaleSchema.parse(value);
         if (row.key === "closeToTray") defaults.closeToTray = Boolean(value);
         if (row.key === "startMinimized")
           defaults.startMinimized = Boolean(value);
@@ -1037,6 +1041,7 @@ export class ZhixuStore {
   saveSettings(settings: AppSettings): void {
     const parsed: AppSettings = {
       themeMode: themeModeSchema.parse(settings.themeMode),
+      uiScale: uiScaleSchema.parse(settings.uiScale),
       closeToTray: Boolean(settings.closeToTray),
       startMinimized: Boolean(settings.startMinimized),
     };
@@ -1049,6 +1054,16 @@ export class ZhixuStore {
         statement.run(key, JSON.stringify(value), nowSeconds());
     });
     run();
+  }
+
+  saveUiScale(uiScale: AppSettings["uiScale"]): void {
+    const value = uiScaleSchema.parse(uiScale);
+    this.db
+      .prepare(
+        `INSERT INTO app_settings (key, value_json, updated_at) VALUES ('uiScale', ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+      )
+      .run(JSON.stringify(value), nowSeconds());
   }
 
   exportData(): Record<string, SqlRow[]> {

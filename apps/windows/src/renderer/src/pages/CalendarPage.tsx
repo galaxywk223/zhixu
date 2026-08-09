@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Field,
   Input,
 } from "@fluentui/react-components";
 import {
@@ -300,39 +301,38 @@ function ScheduleEditor(props: {
         <DialogBody>
           <DialogTitle>{value ? "编辑时间块" : "新建时间块"}</DialogTitle>
           <DialogContent className="form-grid">
-            <label>
-              标题
+            <Field label="标题">
               <Input
                 value={title}
                 onChange={(_, data) => setTitle(data.value)}
               />
-            </label>
+            </Field>
             <div className="form-row two">
-              <label>
-                开始
+              <Field label="开始">
                 <input
+                  className="native-control"
                   type="datetime-local"
                   value={startAt}
                   onChange={(event) => setStartAt(event.target.value)}
                 />
-              </label>
-              <label>
-                结束
+              </Field>
+              <Field label="结束">
                 <input
+                  className="native-control"
                   type="datetime-local"
                   value={endAt}
                   onChange={(event) => setEndAt(event.target.value)}
                 />
-              </label>
+              </Field>
             </div>
-            <label>
-              颜色
+            <Field label="颜色">
               <input
+                className="native-control color-control"
                 type="color"
                 value={color}
                 onChange={(event) => setColor(event.target.value)}
               />
-            </label>
+            </Field>
             {save.error ? (
               <p className="error-message">{String(save.error)}</p>
             ) : null}
