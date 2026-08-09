@@ -18,18 +18,16 @@ import {
   Delete20Regular,
 } from "@fluentui/react-icons";
 import type { ScheduleBlockRecord } from "../../../preload/api-types";
+import {
+  combineLocalDateTime,
+  localDateTimeParts,
+} from "../../../shared/local-date";
+import { LocalDateField, LocalTimeField } from "../components/DateTimeFields";
 import { EmptyState, PageHeader } from "../components/Page";
 import { queryKeys } from "../query";
 
 function key(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function localInput(value: string): string {
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
 }
 
 export function CalendarPage(props: { onNewTask(): void }): React.JSX.Element {
@@ -270,17 +268,27 @@ function ScheduleEditor(props: {
   const endDefault = new Date(startDefault);
   endDefault.setHours(10);
   const [title, setTitle] = useState("");
-  const [startAt, setStartAt] = useState(
-    localInput(startDefault.toISOString()),
-  );
-  const [endAt, setEndAt] = useState(localInput(endDefault.toISOString()));
+  const initialStart = localDateTimeParts(startDefault.toISOString());
+  const initialEnd = localDateTimeParts(endDefault.toISOString());
+  const [startDate, setStartDate] = useState(initialStart.date);
+  const [startTime, setStartTime] = useState(initialStart.time);
+  const [endDate, setEndDate] = useState(initialEnd.date);
+  const [endTime, setEndTime] = useState(initialEnd.time);
   const [color, setColor] = useState("#2563EB");
   const open = props.value !== null;
   useEffect(() => {
     if (!open) return;
     setTitle(value?.title ?? "");
-    setStartAt(localInput(value?.startAt ?? startDefault.toISOString()));
-    setEndAt(localInput(value?.endAt ?? endDefault.toISOString()));
+    const nextStart = localDateTimeParts(
+      value?.startAt ?? startDefault.toISOString(),
+    );
+    const nextEnd = localDateTimeParts(
+      value?.endAt ?? endDefault.toISOString(),
+    );
+    setStartDate(nextStart.date);
+    setStartTime(nextStart.time);
+    setEndDate(nextEnd.date);
+    setEndTime(nextEnd.time);
     setColor(value?.colorHex ?? "#2563EB");
   }, [open, props.value, props.selected]);
   const save = useMutation({
@@ -297,7 +305,7 @@ function ScheduleEditor(props: {
         if (!data.open) props.onClose();
       }}
     >
-      <DialogSurface>
+      <DialogSurface className="editor-dialog">
         <DialogBody>
           <DialogTitle>{value ? "编辑时间块" : "新建时间块"}</DialogTitle>
           <DialogContent className="form-grid">
@@ -307,21 +315,43 @@ function ScheduleEditor(props: {
                 onChange={(_, data) => setTitle(data.value)}
               />
             </Field>
-            <div className="form-row two">
-              <Field label="开始">
-                <input
-                  className="native-control"
-                  type="datetime-local"
-                  value={startAt}
-                  onChange={(event) => setStartAt(event.target.value)}
+            <div className="form-row date-time-row">
+              <Field label="开始日期" required>
+                <LocalDateField
+                  ariaLabel="开始日期"
+                  required
+                  value={startDate}
+                  onChange={(next) => {
+                    setStartDate(next);
+                    if (next && endDate < next) setEndDate(next);
+                  }}
                 />
               </Field>
-              <Field label="结束">
-                <input
-                  className="native-control"
-                  type="datetime-local"
-                  value={endAt}
-                  onChange={(event) => setEndAt(event.target.value)}
+              <Field label="开始时间" required>
+                <LocalTimeField
+                  ariaLabel="开始时间"
+                  anchorDate={startDate}
+                  value={startTime}
+                  onChange={setStartTime}
+                />
+              </Field>
+            </div>
+            <div className="form-row date-time-row">
+              <Field label="结束日期" required>
+                <LocalDateField
+                  ariaLabel="结束日期"
+                  required
+                  min={startDate}
+                  value={endDate}
+                  onChange={setEndDate}
+                />
+              </Field>
+              <Field label="结束时间" required>
+                <LocalTimeField
+                  ariaLabel="结束时间"
+                  anchorDate={endDate}
+                  value={endTime}
+                  onChange={setEndTime}
                 />
               </Field>
             </div>
@@ -341,14 +371,20 @@ function ScheduleEditor(props: {
             <Button onClick={props.onClose}>取消</Button>
             <Button
               appearance="primary"
-              disabled={!title.trim()}
+              disabled={
+                !title.trim() ||
+                !startDate ||
+                !startTime ||
+                !endDate ||
+                !endTime
+              }
               onClick={() =>
                 save.mutate({
                   id: value?.id,
                   title,
                   taskId: value?.taskId ?? null,
-                  startAt: new Date(startAt).toISOString(),
-                  endAt: new Date(endAt).toISOString(),
+                  startAt: combineLocalDateTime(startDate, startTime),
+                  endAt: combineLocalDateTime(endDate, endTime),
                   isAllDay: false,
                   colorHex: color,
                 })

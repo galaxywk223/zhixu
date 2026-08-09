@@ -28,6 +28,7 @@ import {
   splitCountdowns,
 } from "../../../shared/countdown";
 import { EmptyState, Loading, PageHeader } from "../components/Page";
+import { LocalDateField } from "../components/DateTimeFields";
 import { queryKeys } from "../query";
 
 export function CountdownsPage(props: {
@@ -235,10 +236,11 @@ function CountdownEditor(props: {
               />
             </Field>
             <Field label="日期" required>
-              <Input
-                type="date"
+              <LocalDateField
+                ariaLabel="倒数日期"
+                required
                 value={targetDate}
-                onChange={(_, data) => setTargetDate(data.value)}
+                onChange={setTargetDate}
               />
             </Field>
             <Field label="备注">

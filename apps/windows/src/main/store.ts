@@ -41,6 +41,8 @@ import type {
 } from "../preload/api-types";
 import { classifyLifeEvent, normalizeLegacyTomatoText } from "../shared/domain";
 import { normalizeTagName, tagColorHex } from "../shared/tag-colors";
+import { buildFocusByLocalDay } from "../shared/focus-dates";
+import { addLocalDays, localDayStart } from "../shared/local-date";
 import {
   buildOccurrenceDates,
   combineLocalDueAt,
@@ -1337,30 +1339,20 @@ export class ZhixuStore {
   dashboardSummary(): DashboardSummary {
     const tasks = this.listTasks();
     const now = new Date();
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    ).getTime();
-    const tomorrowStart = todayStart + 86_400_000;
-    const weekStart =
-      todayStart - (now.getDay() === 0 ? 6 : now.getDay() - 1) * 86_400_000;
+    const today = localDayStart(now);
+    const todayStart = today.getTime();
+    const tomorrowStart = addLocalDays(today, 1).getTime();
+    const weekStart = addLocalDays(today, -6).getTime();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const focus = this.listFocusSessions();
-    const minutesAfter = (start: number): number =>
+    const minutesInPeriod = (start: number): number =>
       focus
-        .filter((item) => Date.parse(item.startAt) >= start)
+        .filter((item) => {
+          const value = Date.parse(item.startAt);
+          return value >= start && value < tomorrowStart;
+        })
         .reduce((sum, item) => sum + Math.max(0, item.durationMinutes), 0);
-    const focusByDay = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(todayStart - (6 - index) * 86_400_000);
-      const key = date.toISOString().slice(0, 10);
-      return {
-        date: key,
-        minutes: focus
-          .filter((item) => item.startAt.slice(0, 10) === key)
-          .reduce((sum, item) => sum + Math.max(0, item.durationMinutes), 0),
-      };
-    });
+    const focusByDay = buildFocusByLocalDay(focus, 7, now);
     return {
       taskTotal: tasks.length,
       dueToday: tasks.filter(
@@ -1380,9 +1372,9 @@ export class ZhixuStore {
       estimatedMinutes: tasks
         .filter((task) => task.status !== "done")
         .reduce((sum, task) => sum + task.estimatedMinutes, 0),
-      focusTodayMinutes: minutesAfter(todayStart),
-      focusWeekMinutes: minutesAfter(weekStart),
-      focusMonthMinutes: minutesAfter(monthStart),
+      focusTodayMinutes: minutesInPeriod(todayStart),
+      focusWeekMinutes: minutesInPeriod(weekStart),
+      focusMonthMinutes: minutesInPeriod(monthStart),
       focusByDay,
     };
   }

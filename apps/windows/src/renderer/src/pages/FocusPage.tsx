@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -18,6 +18,13 @@ import type {
   TomatoPreview,
   TomatoRowAction,
 } from "../../../preload/api-types";
+import {
+  filterFocusByRange,
+  groupFocusByLocalDate,
+  rangeForLatestFocus,
+  type FocusRange,
+} from "../../../shared/focus-dates";
+import { localDateKey } from "../../../shared/local-date";
 import { EmptyState, Loading, PageHeader, StatCard } from "../components/Page";
 import { queryKeys } from "../query";
 
@@ -41,6 +48,37 @@ function rowType(row: TomatoImportRow): string {
   return "不导入";
 }
 
+function localDateLabel(value: string): string {
+  const date = new Date(`${value}T00:00:00`);
+  return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
+}
+
+function previewRangeLabel(preview: TomatoPreview): string {
+  if (!preview.rangeStart && !preview.rangeEnd) return "未提供日期范围";
+  const start = preview.rangeStart
+    ? localDateLabel(localDateKey(new Date(preview.rangeStart)))
+    : "未知";
+  const end = preview.rangeEnd
+    ? localDateLabel(localDateKey(new Date(preview.rangeEnd)))
+    : "未知";
+  return `${start}至${end}`;
+}
+
+function previewDateKey(row: TomatoImportRow): string {
+  return row.startAt ? localDateKey(new Date(row.startAt)) : "无法识别日期";
+}
+
+function groupPreviewRows(
+  rows: TomatoImportRow[],
+): Array<[string, TomatoImportRow[]]> {
+  const groups = new Map<string, TomatoImportRow[]>();
+  for (const row of rows) {
+    const key = previewDateKey(row);
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  return [...groups].sort(([left], [right]) => right.localeCompare(left));
+}
+
 export function FocusPage({
   preview,
   onPreviewChange,
@@ -58,9 +96,10 @@ export function FocusPage({
     queryKey: queryKeys.summary,
     queryFn: window.zhixu.dashboard.summary,
   });
-  const [range, setRange] = useState<"today" | "7" | "30" | "all">("30");
+  const [range, setRange] = useState<FocusRange>("30");
   const [message, setMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const detailRef = useRef<HTMLElement>(null);
   const previewImport = useMutation({
     mutationFn: window.zhixu.focus.preview,
     onSuccess: (value) => {
@@ -72,12 +111,45 @@ export function FocusPage({
   const confirmImport = useMutation({
     mutationFn: (token: string) => window.zhixu.focus.confirm(token),
     onSuccess: async (result) => {
+      const committedPreview = preview;
       onPreviewChange(null);
       setImportError(null);
+      const latestChangedRow = committedPreview?.rows
+        .filter(
+          (row) =>
+            row.startAt &&
+            row.classification !== "excluded" &&
+            row.classification !== "error" &&
+            ["create", "update", "reconcile"].includes(row.action),
+        )
+        .sort(
+          (left, right) =>
+            Date.parse(right.startAt ?? "") - Date.parse(left.startAt ?? ""),
+        )[0];
+      const latestDate = latestChangedRow?.startAt
+        ? localDateKey(new Date(latestChangedRow.startAt))
+        : null;
+      const latestDayRows = latestDate
+        ? (committedPreview?.rows ?? []).filter(
+            (row) =>
+              row.startAt &&
+              localDateKey(new Date(row.startAt)) === latestDate &&
+              row.action === "create",
+          )
+        : [];
+      const latestDayNote = latestDate
+        ? `；${localDateLabel(latestDate)}新增 ${latestDayRows.length} 条记录`
+        : "";
       setMessage(
-        `新增 ${result.importedCount} 条，更新 ${result.updatedCount} 条，纠正 ${result.reconciledCount} 条，重复 ${result.skippedCount} 条，排除 ${result.excludedCount} 条`,
+        `导入完成：新增 ${result.importedCount} 条，更新 ${result.updatedCount} 条，纠正旧错误 ${result.reconciledCount} 条，重复 ${result.skippedCount} 条，本次不导入 ${result.excludedCount} 条${latestDayNote}`,
       );
       await client.invalidateQueries();
+      const refreshed = await window.zhixu.focus.list();
+      client.setQueryData(queryKeys.focus, refreshed);
+      setRange(rangeForLatestFocus(refreshed[0]?.startAt));
+      requestAnimationFrame(() =>
+        detailRef.current?.scrollIntoView({ block: "start" }),
+      );
     },
     onError: (error) => setImportError(String(error)),
   });
@@ -86,13 +158,9 @@ export function FocusPage({
     onSuccess: () => client.invalidateQueries(),
   });
   if (sessions.isLoading) return <Loading />;
-  const cutoff =
-    range === "all"
-      ? 0
-      : Date.now() - (range === "today" ? 1 : Number(range)) * 86_400_000;
-  const filtered = (sessions.data ?? []).filter(
-    (item) => Date.parse(item.startAt) >= cutoff,
-  );
+  const filtered = filterFocusByRange(sessions.data ?? [], range);
+  const groupedSessions = groupFocusByLocalDate(filtered);
+  const previewGroups = preview ? groupPreviewRows(preview.rows) : [];
   const declaredMismatch =
     preview?.declaredMinutes != null &&
     preview.declaredMinutes !== preview.calculatedMinutes;
@@ -152,7 +220,7 @@ export function FocusPage({
           ))}
         </div>
       </div>
-      <section className="workspace-section">
+      <section className="workspace-section" ref={detailRef}>
         <div className="section-heading">
           <h2>专注明细</h2>
           <span>{filtered.length} 条</span>
@@ -163,22 +231,30 @@ export function FocusPage({
             detail="从设置或当前页面导入番茄 TODO 的 .xls 导出文件。"
           />
         ) : (
-          <div className="data-table">
-            <div className="data-head">
-              <span>时间</span>
-              <span>专注事项</span>
-              <span>时长</span>
-              <span>状态</span>
-              <span>心得</span>
-            </div>
-            {filtered.map((item) => (
-              <div className="data-row" key={item.id}>
-                <time>{new Date(item.startAt).toLocaleString("zh-CN")}</time>
-                <strong>{item.taskName}</strong>
-                <span>{item.durationMinutes} 分钟</span>
-                <span>{item.status || "未知"}</span>
-                <span>{item.reflection || "—"}</span>
-              </div>
+          <div className="focus-history">
+            {groupedSessions.map((group) => (
+              <section className="focus-day-group" key={group.date}>
+                <header>
+                  <h3>{localDateLabel(group.date)}</h3>
+                  <span>
+                    {group.items.length} 条 · {group.totalMinutes} 分钟
+                  </span>
+                </header>
+                {group.items.map((item) => (
+                  <div className="focus-session-row" key={item.id}>
+                    <time>
+                      {new Date(item.startAt).toLocaleTimeString("zh-CN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </time>
+                    <strong>{item.taskName}</strong>
+                    <span>{item.durationMinutes} 分钟</span>
+                    <span>{item.status || "未知"}</span>
+                    <p>{item.reflection || "—"}</p>
+                  </div>
+                ))}
+              </section>
             ))}
           </div>
         )}
@@ -231,8 +307,9 @@ export function FocusPage({
                   <div className="import-preview-file">
                     <strong>{preview.fileName}</strong>
                     <span>
-                      {preview.exportUser ?? "未知用户"} · {preview.rows.length}{" "}
-                      条
+                      {preview.exportUser ?? "未知用户"} · 导入范围{" "}
+                      {previewRangeLabel(preview)} · 源文件{" "}
+                      {preview.rows.length} 条记录
                     </span>
                   </div>
                   <div className="import-preview-metrics">
@@ -249,21 +326,15 @@ export function FocusPage({
                       <strong>{preview.calculatedMinutes} 分钟</strong>
                     </div>
                     <div>
-                      <span>数据变更</span>
-                      <strong>
-                        {preview.counts.create +
-                          preview.counts.update +
-                          preview.counts.reconcile}{" "}
-                        条
-                      </strong>
+                      <span>本次不导入</span>
+                      <strong>{preview.counts.excluded} 条</strong>
                     </div>
                   </div>
                   <div className="import-preview-outcomes">
                     <span>新增 {preview.counts.create}</span>
                     <span>更新 {preview.counts.update}</span>
-                    <span>纠正 {preview.counts.reconcile}</span>
+                    <span>纠正旧错误 {preview.counts.reconcile}</span>
                     <span>重复 {preview.counts.unchanged}</span>
-                    <span>排除 {preview.counts.excluded}</span>
                     <span className={preview.counts.error ? "danger" : ""}>
                       错误 {preview.counts.error}
                     </span>
@@ -277,55 +348,54 @@ export function FocusPage({
                   {importError ? (
                     <div className="error-message">{importError}</div>
                   ) : null}
-                  <div className="import-preview-table-wrap">
-                    <table className="import-preview-table">
-                      <thead>
-                        <tr>
-                          <th>行</th>
-                          <th>时间</th>
-                          <th>事项</th>
-                          <th>类型</th>
-                          <th>时长</th>
-                          <th>处理</th>
-                          <th>说明</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preview.rows.map((row) => (
-                          <tr key={row.sourceRow} data-action={row.action}>
-                            <td>{row.sourceRow}</td>
-                            <td>
-                              {row.startAt
-                                ? new Date(row.startAt).toLocaleString(
-                                    "zh-CN",
-                                    {
-                                      month: "2-digit",
-                                      day: "2-digit",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    },
-                                  )
-                                : "—"}
-                            </td>
-                            <td>{row.taskName || "—"}</td>
-                            <td>{rowType(row)}</td>
-                            <td>
-                              {row.durationMinutes == null
-                                ? "—"
-                                : `${row.durationMinutes} 分钟`}
-                            </td>
-                            <td>
-                              <span className="import-action">
-                                {actionLabels[row.action]}
+                  <div className="import-preview-records">
+                    {previewGroups.map(([date, rows]) => (
+                      <section className="import-preview-day" key={date}>
+                        <header>
+                          <strong>
+                            {date === "无法识别日期"
+                              ? date
+                              : localDateLabel(date)}
+                          </strong>
+                          <span>{rows.length} 条</span>
+                        </header>
+                        {rows.map((row) => {
+                          const detail =
+                            [row.reason, ...row.warnings]
+                              .filter(Boolean)
+                              .join("；") || null;
+                          return (
+                            <div
+                              className="import-preview-row"
+                              key={row.sourceRow}
+                              data-action={row.action}
+                            >
+                              <time>
+                                {row.startAt
+                                  ? new Date(row.startAt).toLocaleTimeString(
+                                      "zh-CN",
+                                      {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )
+                                  : `第 ${row.sourceRow} 行`}
+                              </time>
+                              <strong>{row.taskName || "未识别事项"}</strong>
+                              <span>
+                                {row.durationMinutes == null
+                                  ? "—"
+                                  : `${row.durationMinutes} 分钟`}
                               </span>
-                            </td>
-                            <td>
-                              {row.reason || row.warnings.join("；") || "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                              <span className="import-row-result">
+                                {rowType(row)} · {actionLabels[row.action]}
+                              </span>
+                              {detail ? <p>{detail}</p> : null}
+                            </div>
+                          );
+                        })}
+                      </section>
+                    ))}
                   </div>
                 </div>
               ) : null}

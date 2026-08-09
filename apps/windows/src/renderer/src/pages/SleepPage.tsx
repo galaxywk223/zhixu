@@ -20,15 +20,13 @@ import {
 } from "@fluentui/react-icons";
 import type { LifeEventRecord } from "../../../preload/api-types";
 import { buildSleepRecords } from "../../../shared/domain";
+import {
+  combineLocalDateTime,
+  localDateTimeParts,
+} from "../../../shared/local-date";
+import { LocalDateField, LocalTimeField } from "../components/DateTimeFields";
 import { EmptyState, Loading, PageHeader, StatCard } from "../components/Page";
 import { queryKeys } from "../query";
-
-function localInput(value: string): string {
-  const date = new Date(value);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
-}
 
 export function SleepPage(): React.JSX.Element {
   const client = useQueryClient();
@@ -179,15 +177,19 @@ function EventEditor(props: {
   const record = props.value && props.value !== "new" ? props.value : null;
   const [kind, setKind] = useState<"sleep" | "wake" | "other">("sleep");
   const [title, setTitle] = useState("睡觉");
-  const [occurredAt, setOccurredAt] = useState(
-    localInput(new Date().toISOString()),
-  );
+  const initialOccurredAt = localDateTimeParts(new Date().toISOString());
+  const [occurredDate, setOccurredDate] = useState(initialOccurredAt.date);
+  const [occurredTime, setOccurredTime] = useState(initialOccurredAt.time);
   const [note, setNote] = useState("");
   useEffect(() => {
     if (props.value) {
       setKind(record?.kind ?? "sleep");
       setTitle(record?.title ?? "睡觉");
-      setOccurredAt(localInput(record?.occurredAt ?? new Date().toISOString()));
+      const nextOccurredAt = localDateTimeParts(
+        record?.occurredAt ?? new Date().toISOString(),
+      );
+      setOccurredDate(nextOccurredAt.date);
+      setOccurredTime(nextOccurredAt.time);
       setNote(record?.note ?? "");
     }
   }, [props.value, record?.id]);
@@ -205,7 +207,7 @@ function EventEditor(props: {
         if (!data.open) props.onClose();
       }}
     >
-      <DialogSurface>
+      <DialogSurface className="editor-dialog">
         <DialogBody>
           <DialogTitle>{record ? "修改生活事件" : "记录生活事件"}</DialogTitle>
           <DialogContent className="form-grid">
@@ -236,32 +238,45 @@ function EventEditor(props: {
                 onChange={(_, data) => setTitle(data.value)}
               />
             </Field>
-            <Field label="时间">
-              <input
-                className="native-control"
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(event) => setOccurredAt(event.target.value)}
-              />
-            </Field>
+            <div className="form-row date-time-row">
+              <Field label="日期" required>
+                <LocalDateField
+                  ariaLabel="事件日期"
+                  required
+                  value={occurredDate}
+                  onChange={setOccurredDate}
+                />
+              </Field>
+              <Field label="时间" required>
+                <LocalTimeField
+                  ariaLabel="事件时间"
+                  anchorDate={occurredDate}
+                  value={occurredTime}
+                  onChange={setOccurredTime}
+                />
+              </Field>
+            </div>
             <Field label="备注">
               <Textarea
                 value={note}
                 onChange={(_, data) => setNote(data.value)}
               />
             </Field>
+            {save.error ? (
+              <p className="error-message">{String(save.error)}</p>
+            ) : null}
           </DialogContent>
           <DialogActions>
             <Button onClick={props.onClose}>取消</Button>
             <Button
               appearance="primary"
-              disabled={!title.trim()}
+              disabled={!title.trim() || !occurredDate || !occurredTime}
               onClick={() =>
                 save.mutate({
                   id: record?.id,
                   kind,
                   title,
-                  occurredAt: new Date(occurredAt).toISOString(),
+                  occurredAt: combineLocalDateTime(occurredDate, occurredTime),
                   note: note || null,
                 })
               }

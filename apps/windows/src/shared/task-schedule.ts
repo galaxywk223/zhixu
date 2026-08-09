@@ -1,32 +1,12 @@
 import type { RecurrenceFrequency } from "@zhixu/contracts";
+import { localDateKey, parseLocalDateKey } from "./local-date";
+
+export { localDateKey } from "./local-date";
 
 export const MAX_BATCH_TASKS = 366;
 
-function parseLocalDate(value: string): Date {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) throw new Error("日期格式无效");
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(year, month - 1, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  )
-    throw new Error("日期无效");
-  return date;
-}
-
-export function localDateKey(value: Date): string {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 export function combineLocalDueAt(date: string, time: string | null): string {
-  const value = parseLocalDate(date);
+  const value = parseLocalDateKey(date);
   if (time) {
     const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
     if (!match) throw new Error("时间格式无效");
@@ -54,8 +34,8 @@ export function buildOccurrenceDates(
   frequency: RecurrenceFrequency,
   limit = MAX_BATCH_TASKS,
 ): string[] {
-  const start = parseLocalDate(startDate);
-  const end = parseLocalDate(endDate);
+  const start = parseLocalDateKey(startDate);
+  const end = parseLocalDateKey(endDate);
   if (end < start) throw new Error("结束日期不能早于开始日期");
   const result: string[] = [];
   const cursor = new Date(start);

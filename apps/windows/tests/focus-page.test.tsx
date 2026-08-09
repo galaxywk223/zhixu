@@ -127,11 +127,10 @@ describe("focus import preview", () => {
     expect(within(dialog).getByText("有效时长")).toBeTruthy();
     expect(within(dialog).getByText("630 分钟")).toBeTruthy();
     expect(within(dialog).getByText("新增 1")).toBeTruthy();
-    expect(within(dialog).getByText("纠正 1")).toBeTruthy();
-    expect(within(dialog).getByText("排除 1")).toBeTruthy();
-    expect(
-      within(dialog).getByRole("columnheader", { name: "处理" }),
-    ).toBeTruthy();
+    expect(within(dialog).getByText("纠正旧错误 1")).toBeTruthy();
+    expect(within(dialog).getByText("本次不导入")).toBeTruthy();
+    expect(within(dialog).getByText("8 月 9 日")).toBeTruthy();
+    expect(within(dialog).queryByRole("table")).toBeNull();
     expect(within(dialog).getByText("睡眠")).toBeTruthy();
     expect(within(dialog).getByText("中途放弃")).toBeTruthy();
     expect(

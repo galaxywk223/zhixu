@@ -8,6 +8,20 @@ const styles = readFileSync(
   fileURLToPath(new URL("../src/renderer/src/styles.css", import.meta.url)),
   "utf8",
 );
+const formSources = [
+  "../src/renderer/src/components/TaskEditor.tsx",
+  "../src/renderer/src/pages/CountdownsPage.tsx",
+  "../src/renderer/src/pages/CalendarPage.tsx",
+  "../src/renderer/src/pages/SleepPage.tsx",
+].map((path) =>
+  readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8"),
+);
+const focusSource = readFileSync(
+  fileURLToPath(
+    new URL("../src/renderer/src/pages/FocusPage.tsx", import.meta.url),
+  ),
+  "utf8",
+);
 
 describe("visual system", () => {
   it("uses comfortable typography at the unchanged 100 percent scale", () => {
@@ -28,6 +42,26 @@ describe("visual system", () => {
     expect(styles).toMatch(/\.task-workspace-layout \{[^}]*flex: 1;/s);
     expect(styles).toMatch(
       /\.memo-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s,
+    );
+  });
+
+  it("uses the shared Fluent date and time fields in editor dialogs", () => {
+    for (const source of formSources) {
+      expect(source).not.toMatch(/type="(?:date|time|datetime-local)"/);
+    }
+    expect(formSources.join("\n")).toContain("LocalDateField");
+    expect(formSources.join("\n")).toContain("LocalTimeField");
+    expect(styles).not.toContain("min-width: 520px");
+    expect(styles).toMatch(
+      /\.editor-dialog \.fui-DialogContent,[\s\S]*overflow-y: auto;/,
+    );
+  });
+
+  it("renders the import preview as grouped records instead of a table", () => {
+    expect(focusSource).toContain("import-preview-records");
+    expect(focusSource).not.toContain("import-preview-table");
+    expect(styles).toMatch(
+      /\.import-preview-row \{[\s\S]*grid-template-columns: 64px minmax\(0, 1fr\) auto auto;/,
     );
   });
 });

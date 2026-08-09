@@ -33,6 +33,7 @@ import {
   isImplicitEndOfDay,
   localDateKey,
 } from "../../../shared/task-schedule";
+import { LocalDateField, LocalTimeField } from "./DateTimeFields";
 
 const CREATE_TAG_OPTION = "__create-tag__";
 
@@ -219,120 +220,129 @@ export function TaskEditor({
         <DialogBody>
           <DialogTitle>{task ? "编辑任务" : "新建任务"}</DialogTitle>
           <DialogContent className="form-grid">
-            <Field label="标题" required>
-              <Input
-                value={title}
-                onChange={(_, data) => setTitle(data.value)}
-                autoFocus
-              />
-            </Field>
-            <Field label="说明">
-              <Textarea
-                resize="vertical"
-                value={description}
-                onChange={(_, data) => setDescription(data.value)}
-              />
-            </Field>
-            {!task ? (
-              <Field label="创建方式">
-                <div className="segmented task-creation-mode">
-                  <button
-                    type="button"
-                    className={creationMode === "single" ? "active" : ""}
-                    onClick={() => setCreationMode("single")}
-                  >
-                    单次
-                  </button>
-                  <button
-                    type="button"
-                    className={creationMode === "range" ? "active" : ""}
-                    onClick={() => setCreationMode("range")}
-                  >
-                    日期范围
-                  </button>
-                </div>
-              </Field>
-            ) : null}
-            <div className="form-row two">
-              <Field label="优先级">
-                <Select
-                  value={priority}
-                  onChange={(event) => setPriority(Number(event.target.value))}
-                >
-                  <option value={1}>低</option>
-                  <option value={2}>中</option>
-                  <option value={3}>高</option>
-                </Select>
-              </Field>
-              <Field label="预计分钟">
+            <section className="form-section">
+              <h3>任务内容</h3>
+              <Field label="标题" required>
                 <Input
-                  type="number"
-                  min={0}
-                  value={String(estimatedMinutes)}
-                  onChange={(_, data) =>
-                    setEstimatedMinutes(Number(data.value))
-                  }
+                  value={title}
+                  onChange={(_, data) => setTitle(data.value)}
+                  autoFocus
                 />
               </Field>
-            </div>
-            <div className="form-row two">
-              <Field
-                label={creationMode === "range" && !task ? "开始日期" : "日期"}
-                required
-              >
-                <input
-                  className="native-control"
-                  type="date"
-                  aria-label={
+              <Field label="说明">
+                <Textarea
+                  resize="vertical"
+                  value={description}
+                  onChange={(_, data) => setDescription(data.value)}
+                />
+              </Field>
+            </section>
+            <section className="form-section">
+              <h3>时间安排</h3>
+              {!task ? (
+                <Field label="创建方式">
+                  <div className="segmented task-creation-mode">
+                    <button
+                      type="button"
+                      className={creationMode === "single" ? "active" : ""}
+                      onClick={() => setCreationMode("single")}
+                    >
+                      单次
+                    </button>
+                    <button
+                      type="button"
+                      className={creationMode === "range" ? "active" : ""}
+                      onClick={() => setCreationMode("range")}
+                    >
+                      日期范围
+                    </button>
+                  </div>
+                </Field>
+              ) : null}
+              <div className="form-row two">
+                <Field
+                  label={
                     creationMode === "range" && !task ? "开始日期" : "日期"
                   }
-                  value={dueDate}
-                  onChange={(event) => {
-                    setDueDate(event.target.value);
-                    if (!rangeEnd || rangeEnd < event.target.value)
-                      setRangeEnd(event.target.value);
-                  }}
-                />
-              </Field>
-              <Field label="时间（可选）">
-                <input
-                  className="native-control"
-                  type="time"
-                  aria-label="时间（可选）"
-                  value={dueTime}
-                  onChange={(event) => setDueTime(event.target.value)}
-                />
-              </Field>
-            </div>
-            {creationMode === "range" && !task ? (
-              <div className="form-row two">
-                <Field label="结束日期" required>
-                  <input
-                    className="native-control"
-                    type="date"
-                    aria-label="结束日期"
-                    min={dueDate}
-                    value={rangeEnd}
-                    onChange={(event) => setRangeEnd(event.target.value)}
+                  required
+                >
+                  <LocalDateField
+                    ariaLabel={
+                      creationMode === "range" && !task ? "开始日期" : "日期"
+                    }
+                    required
+                    value={dueDate}
+                    onChange={(value) => {
+                      setDueDate(value);
+                      if (value && (!rangeEnd || rangeEnd < value))
+                        setRangeEnd(value);
+                    }}
                   />
                 </Field>
-                <Field label="重复频率">
-                  <Select
-                    value={frequency}
-                    onChange={(event) =>
-                      setFrequency(
-                        event.target.value as TaskBatchDraft["frequency"],
-                      )
-                    }
-                  >
-                    <option value="daily">每天</option>
-                    <option value="weekdays">工作日</option>
-                    <option value="weekly">每周</option>
-                  </Select>
+                <Field label="时间（可选）">
+                  <LocalTimeField
+                    ariaLabel="时间（可选）"
+                    optional
+                    anchorDate={dueDate}
+                    value={dueTime}
+                    onChange={setDueTime}
+                  />
                 </Field>
               </div>
-            ) : null}
-            <div className="form-row one">
+              {creationMode === "range" && !task ? (
+                <div className="form-row two">
+                  <Field label="结束日期" required>
+                    <LocalDateField
+                      ariaLabel="结束日期"
+                      required
+                      min={dueDate}
+                      value={rangeEnd}
+                      onChange={setRangeEnd}
+                    />
+                  </Field>
+                  <Field label="重复频率">
+                    <Select
+                      value={frequency}
+                      onChange={(event) =>
+                        setFrequency(
+                          event.target.value as TaskBatchDraft["frequency"],
+                        )
+                      }
+                    >
+                      <option value="daily">每天</option>
+                      <option value="weekdays">工作日</option>
+                      <option value="weekly">每周</option>
+                    </Select>
+                  </Field>
+                </div>
+              ) : null}
+            </section>
+            <section className="form-section">
+              <h3>任务属性</h3>
+              <div className="form-row two">
+                <Field label="优先级">
+                  <Select
+                    value={priority}
+                    onChange={(event) =>
+                      setPriority(Number(event.target.value))
+                    }
+                  >
+                    <option value={1}>低</option>
+                    <option value={2}>中</option>
+                    <option value={3}>高</option>
+                  </Select>
+                </Field>
+                <Field label="预计分钟">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={String(estimatedMinutes)}
+                    onChange={(_, data) =>
+                      setEstimatedMinutes(Number(data.value))
+                    }
+                  />
+                </Field>
+              </div>
               <Field label="分类">
                 <Select
                   value={categoryId}
@@ -348,73 +358,76 @@ export function TaskEditor({
                     ))}
                 </Select>
               </Field>
-            </div>
-            <Field label="标签" className="task-tag-field">
-              <TagPicker
-                selectedOptions={tagIds}
-                disabled={createTag.isPending}
-                onOptionSelect={(_, data) => {
-                  if (data.value === CREATE_TAG_OPTION) {
-                    void handleCreateTag();
-                    return;
-                  }
-                  setTagIds(
-                    data.selectedOptions.filter(
-                      (value) => value !== CREATE_TAG_OPTION,
-                    ),
-                  );
-                  setTagQuery("");
-                }}
-              >
-                <TagPickerControl className="task-tag-picker-control">
-                  <TagPickerGroup>
-                    {selectedTags.map((tag) => (
-                      <Tag
+            </section>
+            <section className="form-section">
+              <h3>标签</h3>
+              <Field label="任务标签" className="task-tag-field">
+                <TagPicker
+                  selectedOptions={tagIds}
+                  disabled={createTag.isPending}
+                  onOptionSelect={(_, data) => {
+                    if (data.value === CREATE_TAG_OPTION) {
+                      void handleCreateTag();
+                      return;
+                    }
+                    setTagIds(
+                      data.selectedOptions.filter(
+                        (value) => value !== CREATE_TAG_OPTION,
+                      ),
+                    );
+                    setTagQuery("");
+                  }}
+                >
+                  <TagPickerControl className="task-tag-picker-control">
+                    <TagPickerGroup>
+                      {selectedTags.map((tag) => (
+                        <Tag
+                          key={tag.id}
+                          value={tag.id}
+                          dismissible
+                          shape="rounded"
+                          className="task-editor-tag"
+                          data-tag-tone={tagTone(tag.name)}
+                        >
+                          {tag.name}
+                        </Tag>
+                      ))}
+                    </TagPickerGroup>
+                    <TagPickerInput
+                      aria-label="搜索或新建标签"
+                      placeholder={tagIds.length === 0 ? "搜索或新建标签" : ""}
+                      value={tagQuery}
+                      onChange={(event) => setTagQuery(event.target.value)}
+                    />
+                  </TagPickerControl>
+                  <TagPickerList>
+                    {matchingTags.map((tag) => (
+                      <TagPickerOption
                         key={tag.id}
                         value={tag.id}
-                        dismissible
-                        shape="rounded"
-                        className="task-editor-tag"
-                        data-tag-tone={tagTone(tag.name)}
+                        text={tag.name}
+                        media={
+                          <span
+                            className="tag-tone-dot"
+                            data-tag-tone={tagTone(tag.name)}
+                          />
+                        }
                       >
                         {tag.name}
-                      </Tag>
+                      </TagPickerOption>
                     ))}
-                  </TagPickerGroup>
-                  <TagPickerInput
-                    aria-label="搜索或新建标签"
-                    placeholder={tagIds.length === 0 ? "搜索或新建标签" : ""}
-                    value={tagQuery}
-                    onChange={(event) => setTagQuery(event.target.value)}
-                  />
-                </TagPickerControl>
-                <TagPickerList>
-                  {matchingTags.map((tag) => (
-                    <TagPickerOption
-                      key={tag.id}
-                      value={tag.id}
-                      text={tag.name}
-                      media={
-                        <span
-                          className="tag-tone-dot"
-                          data-tag-tone={tagTone(tag.name)}
-                        />
-                      }
-                    >
-                      {tag.name}
-                    </TagPickerOption>
-                  ))}
-                  {canCreateTag ? (
-                    <TagPickerOption
-                      value={CREATE_TAG_OPTION}
-                      text={`新建“${tagQuery.trim()}”`}
-                    >
-                      新建“{tagQuery.trim()}”
-                    </TagPickerOption>
-                  ) : null}
-                </TagPickerList>
-              </TagPicker>
-            </Field>
+                    {canCreateTag ? (
+                      <TagPickerOption
+                        value={CREATE_TAG_OPTION}
+                        text={`新建“${tagQuery.trim()}”`}
+                      >
+                        新建“{tagQuery.trim()}”
+                      </TagPickerOption>
+                    ) : null}
+                  </TagPickerList>
+                </TagPicker>
+              </Field>
+            </section>
             {error ? <div className="error-message">{error}</div> : null}
           </DialogContent>
           <DialogActions>
