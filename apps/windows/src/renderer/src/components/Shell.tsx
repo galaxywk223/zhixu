@@ -136,6 +136,7 @@ export function Shell(props: ShellProps): React.JSX.Element {
             ) : (
               <PanelLeftContract24Regular />
             )}
+            {!collapsed ? <span>收起</span> : null}
           </button>
         </Tooltip>
         <Tooltip content="设置  Ctrl+8" relationship="description">
