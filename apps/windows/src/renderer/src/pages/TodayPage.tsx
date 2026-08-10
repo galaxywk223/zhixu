@@ -6,6 +6,7 @@ import {
   CalendarClock20Regular,
   ChevronRight20Regular,
   Note24Regular,
+  NotePin20Regular,
   Search20Regular,
 } from "@fluentui/react-icons";
 import type { TaskRecord } from "../../../preload/api-types";
@@ -96,10 +97,17 @@ function notePreview(value: string): string {
     .trim();
 }
 
+function memoPriorityLabel(value: number): string {
+  if (value === 3) return "高";
+  if (value === 2) return "中";
+  return "低";
+}
+
 export function TodayPage(props: {
   onNew(): void;
   onEdit(task: TaskRecord): void;
   onSearch(): void;
+  onOpenMemos(memoId: string | null): void;
   onOpenNotes(noteId: string | null): void;
   onOpenCountdowns(countdownId: string | null): void;
 }): React.JSX.Element {
@@ -119,6 +127,10 @@ export function TodayPage(props: {
   const notes = useQuery({
     queryKey: queryKeys.notes,
     queryFn: window.zhixu.notes.list,
+  });
+  const memos = useQuery({
+    queryKey: queryKeys.memos,
+    queryFn: window.zhixu.memos.list,
   });
   const countdowns = useQuery({
     queryKey: queryKeys.countdowns,
@@ -140,6 +152,7 @@ export function TodayPage(props: {
   if (
     tasks.isLoading ||
     summary.isLoading ||
+    memos.isLoading ||
     notes.isLoading ||
     countdowns.isLoading
   )
@@ -153,6 +166,13 @@ export function TodayPage(props: {
       (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
     )
     .slice(0, 4);
+  const priorityMemos = [...(memos.data ?? [])]
+    .sort(
+      (left, right) =>
+        right.priority - left.priority ||
+        Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+    )
+    .slice(0, 3);
   const upcomingCountdowns = countdownPreview(countdowns.data ?? [], now);
   const focusByDay = summary.data?.focusByDay ?? [];
   const maxFocusMinutes = Math.max(
@@ -190,56 +210,6 @@ export function TodayPage(props: {
       </header>
 
       <div className="today-workspace-scroll">
-        <section className="today-countdown-strip">
-          <div className="today-countdown-heading">
-            <CalendarClock20Regular />
-            <h2>倒数日</h2>
-            <button
-              type="button"
-              className="panel-link"
-              onClick={() => props.onOpenCountdowns(null)}
-            >
-              查看全部
-              <ChevronRight20Regular />
-            </button>
-          </div>
-          {upcomingCountdowns.length ? (
-            <div className="today-countdown-list">
-              {upcomingCountdowns.map((item) => {
-                const days = countdownDays(item.targetDate, now);
-                return (
-                  <button
-                    type="button"
-                    className={`today-countdown-item ${days === 0 ? "today" : days <= 7 ? "soon" : "future"}`}
-                    key={item.id}
-                    onClick={() => props.onOpenCountdowns(item.id)}
-                  >
-                    <span>
-                      <strong>{item.title}</strong>
-                      <time dateTime={item.targetDate}>
-                        {parseLocalDate(item.targetDate).toLocaleDateString(
-                          "zh-CN",
-                          { month: "long", day: "numeric" },
-                        )}
-                      </time>
-                    </span>
-                    <b>{countdownLabel(days)}</b>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="today-countdown-empty"
-              onClick={() => props.onOpenCountdowns(null)}
-            >
-              暂无倒数日，添加重要日期
-              <Add20Regular />
-            </button>
-          )}
-        </section>
-
         <div className="today-dashboard-grid">
           <section className="today-panel today-task-panel">
             <div className="today-panel-heading">
@@ -301,15 +271,15 @@ export function TodayPage(props: {
                       onClick={() => props.onEdit(task)}
                     >
                       <span className="deadline-dot" />
-                      <span className="upcoming-main">
-                        <strong>{task.title}</strong>
-                        <small>
-                          {remainingDays === 1
-                            ? "明天到期"
-                            : `剩余 ${remainingDays} 天`}
-                        </small>
+                      <strong className="upcoming-title">{task.title}</strong>
+                      <span className="upcoming-relative">
+                        {remainingDays === 1
+                          ? "明天到期"
+                          : `剩余 ${remainingDays} 天`}
                       </span>
-                      <time>{formatDeadline(task.dueAt!)}</time>
+                      <time className="upcoming-deadline">
+                        {formatDeadline(task.dueAt!)}
+                      </time>
                     </button>
                   );
                 })}
@@ -391,38 +361,96 @@ export function TodayPage(props: {
             </div>
           </section>
 
-          <section className="today-panel suggestion-panel">
-            <div className="suggestion-heading">
-              <span className="suggestion-icon">◎</span>
-              <h2>今日重点建议</h2>
+          <section className="today-panel today-memo-panel">
+            <div className="today-panel-heading">
+              <NotePin20Regular />
+              <h2>备忘</h2>
+              <span className="panel-count">{memos.data?.length ?? 0}</span>
+              <button
+                type="button"
+                className="panel-link"
+                onClick={() => props.onOpenMemos(null)}
+              >
+                查看全部
+                <ChevronRight20Regular />
+              </button>
             </div>
-            {dashboard.focusTask ? (
-              <>
-                <p>
-                  优先处理“{dashboard.focusTask.title}”
-                  {dashboard.focusTask.priority === 3
-                    ? "，该任务优先级较高。"
-                    : "，完成后再推进后续安排。"}
-                </p>
-                <Button
-                  appearance="outline"
-                  icon={<ChevronRight20Regular />}
-                  onClick={() => props.onEdit(dashboard.focusTask!)}
-                >
-                  查看任务
-                </Button>
-              </>
+            {priorityMemos.length ? (
+              <div className="today-memo-list">
+                {priorityMemos.map((memo) => (
+                  <button
+                    type="button"
+                    className={`today-memo-item priority-${memo.priority}`}
+                    key={memo.id}
+                    onClick={() => props.onOpenMemos(memo.id)}
+                  >
+                    <i aria-hidden="true" />
+                    <strong>{memo.title}</strong>
+                    <span>{memoPriorityLabel(memo.priority)}优先级</span>
+                    <time>{formatNoteTime(memo.updatedAt, now)}</time>
+                  </button>
+                ))}
+              </div>
             ) : (
-              <>
-                <p>今日任务已经处理完毕，可补充新的安排或整理最近笔记。</p>
-                <Button
-                  appearance="outline"
-                  icon={<Add20Regular />}
-                  onClick={props.onNew}
-                >
-                  添加任务
-                </Button>
-              </>
+              <EmptyState
+                title="暂无备忘"
+                detail="重要备忘会优先显示在这里。"
+                action={
+                  <Button onClick={() => props.onOpenMemos(null)}>
+                    前往备忘
+                  </Button>
+                }
+              />
+            )}
+          </section>
+
+          <section className="today-panel today-countdown-strip">
+            <div className="today-countdown-heading">
+              <CalendarClock20Regular />
+              <h2>倒数</h2>
+              <button
+                type="button"
+                className="panel-link"
+                onClick={() => props.onOpenCountdowns(null)}
+              >
+                查看全部
+                <ChevronRight20Regular />
+              </button>
+            </div>
+            {upcomingCountdowns.length ? (
+              <div className="today-countdown-list">
+                {upcomingCountdowns.map((item) => {
+                  const days = countdownDays(item.targetDate, now);
+                  return (
+                    <button
+                      type="button"
+                      className={`today-countdown-item ${days === 0 ? "today" : days <= 7 ? "soon" : "future"}`}
+                      key={item.id}
+                      onClick={() => props.onOpenCountdowns(item.id)}
+                    >
+                      <span>
+                        <strong>{item.title}</strong>
+                        <time dateTime={item.targetDate}>
+                          {parseLocalDate(item.targetDate).toLocaleDateString(
+                            "zh-CN",
+                            { month: "long", day: "numeric" },
+                          )}
+                        </time>
+                      </span>
+                      <b>{countdownLabel(days)}</b>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="today-countdown-empty"
+                onClick={() => props.onOpenCountdowns(null)}
+              >
+                暂无倒数，添加重要日期
+                <Add20Regular />
+              </button>
             )}
           </section>
 

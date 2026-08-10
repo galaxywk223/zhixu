@@ -12,7 +12,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TomatoPreview, ZhixuApi } from "../src/preload/api-types";
 import { FocusPage } from "../src/renderer/src/pages/FocusPage";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 function renderPage(preview: TomatoPreview | null, confirm = vi.fn()) {
   const api = {

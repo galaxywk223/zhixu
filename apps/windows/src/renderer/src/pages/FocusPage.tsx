@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -39,6 +39,10 @@ import {
   type FocusFilters,
   type FocusView,
 } from "./focus-workspace-model";
+import {
+  loadFocusFilters,
+  saveFocusFilters,
+} from "../workspace-view-preferences";
 
 interface FocusPageProps {
   preview: TomatoPreview | null;
@@ -122,11 +126,14 @@ export function FocusPage({
     queryKey: queryKeys.batches,
     queryFn: window.zhixu.focus.batches,
   });
-  const [filters, setFilters] = useState<FocusFilters>(initialFilters);
+  const [filters, setFilters] = useState<FocusFilters>(() =>
+    loadFocusFilters(initialFilters()),
+  );
   const [tab, setTab] = useState<FocusTab>("overview");
   const [message, setMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLElement>(null);
+  useEffect(() => saveFocusFilters(filters), [filters]);
   const workspace = useMemo(
     () => buildFocusWorkspace(sessions.data ?? [], filters),
     [sessions.data, filters],

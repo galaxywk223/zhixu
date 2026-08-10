@@ -12,7 +12,10 @@ import type { TaskRecord, ZhixuApi } from "../src/preload/api-types";
 import { TasksPage } from "../src/renderer/src/pages/TasksPage";
 import { tagTone } from "../src/shared/tag-colors";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
   const now = new Date();

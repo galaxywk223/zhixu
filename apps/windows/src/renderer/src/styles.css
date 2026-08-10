@@ -1880,7 +1880,8 @@ button {
   grid-template-columns: minmax(540px, 1.45fr) minmax(330px, 0.85fr);
   grid-template-areas:
     "tasks upcoming"
-    "progress suggestion"
+    "progress memos"
+    "countdown countdown"
     "notes notes";
   gap: 16px;
   align-items: stretch;
@@ -1904,8 +1905,11 @@ button {
 .today-progress-panel {
   grid-area: progress;
 }
-.suggestion-panel {
-  grid-area: suggestion;
+.today-memo-panel {
+  grid-area: memos;
+}
+.today-countdown-strip {
+  grid-area: countdown;
 }
 .recent-notes-panel {
   grid-area: notes;
@@ -1918,8 +1922,7 @@ button {
   padding: 0 17px;
   border-bottom: 1px solid var(--border);
 }
-.today-panel-heading h2,
-.suggestion-heading h2 {
+.today-panel-heading h2 {
   margin: 0;
   font-size: 17px;
   line-height: 1.3;
@@ -2009,11 +2012,11 @@ button {
 }
 .upcoming-item {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 11px;
   width: 100%;
-  min-height: 70px;
+  min-height: 62px;
   padding: 9px 2px;
   color: var(--text);
   background: transparent;
@@ -2039,34 +2042,27 @@ button {
 .upcoming-item.soon .deadline-dot {
   background: var(--warning);
 }
-.upcoming-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.upcoming-title {
   min-width: 0;
-}
-.upcoming-main strong {
   overflow: hidden;
   font-size: var(--font-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.upcoming-main small {
+.upcoming-relative,
+.upcoming-deadline {
   color: var(--muted);
-  font-size: var(--font-caption);
-}
-.upcoming-item time {
-  align-self: end;
-  padding-bottom: 7px;
-  color: var(--accent);
   font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.upcoming-item.urgent time {
+.upcoming-deadline {
+  color: var(--accent);
+}
+.upcoming-item.urgent .upcoming-deadline {
   color: var(--danger);
 }
-.upcoming-item.soon time {
+.upcoming-item.soon .upcoming-deadline {
   color: var(--warning);
 }
 .today-progress-grid {
@@ -2177,47 +2173,58 @@ button {
   border-color: var(--accent);
   opacity: 1;
 }
-.suggestion-panel {
-  position: relative;
+.today-memo-panel {
   min-height: 240px;
-  padding: 20px;
-  background: color-mix(in srgb, var(--accentSoft) 60%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
-.suggestion-panel::after {
-  position: absolute;
-  right: 24px;
-  bottom: 10px;
-  color: color-mix(in srgb, var(--accent) 12%, transparent);
-  content: "◎";
-  font-size: 124px;
-  line-height: 1;
-  pointer-events: none;
+.today-memo-panel .today-panel-heading > svg {
+  color: var(--accent);
 }
-.suggestion-heading {
-  display: flex;
+.today-memo-list {
+  padding: 0 16px 8px;
+}
+.today-memo-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 9px;
-  color: var(--accent);
+  gap: 11px;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 2px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
 }
-.suggestion-icon {
-  font-size: 24px;
-  font-weight: 700;
+.today-memo-item:last-child {
+  border-bottom: 0;
 }
-.suggestion-panel p {
-  position: relative;
-  z-index: 1;
-  max-width: 440px;
-  min-height: 50px;
-  margin: 18px 0 20px;
-  color: color-mix(in srgb, var(--text) 82%, var(--muted));
-  line-height: 1.75;
+.today-memo-item:hover {
+  background: var(--surface2);
 }
-.suggestion-panel .fui-Button {
-  position: relative;
-  z-index: 1;
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+.today-memo-item > i {
+  width: 9px;
+  height: 9px;
+  background: var(--muted);
+  border-radius: 50%;
+}
+.today-memo-item.priority-2 > i {
+  background: var(--warning);
+}
+.today-memo-item.priority-3 > i {
+  background: var(--danger);
+}
+.today-memo-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today-memo-item span,
+.today-memo-item time {
+  color: var(--muted);
+  font-size: var(--font-caption);
+  white-space: nowrap;
 }
 .recent-notes-panel {
   background: transparent;
@@ -4370,7 +4377,7 @@ button {
 }
 .today-countdown-strip {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   padding: 0;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -4490,9 +4497,6 @@ button {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
-  .today-countdown-strip {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .calendar-workspace {
     grid-template-columns: minmax(0, 1fr) 270px;
   }
@@ -4590,10 +4594,11 @@ button {
       "tasks"
       "upcoming"
       "progress"
-      "suggestion"
+      "memos"
+      "countdown"
       "notes";
   }
-  .suggestion-panel {
+  .today-memo-panel {
     min-height: 205px;
   }
 }

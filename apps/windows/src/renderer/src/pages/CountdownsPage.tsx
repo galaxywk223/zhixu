@@ -69,25 +69,23 @@ export function CountdownsPage(props: {
   return (
     <div className="page countdowns-page">
       <PageHeader
-        title="倒数日"
+        title="倒数"
         actions={
           <Button
             appearance="primary"
             icon={<Add20Regular />}
             onClick={() => setEditing("new")}
           >
-            新建倒数日
+            新建倒数
           </Button>
         }
       />
       <div className="countdown-workspace-scroll">
         {groups.upcoming.length === 0 && groups.past.length === 0 ? (
           <EmptyState
-            title="暂无倒数日"
+            title="暂无倒数"
             detail="记录考试、申请截止或其他重要日期。"
-            action={
-              <Button onClick={() => setEditing("new")}>新建倒数日</Button>
-            }
+            action={<Button onClick={() => setEditing("new")}>新建倒数</Button>}
           />
         ) : (
           <div className="countdown-sections">
@@ -232,7 +230,7 @@ function CountdownEditor(props: {
     >
       <DialogSurface className="editor-dialog">
         <DialogBody>
-          <DialogTitle>{record ? "编辑倒数日" : "新建倒数日"}</DialogTitle>
+          <DialogTitle>{record ? "编辑倒数" : "新建倒数"}</DialogTitle>
           <DialogContent className="form-grid">
             <Field label="标题" required>
               <Input
@@ -243,7 +241,7 @@ function CountdownEditor(props: {
             </Field>
             <Field label="日期" required>
               <LocalDateField
-                ariaLabel="倒数日期"
+                ariaLabel="目标日期"
                 required
                 value={targetDate}
                 onChange={setTargetDate}

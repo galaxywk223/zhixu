@@ -72,17 +72,23 @@ describe("shared page components", () => {
     ).toBeNull();
     expect(screen.getByRole("button", { name: "任务" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "备忘" })).toBeTruthy();
+    expect(screen.queryByText("倒数日")).toBeNull();
     expect(screen.queryByRole("button", { name: "统计" })).toBeNull();
     expect(
       screen
-        .getByRole("button", { name: "倒数日" })
+        .getByRole("button", { name: "倒数" })
         .getAttribute("aria-keyshortcuts"),
-    ).toBe("Control+4");
+    ).toBe("Control+6");
     expect(
       screen
         .getByRole("button", { name: "日历" })
         .getAttribute("aria-keyshortcuts"),
-    ).toBe("Control+5");
+    ).toBe("Control+4");
+    expect(
+      screen
+        .getByRole("button", { name: "专注" })
+        .getAttribute("aria-keyshortcuts"),
+    ).toBe("Control+3");
     expect(
       screen
         .getByRole("button", { name: "设置" })
@@ -109,9 +115,11 @@ describe("shared page components", () => {
 
   it("maps numeric shortcuts to the sidebar order", () => {
     expect(routeForNumericShortcut("1")).toBe("today");
-    expect(routeForNumericShortcut("3")).toBe("memos");
-    expect(routeForNumericShortcut("4")).toBe("countdowns");
-    expect(routeForNumericShortcut("5")).toBe("calendar");
+    expect(routeForNumericShortcut("3")).toBe("focus");
+    expect(routeForNumericShortcut("4")).toBe("calendar");
+    expect(routeForNumericShortcut("5")).toBe("memos");
+    expect(routeForNumericShortcut("6")).toBe("countdowns");
+    expect(routeForNumericShortcut("8")).toBe("sleep");
     expect(routeForNumericShortcut("9")).toBeNull();
     expect(routeForNumericShortcut("0")).toBeNull();
   });

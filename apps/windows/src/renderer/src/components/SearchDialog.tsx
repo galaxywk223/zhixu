@@ -48,7 +48,7 @@ export function SearchDialog(props: {
               autoFocus
               size="large"
               contentBefore={<Search24Regular />}
-              placeholder="搜索任务、备忘、倒数日、笔记或专注事项"
+              placeholder="搜索任务、备忘、倒数、笔记或专注事项"
               value={query}
               onChange={(_, data) => setQuery(data.value)}
             />
@@ -69,7 +69,7 @@ export function SearchDialog(props: {
                       : result.entityType === "memo"
                         ? "备忘"
                         : result.entityType === "countdown"
-                          ? "倒数日"
+                          ? "倒数"
                           : result.entityType === "note"
                             ? "笔记"
                             : "专注"}

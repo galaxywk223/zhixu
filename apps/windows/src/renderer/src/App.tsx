@@ -164,6 +164,10 @@ export function App(): React.JSX.Element {
         onNew={openNew}
         onEdit={openEdit}
         onSearch={() => setSearch(true)}
+        onOpenMemos={(memoId) => {
+          setSelectedMemoId(memoId);
+          setRoute("memos");
+        }}
         onOpenNotes={(noteId) => {
           setSelectedNoteId(noteId);
           setRoute("notes");

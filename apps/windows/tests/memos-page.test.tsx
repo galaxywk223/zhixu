@@ -12,7 +12,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ZhixuApi } from "../src/preload/api-types";
 import { MemosPage } from "../src/renderer/src/pages/MemosPage";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 describe("memos page", () => {
   it("renders legacy undated records and edits only memo fields", async () => {

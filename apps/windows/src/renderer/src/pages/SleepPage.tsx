@@ -53,6 +53,10 @@ import {
   type SleepView,
   type SleepWorkspaceModel,
 } from "./sleep-workspace-model";
+import {
+  loadSleepFilters,
+  saveSleepFilters,
+} from "../workspace-view-preferences";
 
 type SleepTab = "overview" | "records" | "events";
 
@@ -70,10 +74,11 @@ export function SleepPage(): React.JSX.Element {
     queryFn: window.zhixu.sleep.events,
   });
   const [editing, setEditing] = useState<LifeEventRecord | "new" | null>(null);
-  const [filters, setFilters] = useState<SleepFilters>({
-    ...DEFAULT_SLEEP_FILTERS,
-  });
+  const [filters, setFilters] = useState<SleepFilters>(() =>
+    loadSleepFilters({ ...DEFAULT_SLEEP_FILTERS }),
+  );
   const [tab, setTab] = useState<SleepTab>("overview");
+  useEffect(() => saveSleepFilters(filters), [filters]);
   const remove = useMutation({
     mutationFn: window.zhixu.sleep.remove,
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.events }),

@@ -46,6 +46,7 @@ import {
   MEMO_VIEW_LABELS,
   type MemoView,
 } from "./memo-workspace-model";
+import { loadMemoView, saveMemoView } from "../workspace-view-preferences";
 
 const memoViews: Array<{ value: MemoView; icon: React.ReactNode }> = [
   { value: "all", icon: <List20Regular /> },
@@ -70,9 +71,13 @@ export function MemosPage(props: {
     queryKey: queryKeys.tags,
     queryFn: window.zhixu.tasks.tags,
   });
-  const [filters, setFilters] = useState({ ...DEFAULT_MEMO_FILTERS });
+  const [filters, setFilters] = useState(() => ({
+    ...DEFAULT_MEMO_FILTERS,
+    view: loadMemoView(DEFAULT_MEMO_FILTERS.view),
+  }));
   const [editing, setEditing] = useState<MemoRecord | "new" | null>(null);
   const handledInitialId = useRef<string | null>(null);
+  useEffect(() => saveMemoView(filters.view), [filters.view]);
   const remove = useMutation({
     mutationFn: window.zhixu.memos.remove,
     onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.memos }),

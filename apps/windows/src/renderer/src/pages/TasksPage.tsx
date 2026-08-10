@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -35,6 +35,7 @@ import {
   type TaskSort,
   type TaskView,
 } from "./task-workspace-model";
+import { loadTaskView, saveTaskView } from "../workspace-view-preferences";
 
 const quickViews: Array<{
   value: TaskView;
@@ -66,11 +67,13 @@ export function TasksPage(props: {
     queryKey: queryKeys.tags,
     queryFn: window.zhixu.tasks.tags,
   });
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(() => ({
     ...DEFAULT_TASK_WORKSPACE_FILTERS,
-  });
+    view: loadTaskView(DEFAULT_TASK_WORKSPACE_FILTERS.view),
+  }));
   const [sort, setSort] = useState<TaskSort>("due");
   const [filterOpen, setFilterOpen] = useState(false);
+  useEffect(() => saveTaskView(filters.view), [filters.view]);
   const status = useMutation({
     mutationFn: ({ id, value }: { id: string; value: TaskRecord["status"] }) =>
       window.zhixu.tasks.setStatus(id, value),

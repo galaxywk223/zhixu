@@ -47,17 +47,53 @@ describe("today page", () => {
       focusMonthMinutes: 180,
       focusByDay: [{ date: now.toISOString().slice(0, 10), minutes: 35 }],
     };
+    const futureTask: TaskRecord = {
+      ...task,
+      id: "future-task",
+      title: "明日测试任务",
+      dueAt: new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        18,
+      ).toISOString(),
+    };
+    const openMemos = vi.fn();
     const openNotes = vi.fn();
     const openCountdowns = vi.fn();
     const examDate = new Date(now);
     examDate.setDate(examDate.getDate() + 6);
     const api = {
       tasks: {
-        list: vi.fn().mockResolvedValue([task]),
+        list: vi.fn().mockResolvedValue([task, futureTask]),
         categories: vi.fn().mockResolvedValue([]),
         tags: vi.fn().mockResolvedValue([]),
         setStatus: vi.fn(),
         remove: vi.fn(),
+      },
+      memos: {
+        list: vi.fn().mockResolvedValue([
+          {
+            id: "memo-low",
+            title: "低优先级备忘",
+            descriptionMd: null,
+            priority: 1,
+            categoryId: null,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+            tagIds: [],
+          },
+          {
+            id: "memo-high",
+            title: "高优先级备忘",
+            descriptionMd: null,
+            priority: 3,
+            categoryId: null,
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+            tagIds: [],
+          },
+        ]),
       },
       notes: {
         list: vi.fn().mockResolvedValue([
@@ -100,6 +136,7 @@ describe("today page", () => {
             onNew={() => undefined}
             onEdit={() => undefined}
             onSearch={() => undefined}
+            onOpenMemos={openMemos}
             onOpenNotes={openNotes}
             onOpenCountdowns={openCountdowns}
           />
@@ -114,15 +151,33 @@ describe("today page", () => {
     ).toBeTruthy();
     expect(document.querySelector(".task-row-today .task-meta")).toBeNull();
     expect(screen.getByText("35 分钟")).toBeTruthy();
+    expect(screen.getByText("高优先级备忘")).toBeTruthy();
+    expect(screen.queryByText("今日重点建议")).toBeNull();
+    expect(
+      document.querySelector(".upcoming-item .upcoming-title"),
+    ).toBeTruthy();
+    expect(document.querySelector(".upcoming-item small")).toBeNull();
     expect(screen.getByText("英语六级考试")).toBeTruthy();
     expect(screen.getByText("还有 6 天")).toBeTruthy();
     expect(document.querySelector(".today-countdown-strip")).toBeTruthy();
+    const countdownPanel = document.querySelector(".today-countdown-strip");
+    const notesPanel = document.querySelector(".recent-notes-panel");
+    expect(
+      Boolean(
+        countdownPanel &&
+        notesPanel &&
+        countdownPanel.compareDocumentPosition(notesPanel) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
     expect(screen.getByRole("heading", { name: /^今天 \/ / })).toBeTruthy();
     expect(
       screen.queryByText("聚焦今天最重要的事，稳步推进当前计划。"),
     ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /测试笔记/ }));
     expect(openNotes).toHaveBeenCalledWith("note-1");
+    fireEvent.click(screen.getByRole("button", { name: /高优先级备忘/ }));
+    expect(openMemos).toHaveBeenCalledWith("memo-high");
     fireEvent.click(screen.getByRole("button", { name: /英语六级考试/ }));
     expect(openCountdowns).toHaveBeenCalledWith("exam-1");
   });
