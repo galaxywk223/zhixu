@@ -45,9 +45,8 @@ function renderSettings(options?: {
   updateSettings: ReturnType<typeof vi.fn>;
   saveTag: ReturnType<typeof vi.fn>;
   removeTag: ReturnType<typeof vi.fn>;
-  restore: ReturnType<typeof vi.fn>;
   client: QueryClient;
-  signIn: ReturnType<typeof vi.fn>;
+  signOut: ReturnType<typeof vi.fn>;
   runSync: ReturnType<typeof vi.fn>;
 } {
   const settings: AppSettings = {
@@ -61,11 +60,11 @@ function renderSettings(options?: {
   });
   const saveTag = vi.fn().mockResolvedValue("tag-algorithm");
   const removeTag = vi.fn().mockResolvedValue(undefined);
-  const restore = vi.fn().mockResolvedValue(true);
-  const signIn = vi.fn().mockResolvedValue(undefined);
+  const signOut = vi.fn().mockResolvedValue(undefined);
   const runSync = vi.fn().mockResolvedValue({
     status: "idle",
     configured: true,
+    canUseApp: true,
     email: "user@example.com",
     boundEmail: "user@example.com",
     lastSyncedAt: "2026-08-10T04:00:00.000Z",
@@ -102,22 +101,23 @@ function renderSettings(options?: {
     },
     account: {
       signUp: vi.fn().mockResolvedValue(undefined),
-      signIn,
+      signIn: vi.fn().mockResolvedValue(undefined),
       resendVerification: vi.fn().mockResolvedValue(undefined),
       requestPasswordReset: vi.fn().mockResolvedValue(undefined),
       completePasswordReset: vi.fn().mockResolvedValue(undefined),
-      signOut: vi.fn().mockResolvedValue(undefined),
+      signOut,
     },
     sync: {
       getState: vi.fn().mockResolvedValue({
-        status: "signed_out",
+        status: "idle",
         configured: true,
-        email: null,
-        boundEmail: null,
-        lastSyncedAt: null,
+        canUseApp: true,
+        email: "user@example.com",
+        boundEmail: "user@example.com",
+        lastSyncedAt: "2026-08-10T04:00:00.000Z",
         pendingCount: 0,
         conflictCount: 0,
-        message: "本地模式",
+        message: "本地与云端数据已同步。",
       }),
       run: runSync,
       listNoteConflicts: vi.fn().mockResolvedValue([]),
@@ -130,10 +130,6 @@ function renderSettings(options?: {
       download: vi.fn().mockResolvedValue(undefined),
       install: vi.fn().mockResolvedValue(undefined),
       onState: vi.fn().mockReturnValue(() => undefined),
-    },
-    backup: {
-      export: vi.fn().mockResolvedValue("D:\\backup\\zhixu.zip"),
-      restore,
     },
   } as unknown as ZhixuApi;
   Object.defineProperty(window, "zhixu", { configurable: true, value: api });
@@ -157,16 +153,15 @@ function renderSettings(options?: {
     updateSettings,
     saveTag,
     removeTag,
-    restore,
     client,
-    signIn,
+    signOut,
     runSync,
   };
 }
 
 describe("settings page", () => {
   it("renders one active section and applies settings immediately", async () => {
-    const { settings, updateSettings, saveTag, removeTag, restore, client } =
+    const { settings, updateSettings, saveTag, removeTag, client } =
       renderSettings();
 
     expect(await screen.findByText("100%")).toBeTruthy();
@@ -239,26 +234,19 @@ describe("settings page", () => {
     await waitFor(() => expect(removeTag).toHaveBeenCalled());
     expect(removeTag.mock.calls[0]?.[0]).toBe("tag-study");
 
-    fireEvent.click(screen.getByRole("button", { name: "数据与备份" }));
-    expect(
-      screen.getByRole("heading", { level: 2, name: "数据与备份" }),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "恢复 v1–v7 备份" }));
-    const restoreDialog = screen.getByRole("dialog");
-    expect(
-      within(restoreDialog).getByText(/覆盖当前 Electron 本地数据/),
-    ).toBeTruthy();
-    fireEvent.click(
-      within(restoreDialog).getByRole("button", { name: "恢复备份" }),
-    );
-    await waitFor(() => expect(restore).toHaveBeenCalled());
-
-    for (const section of ["账户与同步", "数据库迁移", "关于与更新"]) {
+    for (const section of ["账户", "关于与更新"]) {
       fireEvent.click(screen.getByRole("button", { name: section }));
       expect(
         screen.getByRole("heading", { level: 2, name: section }),
       ).toBeTruthy();
     }
+    expect(screen.queryByRole("button", { name: "数据与备份" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "数据库迁移" })).toBeNull();
+    expect(
+      screen
+        .getByRole("navigation", { name: "设置分类" })
+        .querySelectorAll("button"),
+    ).toHaveLength(4);
     expect(screen.getByText("0.2.0")).toBeTruthy();
   });
 
@@ -286,25 +274,14 @@ describe("settings page", () => {
     expect(screen.getByText("下载中")).toBeTruthy();
   });
 
-  it("opens the account sign-in dialog and validates credentials", async () => {
-    const { signIn } = renderSettings();
+  it("shows the bound account and keeps synchronization controls", async () => {
+    const { signOut, runSync } = renderSettings();
     expect(await screen.findByText("100%")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "账户与同步" }));
-    expect(await screen.findByText("未登录")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "登录" }));
-    const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText(/邮箱/), {
-      target: { value: "user@example.com" },
-    });
-    fireEvent.change(within(dialog).getByLabelText(/密码/), {
-      target: { value: "password123" },
-    });
-    fireEvent.click(within(dialog).getByRole("button", { name: "登录" }));
-    await waitFor(() =>
-      expect(signIn).toHaveBeenCalledWith({
-        email: "user@example.com",
-        password: "password123",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "账户" }));
+    expect(await screen.findByText("user@example.com")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "立即同步" }));
+    await waitFor(() => expect(runSync).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "退出" }));
+    await waitFor(() => expect(signOut).toHaveBeenCalled());
   });
 });

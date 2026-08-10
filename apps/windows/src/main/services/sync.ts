@@ -13,6 +13,7 @@ import type {
   SyncState,
 } from "../../preload/api-types";
 import type { BackupService } from "./backup";
+import { canUseBoundWorkspace } from "../../shared/account-access";
 import { EncryptedSessionStorage } from "./secure-storage";
 import {
   SyncRepository,
@@ -83,6 +84,7 @@ export class SyncService {
     this.state = {
       status: configured ? "signed_out" : "unconfigured",
       configured,
+      canUseApp: false,
       email: null,
       boundEmail: options.repository.getBinding()?.email ?? null,
       lastSyncedAt: options.repository.getBinding()?.lastSyncedAt ?? null,
@@ -119,10 +121,12 @@ export class SyncService {
   }
 
   getState(): SyncState {
+    const binding = this.options.repository.getBinding();
     return {
       ...this.state,
-      boundEmail: this.options.repository.getBinding()?.email ?? null,
-      lastSyncedAt: this.options.repository.getBinding()?.lastSyncedAt ?? null,
+      canUseApp: canUseBoundWorkspace(this.user?.id ?? null, binding),
+      boundEmail: binding?.email ?? null,
+      lastSyncedAt: binding?.lastSyncedAt ?? null,
       pendingCount: this.options.repository.pendingCount(),
       conflictCount: this.options.repository.conflictCount(),
     };
@@ -253,7 +257,7 @@ export class SyncService {
     this.updateState({
       status: "signed_out",
       email: null,
-      message: "已退出登录，本地数据仍可离线使用。",
+      message: "已退出登录，本地数据已保留。",
     });
   }
 
@@ -428,10 +432,11 @@ export class SyncService {
     }
     this.user = user;
     this.pendingEmail = null;
+    const bindingComplete = binding?.state === "bound";
     this.updateState({
-      status: binding ? "idle" : "binding",
+      status: bindingComplete ? "idle" : "binding",
       email: user.email ?? null,
-      message: binding ? "账号已登录。" : "正在准备首次同步。",
+      message: bindingComplete ? "账号已登录。" : "正在准备首次同步。",
     });
     this.runInBackground("login");
   }

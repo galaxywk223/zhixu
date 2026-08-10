@@ -15,14 +15,12 @@ import {
 } from "@fluentui/react-components";
 import {
   Add20Regular,
-  ArrowDownload20Regular,
   ArrowReset20Regular,
-  ArrowUpload20Regular,
   CheckmarkCircle20Regular,
   Delete20Regular,
   Edit20Regular,
   Eye20Regular,
-  Folder20Regular,
+  Person20Regular,
   Tag20Regular,
   ZoomIn20Regular,
   ZoomOut20Regular,
@@ -38,11 +36,9 @@ import { Loading, PageHeader } from "../components/Page";
 import { AccountSyncPanel } from "../components/AccountSyncPanel";
 import { queryKeys } from "../query";
 
-type SettingsSection =
-  "appearance" | "tags" | "backup" | "sync" | "migration" | "about";
+type SettingsSection = "appearance" | "tags" | "sync" | "about";
 
-type ConfirmAction =
-  { kind: "remove-tag"; tag: TagRecord } | { kind: "restore" } | null;
+type ConfirmAction = { kind: "remove-tag"; tag: TagRecord } | null;
 
 const settingsSections: Array<{
   value: SettingsSection;
@@ -51,9 +47,7 @@ const settingsSections: Array<{
 }> = [
   { value: "appearance", label: "主题外观", icon: <Eye20Regular /> },
   { value: "tags", label: "标签管理", icon: <Tag20Regular /> },
-  { value: "backup", label: "数据与备份", icon: <ArrowDownload20Regular /> },
-  { value: "sync", label: "账户与同步", icon: <ArrowUpload20Regular /> },
-  { value: "migration", label: "数据库迁移", icon: <Folder20Regular /> },
+  { value: "sync", label: "账户", icon: <Person20Regular /> },
   { value: "about", label: "关于与更新", icon: <CheckmarkCircle20Regular /> },
 ];
 
@@ -151,24 +145,6 @@ export function SettingsPage(props: {
     },
     onError: showOperationError,
   });
-  const exportBackup = useMutation({
-    mutationFn: window.zhixu.backup.export,
-    onSuccess: (path) => {
-      if (path) setMessage(`备份已导出：${path}`);
-    },
-    onError: showOperationError,
-  });
-  const restore = useMutation({
-    mutationFn: window.zhixu.backup.restore,
-    onSuccess: async (done) => {
-      setConfirmAction(null);
-      if (done) {
-        setMessage("备份已恢复");
-        await client.invalidateQueries();
-      }
-    },
-    onError: showOperationError,
-  });
   const checkUpdate = useMutation({
     mutationFn: window.zhixu.updates.check,
     onSuccess: (state) => client.setQueryData(queryKeys.updates, state),
@@ -187,8 +163,6 @@ export function SettingsPage(props: {
   const activeSectionLabel =
     settingsSections.find((section) => section.value === activeSection)
       ?.label ?? "设置";
-  const migration = bootstrap.data?.migration;
-
   return (
     <div className="page settings-page">
       <PageHeader title="设置" />
@@ -404,89 +378,7 @@ export function SettingsPage(props: {
               </section>
             ) : null}
 
-            {activeSection === "backup" ? (
-              <section className="settings-section" aria-label="数据与备份设置">
-                <SettingRow
-                  title="数据隔离"
-                  description="Electron 数据库与 Flutter 原数据库相互独立。"
-                >
-                  <SettingsStatus>本地数据</SettingsStatus>
-                </SettingRow>
-                <SettingRow
-                  title="导出备份"
-                  description="创建包含当前本地业务数据的 v7 ZIP 备份。"
-                >
-                  <Button
-                    icon={<ArrowDownload20Regular />}
-                    disabled={exportBackup.isPending}
-                    onClick={() => {
-                      setMessage(null);
-                      setSettingsError(null);
-                      exportBackup.mutate();
-                    }}
-                  >
-                    {exportBackup.isPending ? "正在导出" : "导出 v7 备份"}
-                  </Button>
-                </SettingRow>
-                <SettingRow
-                  title="恢复备份"
-                  description="支持 v1–v7 备份；恢复会覆盖当前数据，校验失败时自动回滚。"
-                >
-                  <Button
-                    icon={<ArrowUpload20Regular />}
-                    disabled={restore.isPending}
-                    onClick={() => setConfirmAction({ kind: "restore" })}
-                  >
-                    恢复 v1–v7 备份
-                  </Button>
-                </SettingRow>
-              </section>
-            ) : null}
-
             {activeSection === "sync" ? <AccountSyncPanel /> : null}
-
-            {activeSection === "migration" ? (
-              <section className="settings-section" aria-label="数据库迁移设置">
-                <dl className="settings-details">
-                  <div>
-                    <dt>状态</dt>
-                    <dd>
-                      <SettingsStatus tone="success">
-                        {migrationStatusLabel(migration?.status)}
-                      </SettingsStatus>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>版本</dt>
-                    <dd>
-                      {migration?.fromVersion} → {migration?.toVersion}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>完整性</dt>
-                    <dd>
-                      <SettingsStatus
-                        tone={
-                          migration?.integrity === "ok" ? "success" : "warning"
-                        }
-                      >
-                        {migration?.integrity === "ok"
-                          ? "正常"
-                          : (migration?.integrity ?? "未知")}
-                      </SettingsStatus>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>源数据库</dt>
-                    <dd>{migration?.sourcePath ?? "未发现旧库"}</dd>
-                  </div>
-                  <div>
-                    <dt>迁移备份</dt>
-                    <dd>{migration?.backupPath ?? "无需新备份"}</dd>
-                  </div>
-                </dl>
-              </section>
-            ) : null}
 
             {activeSection === "about" ? (
               <section className="settings-section" aria-label="关于与更新设置">
@@ -523,15 +415,13 @@ export function SettingsPage(props: {
       <TagEditor value={editingTag} onClose={() => setEditingTag(null)} />
       <SettingsConfirmDialog
         action={confirmAction}
-        pending={removeTag.isPending || restore.isPending}
+        pending={removeTag.isPending}
         onClose={() => setConfirmAction(null)}
         onConfirm={() => {
           setMessage(null);
           setSettingsError(null);
           if (confirmAction?.kind === "remove-tag") {
             removeTag.mutate(confirmAction.tag.id);
-          } else if (confirmAction?.kind === "restore") {
-            restore.mutate();
           }
         }}
       />
@@ -579,15 +469,6 @@ function SettingsState(props: {
       ) : null}
     </div>
   );
-}
-
-function migrationStatusLabel(
-  status: "fresh" | "migrated" | "current" | undefined,
-): string {
-  if (status === "fresh") return "新建数据库";
-  if (status === "migrated") return "迁移完成";
-  if (status === "current") return "当前版本";
-  return "未知";
 }
 
 function updateDescription(
@@ -706,7 +587,6 @@ function SettingsConfirmDialog(props: {
   onClose(): void;
   onConfirm(): void;
 }): React.JSX.Element {
-  const removing = props.action?.kind === "remove-tag";
   return (
     <Dialog
       open={props.action !== null}
@@ -716,11 +596,11 @@ function SettingsConfirmDialog(props: {
     >
       <DialogSurface className="confirmation-dialog">
         <DialogBody>
-          <DialogTitle>{removing ? "删除标签" : "恢复备份"}</DialogTitle>
+          <DialogTitle>删除标签</DialogTitle>
           <DialogContent>
-            {props.action?.kind === "remove-tag"
+            {props.action
               ? `删除“${props.action.tag.name}”标签？任务不会被删除。`
-              : "恢复会覆盖当前 Electron 本地数据。恢复前会校验备份，失败时自动回滚。"}
+              : null}
           </DialogContent>
           <DialogActions>
             <Button onClick={props.onClose} disabled={props.pending}>
@@ -732,7 +612,7 @@ function SettingsConfirmDialog(props: {
               onClick={props.onConfirm}
               disabled={props.pending}
             >
-              {props.pending ? "正在处理" : removing ? "删除标签" : "恢复备份"}
+              {props.pending ? "正在处理" : "删除标签"}
             </Button>
           </DialogActions>
         </DialogBody>

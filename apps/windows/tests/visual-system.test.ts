@@ -51,6 +51,12 @@ const appSource = readFileSync(
   fileURLToPath(new URL("../src/renderer/src/App.tsx", import.meta.url)),
   "utf8",
 );
+const authGateSource = readFileSync(
+  fileURLToPath(
+    new URL("../src/renderer/src/components/AuthGate.tsx", import.meta.url),
+  ),
+  "utf8",
+);
 const preloadSource = readFileSync(
   fileURLToPath(new URL("../src/preload/index.ts", import.meta.url)),
   "utf8",
@@ -166,6 +172,22 @@ describe("visual system", () => {
     expect(settingsSource).not.toContain("data-active=");
     expect(settingsSource).not.toContain("confirm(");
     expect(settingsSource).toContain('className="confirmation-dialog"');
+    expect(settingsSource).not.toContain("数据与备份");
+    expect(settingsSource).not.toContain("数据库迁移");
+    expect(settingsSource).not.toContain("window.zhixu.backup");
+  });
+
+  it("locks business workspaces behind an explicit account access state", () => {
+    expect(appSource).toContain("sync.data.canUseApp");
+    expect(appSource).toContain("<AuthGate");
+    expect(appSource).not.toContain("restoreDropped");
+    expect(appSource).not.toContain(".zip 恢复");
+    expect(authGateSource).toContain('className="auth-gate"');
+    expect(authGateSource).toContain("verification_required");
+    expect(authGateSource).toContain("password_recovery");
+    expect(styles).toMatch(/\.auth-gate \{[^}]*height: 100%;/s);
+    expect(preloadSource).not.toContain("backup: {");
+    expect(ipcSource).not.toContain('ipcMain.handle("backup:');
   });
 
   it("uses tasks for the month view and focus sessions for the week view", () => {

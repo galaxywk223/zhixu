@@ -252,6 +252,110 @@ button {
   height: 100%;
   background: var(--canvas);
 }
+.auth-gate {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px;
+  background: var(--canvas);
+}
+.auth-gate-panel {
+  width: min(480px, 100%);
+  padding: 30px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.auth-gate-header {
+  margin-bottom: 24px;
+}
+.auth-gate-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 26px;
+  color: var(--text);
+  font-size: 18px;
+}
+.auth-gate-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: var(--accent);
+  background: var(--accentSoft);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 4px;
+}
+.auth-gate-brand-mark img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.auth-gate-header h1 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1.25;
+}
+.auth-gate-header p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.auth-gate-form {
+  display: grid;
+  gap: 16px;
+}
+.auth-gate-form > .fui-Button {
+  min-height: 42px;
+  margin-top: 2px;
+}
+.auth-gate-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.auth-gate-links button {
+  padding: 2px 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.auth-gate-feedback {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+.auth-gate-status,
+.auth-gate-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  line-height: 1.55;
+}
+.auth-gate-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.auth-gate-actions.stacked {
+  flex-direction: column;
+}
+.auth-gate-actions .fui-Button {
+  flex: 1;
+}
 .app-frame {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);

@@ -243,7 +243,6 @@ else {
         migration: context.report,
         version: app.getVersion(),
         getWindow: () => mainWindow,
-        backup,
         importer,
         updates,
         sync: syncService,

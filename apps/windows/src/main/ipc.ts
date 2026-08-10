@@ -13,7 +13,6 @@ import {
   type UiScale,
 } from "@zhixu/contracts";
 import type { MigrationReport } from "../preload/api-types";
-import { BackupService } from "./services/backup";
 import { TomatoImportService } from "./services/tomato-import";
 import { UpdateService } from "./services/updates";
 import { SyncService } from "./services/sync";
@@ -24,7 +23,6 @@ interface IpcDependencies {
   migration: MigrationReport;
   version: string;
   getWindow: () => BrowserWindow | null;
-  backup: BackupService;
   importer: TomatoImportService;
   updates: UpdateService;
   sync: SyncService;
@@ -190,17 +188,6 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle("dashboard:summary", () => store.dashboardSummary());
   ipcMain.handle("search:query", (_event, value) =>
     store.search(z.string().max(300).parse(value)),
-  );
-  ipcMain.handle("backup:export", () => dependencies.backup.exportBackup());
-  ipcMain.handle(
-    "backup:restore",
-    mutation("all", () => dependencies.backup.restoreBackup()),
-  );
-  ipcMain.handle(
-    "backup:restore-path",
-    mutation("all", (value) =>
-      dependencies.backup.restoreFromPath(z.string().min(1).parse(value)),
-    ),
   );
   ipcMain.handle("settings:get", () => store.getSettings());
   ipcMain.handle(

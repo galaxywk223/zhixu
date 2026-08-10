@@ -65,12 +65,6 @@ const api: ZhixuApi = {
   },
   dashboard: { summary: () => ipcRenderer.invoke("dashboard:summary") },
   search: { query: (value) => ipcRenderer.invoke("search:query", value) },
-  backup: {
-    export: () => ipcRenderer.invoke("backup:export"),
-    restore: () => ipcRenderer.invoke("backup:restore"),
-    restoreDropped: (file) =>
-      ipcRenderer.invoke("backup:restore-path", webUtils.getPathForFile(file)),
-  },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     update: (settings) => ipcRenderer.invoke("settings:update", settings),

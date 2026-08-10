@@ -251,6 +251,7 @@ export type SyncStatus =
 export interface SyncState {
   status: SyncStatus;
   configured: boolean;
+  canUseApp: boolean;
   email: string | null;
   boundEmail: string | null;
   lastSyncedAt: string | null;
@@ -332,11 +333,6 @@ export interface ZhixuApi {
   };
   search: {
     query(value: string): Promise<SearchHit[]>;
-  };
-  backup: {
-    export(): Promise<string | null>;
-    restore(): Promise<boolean>;
-    restoreDropped(file: File): Promise<boolean>;
   };
   settings: {
     get(): Promise<AppSettings>;

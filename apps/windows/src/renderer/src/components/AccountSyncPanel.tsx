@@ -8,14 +8,9 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
-  Field,
-  Input,
 } from "@fluentui/react-components";
 import {
-  ArrowClockwise20Regular,
   ArrowSync20Regular,
-  LockClosed20Regular,
-  Mail20Regular,
   SignOut20Regular,
   Warning20Regular,
 } from "@fluentui/react-icons";
@@ -25,9 +20,6 @@ import type {
   SyncState,
 } from "../../../preload/api-types";
 import { queryKeys } from "../query";
-
-type AuthDialogMode =
-  "sign-in" | "sign-up" | "forgot" | "complete-reset" | null;
 
 const statusLabels: Record<SyncState["status"], string> = {
   unconfigured: "未配置",
@@ -76,7 +68,6 @@ export function AccountSyncPanel(): React.JSX.Element {
     queryFn: window.zhixu.sync.listNoteConflicts,
     enabled: (sync.data?.conflictCount ?? 0) > 0,
   });
-  const [authMode, setAuthMode] = useState<AuthDialogMode>(null);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const state = sync.data;
@@ -85,16 +76,11 @@ export function AccountSyncPanel(): React.JSX.Element {
     () =>
       window.zhixu.sync.onState((value) => {
         client.setQueryData(queryKeys.sync, value);
-        if (value.status === "password_recovery") setAuthMode("complete-reset");
         if (value.conflictCount > 0)
           void client.invalidateQueries({ queryKey: queryKeys.noteConflicts });
       }),
     [client],
   );
-  useEffect(() => {
-    if (state?.status === "password_recovery") setAuthMode("complete-reset");
-  }, [state?.status]);
-
   const run = useMutation({
     mutationFn: window.zhixu.sync.run,
     onSuccess: (value) => client.setQueryData(queryKeys.sync, value),
@@ -102,11 +88,6 @@ export function AccountSyncPanel(): React.JSX.Element {
   });
   const signOut = useMutation({
     mutationFn: window.zhixu.account.signOut,
-    onSuccess: () => void sync.refetch(),
-    onError: (value) => setError(String(value)),
-  });
-  const resend = useMutation({
-    mutationFn: window.zhixu.account.resendVerification,
     onSuccess: () => void sync.refetch(),
     onError: (value) => setError(String(value)),
   });
@@ -121,16 +102,10 @@ export function AccountSyncPanel(): React.JSX.Element {
       </div>
     );
 
-  const signedIn =
-    Boolean(state.email) &&
-    !["verification_required", "password_recovery", "signed_out"].includes(
-      state.status,
-    );
-
   return (
     <section
       className="settings-section account-sync-section"
-      aria-label="账户与同步设置"
+      aria-label="账户设置"
     >
       {error ? (
         <div className="error-message settings-feedback">{error}</div>
@@ -147,46 +122,9 @@ export function AccountSyncPanel(): React.JSX.Element {
           >
             {statusLabels[state.status]}
           </span>
-          {state.status === "signed_out" ||
-          (state.status === "error" && !state.email) ? (
-            <>
-              <Button
-                icon={<Mail20Regular />}
-                onClick={() => setAuthMode("sign-in")}
-              >
-                登录
-              </Button>
-              <Button
-                appearance="primary"
-                disabled={Boolean(state.boundEmail)}
-                onClick={() => setAuthMode("sign-up")}
-              >
-                注册
-              </Button>
-            </>
-          ) : null}
-          {state.status === "verification_required" ? (
-            <Button
-              icon={<ArrowClockwise20Regular />}
-              disabled={resend.isPending}
-              onClick={() => resend.mutate(state.email ?? "")}
-            >
-              重新发送
-            </Button>
-          ) : null}
         </div>
       </div>
-
-      {state.status === "unconfigured" ? (
-        <div className="sync-configuration-note">
-          <Warning20Regular />
-          <span>
-            配置 SUPABASE_URL 和 SUPABASE_ANON_KEY 后即可启用账户同步。
-          </span>
-        </div>
-      ) : null}
-
-      {signedIn ? (
+      {state.canUseApp ? (
         <>
           <div className="setting-row">
             <div className="setting-copy">
@@ -242,29 +180,11 @@ export function AccountSyncPanel(): React.JSX.Element {
             </div>
           </div>
         </>
-      ) : null}
-
-      {state.status === "signed_out" ||
-      (state.status === "error" && !state.email) ? (
-        <button
-          className="text-action"
-          type="button"
-          onClick={() => setAuthMode("forgot")}
-        >
-          忘记密码
-        </button>
-      ) : null}
-
-      <AuthDialog
-        mode={authMode}
-        initialEmail={state.email ?? state.boundEmail ?? ""}
-        onClose={() => setAuthMode(null)}
-        onCompleted={() => {
-          setAuthMode(null);
-          void sync.refetch();
-        }}
-        onSwitch={setAuthMode}
-      />
+      ) : (
+        <div className="settings-state">
+          账号访问状态已失效，应用将返回登录界面。
+        </div>
+      )}
       <ConflictDialog
         open={conflictsOpen}
         records={conflicts.data ?? []}
@@ -276,145 +196,6 @@ export function AccountSyncPanel(): React.JSX.Element {
         }}
       />
     </section>
-  );
-}
-
-function AuthDialog(props: {
-  mode: AuthDialogMode;
-  initialEmail: string;
-  onClose(): void;
-  onCompleted(): void;
-  onSwitch(mode: AuthDialogMode): void;
-}): React.JSX.Element {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (props.mode) {
-      setEmail(props.initialEmail);
-      setPassword("");
-      setConfirmation("");
-      setError(null);
-    }
-  }, [props.mode, props.initialEmail]);
-
-  const submit = useMutation({
-    mutationFn: async () => {
-      if (props.mode === "forgot")
-        return window.zhixu.account.requestPasswordReset(email);
-      if (props.mode === "complete-reset") {
-        if (password !== confirmation) throw new Error("两次输入的密码不一致");
-        return window.zhixu.account.completePasswordReset(password);
-      }
-      if (props.mode === "sign-up") {
-        if (password !== confirmation) throw new Error("两次输入的密码不一致");
-        return window.zhixu.account.signUp({ email, password });
-      }
-      return window.zhixu.account.signIn({ email, password });
-    },
-    onSuccess: props.onCompleted,
-    onError: (value) =>
-      setError(value instanceof Error ? value.message : String(value)),
-  });
-
-  const title =
-    props.mode === "sign-up"
-      ? "注册知序账号"
-      : props.mode === "forgot"
-        ? "找回密码"
-        : props.mode === "complete-reset"
-          ? "设置新密码"
-          : "登录知序";
-  const needsEmail = props.mode !== "complete-reset";
-  const needsPassword = props.mode !== "forgot";
-  const needsConfirmation =
-    props.mode === "sign-up" || props.mode === "complete-reset";
-  const valid =
-    (!needsEmail || /.+@.+\..+/.test(email)) &&
-    (!needsPassword || (password.length >= 8 && password.length <= 72)) &&
-    (!needsConfirmation || password === confirmation);
-
-  return (
-    <Dialog
-      open={props.mode !== null}
-      onOpenChange={(_, data) => {
-        if (!data.open && !submit.isPending) props.onClose();
-      }}
-    >
-      <DialogSurface className="editor-dialog account-dialog">
-        <DialogBody>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogContent className="form-grid">
-            {needsEmail ? (
-              <Field label="邮箱" required>
-                <Input
-                  type="email"
-                  value={email}
-                  contentBefore={<Mail20Regular />}
-                  onChange={(_, data) => setEmail(data.value)}
-                />
-              </Field>
-            ) : null}
-            {needsPassword ? (
-              <Field
-                label={props.mode === "complete-reset" ? "新密码" : "密码"}
-                required
-              >
-                <Input
-                  type="password"
-                  value={password}
-                  contentBefore={<LockClosed20Regular />}
-                  onChange={(_, data) => setPassword(data.value)}
-                />
-              </Field>
-            ) : null}
-            {needsConfirmation ? (
-              <Field label="确认密码" required>
-                <Input
-                  type="password"
-                  value={confirmation}
-                  onChange={(_, data) => setConfirmation(data.value)}
-                />
-              </Field>
-            ) : null}
-            {needsPassword ? <small>密码长度为 8–72 位。</small> : null}
-            {error ? <p className="error-message">{error}</p> : null}
-            {props.mode === "sign-in" ? (
-              <div className="auth-dialog-links">
-                <button type="button" onClick={() => props.onSwitch("forgot")}>
-                  忘记密码
-                </button>
-                <button type="button" onClick={() => props.onSwitch("sign-up")}>
-                  注册账号
-                </button>
-              </div>
-            ) : null}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={props.onClose} disabled={submit.isPending}>
-              取消
-            </Button>
-            <Button
-              appearance="primary"
-              disabled={!valid || submit.isPending}
-              onClick={() => submit.mutate()}
-            >
-              {submit.isPending
-                ? "正在处理"
-                : props.mode === "forgot"
-                  ? "发送重置邮件"
-                  : props.mode === "sign-up"
-                    ? "注册"
-                    : props.mode === "complete-reset"
-                      ? "更新密码"
-                      : "登录"}
-            </Button>
-          </DialogActions>
-        </DialogBody>
-      </DialogSurface>
-    </Dialog>
   );
 }
 

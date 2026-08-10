@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FluentProvider, Spinner } from "@fluentui/react-components";
 import type { TaskRecord, TomatoPreview } from "../../preload/api-types";
 import { SearchDialog } from "./components/SearchDialog";
+import { AuthGate } from "./components/AuthGate";
 import { routeForNumericShortcut, Shell, type Route } from "./components/Shell";
 import { TaskEditor } from "./components/TaskEditor";
 import { CalendarPage } from "./pages/CalendarPage";
@@ -19,6 +20,7 @@ import { uiScaleForShortcut } from "../../shared/ui-scale";
 import { zhixuDarkTheme, zhixuLightTheme } from "./theme";
 
 export function App(): React.JSX.Element {
+  const client = useQueryClient();
   const bootstrap = useQuery({
     queryKey: queryKeys.bootstrap,
     queryFn: window.zhixu.app.bootstrap,
@@ -27,6 +29,11 @@ export function App(): React.JSX.Element {
     queryKey: queryKeys.settings,
     queryFn: window.zhixu.settings.get,
   });
+  const sync = useQuery({
+    queryKey: queryKeys.sync,
+    queryFn: window.zhixu.sync.getState,
+  });
+  const canUseApp = sync.data?.canUseApp === true;
   const [route, setRoute] = useState<Route>("today");
   const [editor, setEditor] = useState<{
     open: boolean;
@@ -51,6 +58,14 @@ export function App(): React.JSX.Element {
   const [renderedUiScale, setRenderedUiScale] = useState(100);
   useDataInvalidation();
 
+  useEffect(
+    () =>
+      window.zhixu.sync.onState((state) => {
+        client.setQueryData(queryKeys.sync, state);
+      }),
+    [client],
+  );
+
   useEffect(() => {
     const current = settings.data ?? bootstrap.data?.settings;
     if (current) {
@@ -68,6 +83,7 @@ export function App(): React.JSX.Element {
   useEffect(
     () =>
       window.zhixu.app.onNavigate((target) => {
+        if (!canUseApp) return;
         if (target === "new-task")
           setEditor({ open: true, task: null, initialDueDate: null });
         else if (target === "search") setSearch(true);
@@ -89,7 +105,7 @@ export function App(): React.JSX.Element {
         )
           setRoute(target as Route);
       }),
-    [],
+    [canUseApp],
   );
   useEffect(() => {
     const handler = (event: KeyboardEvent): void => {
@@ -104,6 +120,7 @@ export function App(): React.JSX.Element {
         }
         return;
       }
+      if (!canUseApp) return;
       if (event.key.toLowerCase() === "k") {
         event.preventDefault();
         setSearch(true);
@@ -125,17 +142,17 @@ export function App(): React.JSX.Element {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [canUseApp]);
 
+  if (bootstrap.isError)
+    return (
+      <div className="startup error-message">{String(bootstrap.error)}</div>
+    );
   if (bootstrap.isLoading || !bootstrap.data)
     return (
       <div className="startup">
         <Spinner size="large" label="正在迁移并校验本地数据" />
       </div>
-    );
-  if (bootstrap.isError)
-    return (
-      <div className="startup error-message">{String(bootstrap.error)}</div>
     );
   const mode = settings.data?.themeMode ?? bootstrap.data.settings.themeMode;
   const dark = mode === "dark" || (mode === "system" && systemDark);
@@ -156,13 +173,7 @@ export function App(): React.JSX.Element {
       setRoute("focus");
       return;
     }
-    if (file.name.toLocaleLowerCase().endsWith(".zip")) {
-      if (confirm(`使用 ${file.name} 覆盖当前 Electron 本地数据？`)) {
-        await window.zhixu.backup.restoreDropped(file);
-      }
-      return;
-    }
-    alert("仅支持番茄 TODO .xls 或知序 .zip 备份");
+    alert("仅支持番茄 TODO .xls 文件");
   };
   const page = {
     today: (
@@ -200,55 +211,67 @@ export function App(): React.JSX.Element {
       theme={dark ? zhixuDarkTheme : zhixuLightTheme}
       className={`app-provider ${dark ? "theme-dark" : "theme-light"} ui-scale-${renderedUiScale}`}
     >
-      <div
-        className="drop-root"
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDragLeave={(event) => {
-          if (event.currentTarget === event.target) setDragging(false);
-        }}
-        onDrop={(event) => void handleDrop(event)}
-      >
-        <Shell
-          route={route}
-          onRouteChange={(nextRoute) => {
-            if (nextRoute === "notes") setSelectedNoteId(null);
-            if (nextRoute === "memos") setSelectedMemoId(null);
-            if (nextRoute === "countdowns") setSelectedCountdownId(null);
-            if (nextRoute === "settings")
-              setSettingsInitialSection("appearance");
-            setRoute(nextRoute);
-          }}
-        >
-          {page}
-        </Shell>
-        {dragging ? (
-          <div className="drop-overlay">
-            <strong>拖放 .xls 导入或 .zip 恢复</strong>
-            <span>文件将在主进程中校验并预览</span>
+      {sync.isError ? (
+        <div className="startup error-message">{String(sync.error)}</div>
+      ) : sync.isLoading || !sync.data ? (
+        <div className="startup">
+          <Spinner size="large" label="正在恢复账号会话" />
+        </div>
+      ) : !sync.data.canUseApp ? (
+        <AuthGate state={sync.data} onRefresh={() => void sync.refetch()} />
+      ) : (
+        <>
+          <div
+            className="drop-root"
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={(event) => {
+              if (event.currentTarget === event.target) setDragging(false);
+            }}
+            onDrop={(event) => void handleDrop(event)}
+          >
+            <Shell
+              route={route}
+              onRouteChange={(nextRoute) => {
+                if (nextRoute === "notes") setSelectedNoteId(null);
+                if (nextRoute === "memos") setSelectedMemoId(null);
+                if (nextRoute === "countdowns") setSelectedCountdownId(null);
+                if (nextRoute === "settings")
+                  setSettingsInitialSection("appearance");
+                setRoute(nextRoute);
+              }}
+            >
+              {page}
+            </Shell>
+            {dragging ? (
+              <div className="drop-overlay">
+                <strong>拖放 .xls 导入</strong>
+                <span>番茄 TODO 文件将在主进程中校验并预览</span>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
-      <TaskEditor
-        open={editor.open}
-        task={editor.task}
-        initialDueDate={editor.initialDueDate}
-        onClose={() =>
-          setEditor({ open: false, task: null, initialDueDate: null })
-        }
-      />
-      <SearchDialog
-        open={search}
-        onClose={() => setSearch(false)}
-        onNavigate={(target, id) => {
-          if (target === "memos") setSelectedMemoId(id ?? null);
-          if (target === "countdowns") setSelectedCountdownId(id ?? null);
-          setRoute(target);
-        }}
-      />
+          <TaskEditor
+            open={editor.open}
+            task={editor.task}
+            initialDueDate={editor.initialDueDate}
+            onClose={() =>
+              setEditor({ open: false, task: null, initialDueDate: null })
+            }
+          />
+          <SearchDialog
+            open={search}
+            onClose={() => setSearch(false)}
+            onNavigate={(target, id) => {
+              if (target === "memos") setSelectedMemoId(id ?? null);
+              if (target === "countdowns") setSelectedCountdownId(id ?? null);
+              setRoute(target);
+            }}
+          />
+        </>
+      )}
     </FluentProvider>
   );
 }
