@@ -41,6 +41,12 @@ const countdownSource = readFileSync(
   ),
   "utf8",
 );
+const settingsSource = readFileSync(
+  fileURLToPath(
+    new URL("../src/renderer/src/pages/SettingsPage.tsx", import.meta.url),
+  ),
+  "utf8",
+);
 const appSource = readFileSync(
   fileURLToPath(new URL("../src/renderer/src/App.tsx", import.meta.url)),
   "utf8",
@@ -144,6 +150,22 @@ describe("visual system", () => {
     ]) {
       expect(styles).toContain(`.${className}`);
     }
+  });
+
+  it("uses one fixed and responsive settings workspace", () => {
+    expect(styles).toMatch(
+      /\.settings-workspace-layout \{[^}]*grid-template-columns: 232px minmax\(0, 1fr\);[^}]*flex: 1;/s,
+    );
+    expect(styles).toMatch(
+      /\.settings-workspace-toolbar \{[^}]*min-height: 58px;[^}]*border-bottom: 1px solid var\(--border\);/s,
+    );
+    expect(styles).toMatch(
+      /\.setting-row \{[^}]*grid-template-columns: minmax\(240px, 1fr\) minmax\(220px, auto\);/s,
+    );
+    expect(styles).toContain("@container settings-panel (max-width: 620px)");
+    expect(settingsSource).not.toContain("data-active=");
+    expect(settingsSource).not.toContain("confirm(");
+    expect(settingsSource).toContain('className="confirmation-dialog"');
   });
 
   it("uses tasks for the month view and focus sessions for the week view", () => {

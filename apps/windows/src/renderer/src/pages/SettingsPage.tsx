@@ -14,11 +14,16 @@ import {
   Tooltip,
 } from "@fluentui/react-components";
 import {
-  ArrowReset20Regular,
+  Add20Regular,
   ArrowDownload20Regular,
+  ArrowReset20Regular,
   ArrowUpload20Regular,
+  CheckmarkCircle20Regular,
   Delete20Regular,
   Edit20Regular,
+  Eye20Regular,
+  Folder20Regular,
+  Tag20Regular,
   ZoomIn20Regular,
   ZoomOut20Regular,
 } from "@fluentui/react-icons";
@@ -28,12 +33,28 @@ import type {
   UpdateState,
 } from "../../../preload/api-types";
 import { tagTone } from "../../../shared/tag-colors";
+import { DEFAULT_UI_SCALE, stepUiScale } from "../../../shared/ui-scale";
 import { Loading, PageHeader } from "../components/Page";
 import { queryKeys } from "../query";
-import { DEFAULT_UI_SCALE, stepUiScale } from "../../../shared/ui-scale";
 
 type SettingsSection =
   "appearance" | "tags" | "backup" | "sync" | "migration" | "about";
+
+type ConfirmAction =
+  { kind: "remove-tag"; tag: TagRecord } | { kind: "restore" } | null;
+
+const settingsSections: Array<{
+  value: SettingsSection;
+  label: string;
+  icon: React.ReactNode;
+}> = [
+  { value: "appearance", label: "主题外观", icon: <Eye20Regular /> },
+  { value: "tags", label: "标签管理", icon: <Tag20Regular /> },
+  { value: "backup", label: "数据与备份", icon: <ArrowDownload20Regular /> },
+  { value: "sync", label: "账户与同步", icon: <ArrowUpload20Regular /> },
+  { value: "migration", label: "数据库迁移", icon: <Folder20Regular /> },
+  { value: "about", label: "关于与更新", icon: <CheckmarkCircle20Regular /> },
+];
 
 export function SettingsPage(): React.JSX.Element {
   const client = useQueryClient();
@@ -59,10 +80,12 @@ export function SettingsPage(): React.JSX.Element {
   });
   const [draft, setDraft] = useState<AppSettings | null>(null);
   const [editingTag, setEditingTag] = useState<TagRecord | "new" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("appearance");
   const [message, setMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (settings.data)
       setDraft((current) =>
@@ -78,6 +101,10 @@ export function SettingsPage(): React.JSX.Element {
       ),
     [client],
   );
+
+  const showOperationError = (value: unknown): void => {
+    setSettingsError(value instanceof Error ? value.message : String(value));
+  };
   const updateSettings = useMutation({
     mutationFn: (value: {
       patch: Partial<AppSettings>;
@@ -90,7 +117,7 @@ export function SettingsPage(): React.JSX.Element {
         if (!current || typeof current !== "object") return current;
         return { ...current, settings: variables.previous };
       });
-      setSettingsError(value instanceof Error ? value.message : String(value));
+      showOperationError(value);
     },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.settings });
@@ -102,6 +129,7 @@ export function SettingsPage(): React.JSX.Element {
     const previous: AppSettings = draft;
     const next: AppSettings = { ...draft, ...patch };
     setSettingsError(null);
+    setMessage(null);
     setDraft(next);
     client.setQueryData(queryKeys.settings, next);
     client.setQueryData(queryKeys.bootstrap, (current: unknown) => {
@@ -112,322 +140,619 @@ export function SettingsPage(): React.JSX.Element {
   };
   const removeTag = useMutation({
     mutationFn: window.zhixu.tasks.removeTag,
-    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.tags }),
+    onSuccess: async () => {
+      setConfirmAction(null);
+      setMessage("标签已删除");
+      await client.invalidateQueries({ queryKey: queryKeys.tags });
+    },
+    onError: showOperationError,
   });
   const exportBackup = useMutation({
     mutationFn: window.zhixu.backup.export,
     onSuccess: (path) => {
       if (path) setMessage(`备份已导出：${path}`);
     },
+    onError: showOperationError,
   });
   const restore = useMutation({
     mutationFn: window.zhixu.backup.restore,
     onSuccess: async (done) => {
+      setConfirmAction(null);
       if (done) {
         setMessage("备份已恢复");
         await client.invalidateQueries();
       }
     },
+    onError: showOperationError,
   });
   const checkUpdate = useMutation({
     mutationFn: window.zhixu.updates.check,
     onSuccess: (state) => client.setQueryData(queryKeys.updates, state),
+    onError: showOperationError,
   });
+  const downloadUpdate = useMutation({
+    mutationFn: window.zhixu.updates.download,
+    onError: showOperationError,
+  });
+  const installUpdate = useMutation({
+    mutationFn: window.zhixu.updates.install,
+    onError: showOperationError,
+  });
+
   if (!draft || bootstrap.isLoading) return <Loading />;
+  const activeSectionLabel =
+    settingsSections.find((section) => section.value === activeSection)
+      ?.label ?? "设置";
+  const migration = bootstrap.data?.migration;
+
   return (
     <div className="page settings-page">
       <PageHeader title="设置" />
-      {settingsError ? (
-        <div className="error-message">{settingsError}</div>
-      ) : null}
-      {message ? <div className="success-message">{message}</div> : null}
       <div className="settings-workspace-layout">
         <nav className="settings-section-nav" aria-label="设置分类">
-          {(
-            [
-              ["appearance", "主题外观"],
-              ["tags", "标签管理"],
-              ["backup", "数据与备份"],
-              ["sync", "账户与同步"],
-              ["migration", "数据库迁移"],
-              ["about", "关于与更新"],
-            ] as const
-          ).map(([value, label]) => (
+          {settingsSections.map((section) => (
             <button
               type="button"
-              key={value}
-              className={activeSection === value ? "active" : ""}
-              aria-current={activeSection === value ? "page" : undefined}
-              onClick={() => setActiveSection(value)}
+              key={section.value}
+              className={activeSection === section.value ? "active" : ""}
+              aria-current={
+                activeSection === section.value ? "page" : undefined
+              }
+              onClick={() => setActiveSection(section.value)}
             >
-              {label}
+              <span className="settings-nav-icon" aria-hidden="true">
+                {section.icon}
+              </span>
+              <span>{section.label}</span>
             </button>
           ))}
         </nav>
-        <section className="settings-content-panel">
+        <section
+          className="settings-content-panel"
+          aria-labelledby="settings-panel-title"
+        >
+          <header className="settings-workspace-toolbar">
+            <h2 id="settings-panel-title">{activeSectionLabel}</h2>
+            {activeSection === "tags" ? (
+              <Button
+                icon={<Add20Regular />}
+                onClick={() => setEditingTag("new")}
+              >
+                新建标签
+              </Button>
+            ) : null}
+          </header>
           <div className="settings-workspace-scroll">
-            <section
-              className="settings-section"
-              data-active={activeSection === "appearance"}
-            >
-              <h2>主题外观</h2>
-              <div className="segmented">
-                {(["system", "light", "dark"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    className={draft.themeMode === mode ? "active" : ""}
-                    disabled={updateSettings.isPending}
-                    onClick={() => changeSettings({ themeMode: mode })}
-                  >
-                    {mode === "system"
-                      ? "跟随系统"
-                      : mode === "light"
-                        ? "浅色"
-                        : "深色"}
-                  </button>
-                ))}
+            {settingsError ? (
+              <div className="error-message settings-feedback" role="alert">
+                {settingsError}
               </div>
-              <div className="setting-row scale-setting-row">
-                <div>
-                  <strong>界面缩放</strong>
-                  <small>同步调整文字、控件和页面布局。</small>
-                </div>
-                <div
-                  className="scale-stepper"
-                  role="group"
-                  aria-label="界面缩放"
+            ) : null}
+            {message ? (
+              <div className="success-message settings-feedback" role="status">
+                {message}
+              </div>
+            ) : null}
+
+            {activeSection === "appearance" ? (
+              <section className="settings-section" aria-label="主题外观设置">
+                <SettingRow
+                  title="主题模式"
+                  description="选择浅色、深色或跟随 Windows 系统设置。"
                 >
-                  <Tooltip
-                    content="缩小界面  Ctrl+-"
-                    relationship="description"
-                  >
-                    <Button
-                      appearance="subtle"
-                      icon={<ZoomOut20Regular />}
-                      aria-label="缩小界面"
-                      disabled={
-                        draft.uiScale === 80 || updateSettings.isPending
-                      }
-                      onClick={() =>
-                        changeSettings({
-                          uiScale: stepUiScale(draft.uiScale, -1),
-                        })
-                      }
-                    />
-                  </Tooltip>
-                  <output aria-live="polite">{draft.uiScale}%</output>
-                  <Tooltip
-                    content="放大界面  Ctrl++"
-                    relationship="description"
-                  >
-                    <Button
-                      appearance="subtle"
-                      icon={<ZoomIn20Regular />}
-                      aria-label="放大界面"
-                      disabled={
-                        draft.uiScale === 150 || updateSettings.isPending
-                      }
-                      onClick={() =>
-                        changeSettings({
-                          uiScale: stepUiScale(draft.uiScale, 1),
-                        })
-                      }
-                    />
-                  </Tooltip>
-                  <Tooltip
-                    content="恢复 100%  Ctrl+0"
-                    relationship="description"
-                  >
-                    <Button
-                      appearance="subtle"
-                      icon={<ArrowReset20Regular />}
-                      aria-label="恢复默认缩放"
-                      disabled={
-                        draft.uiScale === DEFAULT_UI_SCALE ||
-                        updateSettings.isPending
-                      }
-                      onClick={() =>
-                        changeSettings({ uiScale: DEFAULT_UI_SCALE })
-                      }
-                    />
-                  </Tooltip>
-                </div>
-              </div>
-              <div className="setting-row">
-                <div>
-                  <strong>关闭后驻留系统托盘</strong>
-                  <small>托盘菜单可重新打开或明确退出。</small>
-                </div>
-                <Switch
-                  checked={draft.closeToTray}
-                  disabled={updateSettings.isPending}
-                  onChange={(_, data) =>
-                    changeSettings({ closeToTray: data.checked })
-                  }
-                />
-              </div>
-              <div className="setting-row">
-                <div>
-                  <strong>启动后保持最小化</strong>
-                  <small>适合随系统启动的后台工作流。</small>
-                </div>
-                <Switch
-                  checked={draft.startMinimized}
-                  disabled={updateSettings.isPending}
-                  onChange={(_, data) =>
-                    changeSettings({ startMinimized: data.checked })
-                  }
-                />
-              </div>
-            </section>
-            <section
-              className="settings-section"
-              data-active={activeSection === "tags"}
-            >
-              <div className="section-heading">
-                <h2>标签管理</h2>
-                <Button onClick={() => setEditingTag("new")}>新建标签</Button>
-              </div>
-              <div className="tag-settings">
-                {(tags.data ?? []).map((tag) => (
-                  <div key={tag.id}>
-                    <span data-tag-tone={tagTone(tag.name)} />
-                    <strong>{tag.name}</strong>
-                    <Button
-                      appearance="subtle"
-                      icon={<Edit20Regular />}
-                      onClick={() => setEditingTag(tag)}
-                    />
-                    <Button
-                      appearance="subtle"
-                      icon={<Delete20Regular />}
-                      onClick={() => {
-                        if (confirm(`删除“${tag.name}”标签？任务不会被删除。`))
-                          removeTag.mutate(tag.id);
-                      }}
-                    />
+                  <div className="segmented" aria-label="主题模式">
+                    {(["system", "light", "dark"] as const).map((mode) => (
+                      <button
+                        type="button"
+                        key={mode}
+                        className={draft.themeMode === mode ? "active" : ""}
+                        aria-pressed={draft.themeMode === mode}
+                        disabled={updateSettings.isPending}
+                        onClick={() => changeSettings({ themeMode: mode })}
+                      >
+                        {mode === "system"
+                          ? "跟随系统"
+                          : mode === "light"
+                            ? "浅色"
+                            : "深色"}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </section>
-            <section
-              className="settings-section"
-              data-active={activeSection === "backup"}
-            >
-              <h2>数据与备份</h2>
-              <p>
-                Electron 数据库与 Flutter
-                原数据库相互独立。恢复操作在校验失败时自动回滚。
-              </p>
-              <div className="button-row">
-                <Button
-                  icon={<ArrowDownload20Regular />}
-                  onClick={() => exportBackup.mutate()}
+                </SettingRow>
+                <SettingRow
+                  title="界面缩放"
+                  description="同步调整文字、控件和页面布局。"
                 >
-                  导出 v6 备份
-                </Button>
-                <Button
-                  icon={<ArrowUpload20Regular />}
-                  onClick={() => {
-                    if (confirm("恢复会覆盖当前 Electron 本地数据，是否继续？"))
-                      restore.mutate();
+                  <div
+                    className="scale-stepper"
+                    role="group"
+                    aria-label="界面缩放"
+                  >
+                    <Tooltip
+                      content="缩小界面  Ctrl+-"
+                      relationship="description"
+                    >
+                      <Button
+                        appearance="subtle"
+                        icon={<ZoomOut20Regular />}
+                        aria-label="缩小界面"
+                        disabled={
+                          draft.uiScale === 80 || updateSettings.isPending
+                        }
+                        onClick={() =>
+                          changeSettings({
+                            uiScale: stepUiScale(draft.uiScale, -1),
+                          })
+                        }
+                      />
+                    </Tooltip>
+                    <output aria-live="polite">{draft.uiScale}%</output>
+                    <Tooltip
+                      content="放大界面  Ctrl++"
+                      relationship="description"
+                    >
+                      <Button
+                        appearance="subtle"
+                        icon={<ZoomIn20Regular />}
+                        aria-label="放大界面"
+                        disabled={
+                          draft.uiScale === 150 || updateSettings.isPending
+                        }
+                        onClick={() =>
+                          changeSettings({
+                            uiScale: stepUiScale(draft.uiScale, 1),
+                          })
+                        }
+                      />
+                    </Tooltip>
+                    <Tooltip
+                      content="恢复 100%  Ctrl+0"
+                      relationship="description"
+                    >
+                      <Button
+                        appearance="subtle"
+                        icon={<ArrowReset20Regular />}
+                        aria-label="恢复默认缩放"
+                        disabled={
+                          draft.uiScale === DEFAULT_UI_SCALE ||
+                          updateSettings.isPending
+                        }
+                        onClick={() =>
+                          changeSettings({ uiScale: DEFAULT_UI_SCALE })
+                        }
+                      />
+                    </Tooltip>
+                  </div>
+                </SettingRow>
+                <SettingRow
+                  title="关闭后驻留系统托盘"
+                  description="关闭窗口后继续在后台运行，可从托盘重新打开。"
+                >
+                  <Switch
+                    aria-label="关闭后驻留系统托盘"
+                    checked={draft.closeToTray}
+                    disabled={updateSettings.isPending}
+                    onChange={(_, data) =>
+                      changeSettings({ closeToTray: data.checked })
+                    }
+                  />
+                </SettingRow>
+                <SettingRow
+                  title="启动后保持最小化"
+                  description="启动应用后不显示主窗口，适合后台工作流。"
+                >
+                  <Switch
+                    aria-label="启动后保持最小化"
+                    checked={draft.startMinimized}
+                    disabled={updateSettings.isPending}
+                    onChange={(_, data) =>
+                      changeSettings({ startMinimized: data.checked })
+                    }
+                  />
+                </SettingRow>
+              </section>
+            ) : null}
+
+            {activeSection === "tags" ? (
+              <section className="settings-section" aria-label="标签管理设置">
+                {tags.isLoading ? (
+                  <SettingsState message="正在读取标签" />
+                ) : tags.isError ? (
+                  <SettingsState
+                    message="标签读取失败"
+                    actionLabel="重试"
+                    onAction={() => void tags.refetch()}
+                  />
+                ) : (tags.data ?? []).length === 0 ? (
+                  <SettingsState
+                    message="暂无标签"
+                    actionLabel="新建标签"
+                    onAction={() => setEditingTag("new")}
+                  />
+                ) : (
+                  <div className="tag-settings">
+                    {(tags.data ?? []).map((tag) => (
+                      <div key={tag.id} className="tag-setting-row">
+                        <span data-tag-tone={tagTone(tag.name)} />
+                        <strong>{tag.name}</strong>
+                        <Tooltip content="编辑标签" relationship="label">
+                          <Button
+                            appearance="subtle"
+                            icon={<Edit20Regular />}
+                            aria-label={`编辑标签 ${tag.name}`}
+                            onClick={() => setEditingTag(tag)}
+                          />
+                        </Tooltip>
+                        <Tooltip content="删除标签" relationship="label">
+                          <Button
+                            appearance="subtle"
+                            icon={<Delete20Regular />}
+                            aria-label={`删除标签 ${tag.name}`}
+                            onClick={() =>
+                              setConfirmAction({ kind: "remove-tag", tag })
+                            }
+                          />
+                        </Tooltip>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            ) : null}
+
+            {activeSection === "backup" ? (
+              <section className="settings-section" aria-label="数据与备份设置">
+                <SettingRow
+                  title="数据隔离"
+                  description="Electron 数据库与 Flutter 原数据库相互独立。"
+                >
+                  <SettingsStatus>本地数据</SettingsStatus>
+                </SettingRow>
+                <SettingRow
+                  title="导出备份"
+                  description="创建包含当前本地数据的 v6 ZIP 备份。"
+                >
+                  <Button
+                    icon={<ArrowDownload20Regular />}
+                    disabled={exportBackup.isPending}
+                    onClick={() => {
+                      setMessage(null);
+                      setSettingsError(null);
+                      exportBackup.mutate();
+                    }}
+                  >
+                    {exportBackup.isPending ? "正在导出" : "导出 v6 备份"}
+                  </Button>
+                </SettingRow>
+                <SettingRow
+                  title="恢复备份"
+                  description="支持 v1–v6 备份；恢复会覆盖当前数据，校验失败时自动回滚。"
+                >
+                  <Button
+                    icon={<ArrowUpload20Regular />}
+                    disabled={restore.isPending}
+                    onClick={() => setConfirmAction({ kind: "restore" })}
+                  >
+                    恢复 v1–v6 备份
+                  </Button>
+                </SettingRow>
+              </section>
+            ) : null}
+
+            {activeSection === "sync" ? (
+              <section className="settings-section" aria-label="账户与同步设置">
+                <SettingRow
+                  title="同步模式"
+                  description={
+                    sync.isError
+                      ? "同步状态读取失败。"
+                      : (sync.data?.message ?? "正在读取同步状态。")
+                  }
+                >
+                  {sync.isError ? (
+                    <Button onClick={() => void sync.refetch()}>重试</Button>
+                  ) : (
+                    <SettingsStatus>
+                      {sync.isLoading ? "读取中" : "本地完整"}
+                    </SettingsStatus>
+                  )}
+                </SettingRow>
+              </section>
+            ) : null}
+
+            {activeSection === "migration" ? (
+              <section className="settings-section" aria-label="数据库迁移设置">
+                <dl className="settings-details">
+                  <div>
+                    <dt>状态</dt>
+                    <dd>
+                      <SettingsStatus tone="success">
+                        {migrationStatusLabel(migration?.status)}
+                      </SettingsStatus>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>版本</dt>
+                    <dd>
+                      {migration?.fromVersion} → {migration?.toVersion}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>完整性</dt>
+                    <dd>
+                      <SettingsStatus
+                        tone={
+                          migration?.integrity === "ok" ? "success" : "warning"
+                        }
+                      >
+                        {migration?.integrity === "ok"
+                          ? "正常"
+                          : (migration?.integrity ?? "未知")}
+                      </SettingsStatus>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>源数据库</dt>
+                    <dd>{migration?.sourcePath ?? "未发现旧库"}</dd>
+                  </div>
+                  <div>
+                    <dt>迁移备份</dt>
+                    <dd>{migration?.backupPath ?? "无需新备份"}</dd>
+                  </div>
+                </dl>
+              </section>
+            ) : null}
+
+            {activeSection === "about" ? (
+              <section className="settings-section" aria-label="关于与更新设置">
+                <SettingRow title="知序" description="Electron Windows x64">
+                  <SettingsStatus>
+                    {bootstrap.data?.version ?? "未知版本"}
+                  </SettingsStatus>
+                </SettingRow>
+                <UpdatePanel
+                  state={updates.data}
+                  loading={updates.isLoading}
+                  queryError={updates.error}
+                  checking={checkUpdate.isPending}
+                  downloading={downloadUpdate.isPending}
+                  installing={installUpdate.isPending}
+                  onCheck={() => {
+                    setSettingsError(null);
+                    checkUpdate.mutate();
                   }}
-                >
-                  恢复 v1–v6 备份
-                </Button>
-              </div>
-            </section>
-            <section
-              className="settings-section"
-              data-active={activeSection === "sync"}
-            >
-              <h2>账户与同步</h2>
-              <div className="sync-deferred">
-                <strong>本地完整模式</strong>
-                <p>{sync.data?.message}</p>
-              </div>
-            </section>
-            <section
-              className="settings-section"
-              data-active={activeSection === "migration"}
-            >
-              <h2>数据库迁移</h2>
-              <dl className="details-list">
-                <dt>状态</dt>
-                <dd>{bootstrap.data?.migration.status}</dd>
-                <dt>版本</dt>
-                <dd>
-                  {bootstrap.data?.migration.fromVersion} →{" "}
-                  {bootstrap.data?.migration.toVersion}
-                </dd>
-                <dt>完整性</dt>
-                <dd>{bootstrap.data?.migration.integrity}</dd>
-                <dt>源数据库</dt>
-                <dd>{bootstrap.data?.migration.sourcePath ?? "未发现旧库"}</dd>
-                <dt>迁移备份</dt>
-                <dd>{bootstrap.data?.migration.backupPath ?? "无需新备份"}</dd>
-              </dl>
-            </section>
-            <section
-              className="settings-section"
-              data-active={activeSection === "about"}
-            >
-              <h2>关于与更新</h2>
-              <p>知序 {bootstrap.data?.version} · Electron Windows x64</p>
-              <UpdatePanel
-                state={updates.data}
-                onCheck={() => checkUpdate.mutate()}
-              />
-            </section>
+                  onDownload={() => {
+                    setSettingsError(null);
+                    downloadUpdate.mutate();
+                  }}
+                  onInstall={() => {
+                    setSettingsError(null);
+                    installUpdate.mutate();
+                  }}
+                />
+              </section>
+            ) : null}
           </div>
         </section>
       </div>
       <TagEditor value={editingTag} onClose={() => setEditingTag(null)} />
+      <SettingsConfirmDialog
+        action={confirmAction}
+        pending={removeTag.isPending || restore.isPending}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => {
+          setMessage(null);
+          setSettingsError(null);
+          if (confirmAction?.kind === "remove-tag") {
+            removeTag.mutate(confirmAction.tag.id);
+          } else if (confirmAction?.kind === "restore") {
+            restore.mutate();
+          }
+        }}
+      />
     </div>
   );
 }
 
+function SettingRow(props: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="setting-row">
+      <div className="setting-copy">
+        <strong>{props.title}</strong>
+        <small>{props.description}</small>
+      </div>
+      <div className="setting-control">{props.children}</div>
+    </div>
+  );
+}
+
+function SettingsStatus(props: {
+  tone?: "neutral" | "success" | "warning" | "danger";
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <span className="settings-status" data-tone={props.tone ?? "neutral"}>
+      {props.children}
+    </span>
+  );
+}
+
+function SettingsState(props: {
+  message: string;
+  actionLabel?: string;
+  onAction?(): void;
+}): React.JSX.Element {
+  return (
+    <div className="settings-state">
+      <span>{props.message}</span>
+      {props.actionLabel && props.onAction ? (
+        <Button onClick={props.onAction}>{props.actionLabel}</Button>
+      ) : null}
+    </div>
+  );
+}
+
+function migrationStatusLabel(
+  status: "fresh" | "migrated" | "current" | undefined,
+): string {
+  if (status === "fresh") return "新建数据库";
+  if (status === "migrated") return "迁移完成";
+  if (status === "current") return "当前版本";
+  return "未知";
+}
+
+function updateDescription(
+  state: UpdateState | undefined,
+  loading: boolean,
+  queryError: unknown,
+): string {
+  if (queryError) return "更新状态读取失败，请重试。";
+  if (loading || !state) return "正在读取更新状态。";
+  if (state.status === "available")
+    return `发现 ${state.version ?? "新版本"}。`;
+  if (state.status === "current") return state.message ?? "当前已是最新版本。";
+  if (state.status === "checking") return "正在检查可用更新。";
+  if (state.status === "downloading") return state.message ?? "正在下载更新。";
+  if (state.status === "downloaded")
+    return state.message ?? "更新已下载，可以重启安装。";
+  if (state.status === "error") return state.message ?? "更新检查失败。";
+  return "可按需检查 GitHub 预览更新。";
+}
+
+function updateStatusLabel(
+  state: UpdateState | undefined,
+  loading: boolean,
+  queryError: unknown,
+): string {
+  if (queryError) return "读取失败";
+  if (loading || !state) return "读取中";
+  if (state.status === "checking") return "检查中";
+  if (state.status === "available") return "有新版本";
+  if (state.status === "downloading") return "下载中";
+  if (state.status === "downloaded") return "等待安装";
+  if (state.status === "current") return "已是最新";
+  if (state.status === "error") return "检查失败";
+  return "未检查";
+}
+
 function UpdatePanel(props: {
   state: UpdateState | undefined;
+  loading: boolean;
+  queryError: unknown;
+  checking: boolean;
+  downloading: boolean;
+  installing: boolean;
   onCheck(): void;
+  onDownload(): void;
+  onInstall(): void;
 }): React.JSX.Element {
   const state = props.state;
+  const busy =
+    props.loading ||
+    props.checking ||
+    props.downloading ||
+    props.installing ||
+    state?.status === "checking" ||
+    state?.status === "downloading";
+  const progress = Math.max(0, Math.min(100, state?.progress ?? 0));
+  const tone =
+    props.queryError || state?.status === "error"
+      ? "danger"
+      : state?.status === "current" || state?.status === "downloaded"
+        ? "success"
+        : state?.status === "available" || state?.status === "downloading"
+          ? "warning"
+          : "neutral";
   return (
     <div className="update-panel">
-      <p>
-        {state?.status === "available"
-          ? `发现 ${state.version}`
-          : state?.status === "current"
-            ? (state.message ?? "当前已是最新版本")
-            : state?.status === "error"
-              ? state.message
-              : "可按需检查 GitHub 预览更新。"}
-      </p>
-      <div className="button-row">
-        <Button onClick={props.onCheck} disabled={state?.status === "checking"}>
-          {state?.status === "checking" ? "检查中" : "检查更新"}
+      <SettingRow
+        title="应用更新"
+        description={updateDescription(state, props.loading, props.queryError)}
+      >
+        <SettingsStatus tone={tone}>
+          {updateStatusLabel(state, props.loading, props.queryError)}
+        </SettingsStatus>
+        <Button onClick={props.onCheck} disabled={busy}>
+          {props.checking || state?.status === "checking"
+            ? "检查中"
+            : props.queryError || state?.status === "error"
+              ? "重新检查"
+              : "检查更新"}
         </Button>
         {state?.status === "available" ? (
           <Button
             appearance="primary"
-            onClick={() => window.zhixu.updates.download()}
+            onClick={props.onDownload}
+            disabled={props.downloading}
           >
-            下载更新
+            {props.downloading ? "正在下载" : "下载更新"}
           </Button>
         ) : null}
         {state?.status === "downloaded" ? (
           <Button
             appearance="primary"
-            onClick={() => window.zhixu.updates.install()}
+            onClick={props.onInstall}
+            disabled={props.installing}
           >
-            重启并安装
+            {props.installing ? "正在启动" : "重启并安装"}
           </Button>
         ) : null}
-      </div>
+      </SettingRow>
       {state?.status === "downloading" ? (
-        <progress max="100" value={state.progress} />
+        <div className="update-progress">
+          <div>
+            <span>下载进度</span>
+            <strong>{progress}%</strong>
+          </div>
+          <progress aria-label="更新下载进度" max="100" value={progress} />
+        </div>
       ) : null}
     </div>
+  );
+}
+
+function SettingsConfirmDialog(props: {
+  action: ConfirmAction;
+  pending: boolean;
+  onClose(): void;
+  onConfirm(): void;
+}): React.JSX.Element {
+  const removing = props.action?.kind === "remove-tag";
+  return (
+    <Dialog
+      open={props.action !== null}
+      onOpenChange={(_, data) => {
+        if (!data.open && !props.pending) props.onClose();
+      }}
+    >
+      <DialogSurface className="confirmation-dialog">
+        <DialogBody>
+          <DialogTitle>{removing ? "删除标签" : "恢复备份"}</DialogTitle>
+          <DialogContent>
+            {props.action?.kind === "remove-tag"
+              ? `删除“${props.action.tag.name}”标签？任务不会被删除。`
+              : "恢复会覆盖当前 Electron 本地数据。恢复前会校验备份，失败时自动回滚。"}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={props.onClose} disabled={props.pending}>
+              取消
+            </Button>
+            <Button
+              appearance="primary"
+              className="danger-action"
+              onClick={props.onConfirm}
+              disabled={props.pending}
+            >
+              {props.pending ? "正在处理" : removing ? "删除标签" : "恢复备份"}
+            </Button>
+          </DialogActions>
+        </DialogBody>
+      </DialogSurface>
+    </Dialog>
   );
 }
 
@@ -472,7 +797,7 @@ function TagEditor(props: {
             <Button onClick={props.onClose}>取消</Button>
             <Button
               appearance="primary"
-              disabled={!name.trim()}
+              disabled={!name.trim() || save.isPending}
               onClick={() =>
                 save.mutate(
                   record
@@ -481,7 +806,7 @@ function TagEditor(props: {
                 )
               }
             >
-              保存
+              {save.isPending ? "正在保存" : "保存"}
             </Button>
           </DialogActions>
         </DialogBody>
