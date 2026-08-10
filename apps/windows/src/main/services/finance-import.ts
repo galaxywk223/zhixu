@@ -14,6 +14,7 @@ import type {
 } from "../../preload/api-types";
 import {
   classifyFinanceTransaction,
+  financeImpactReasonLabel,
   parseAmountCents,
   type FinancePlatform,
 } from "../../shared/finance";
@@ -155,8 +156,12 @@ function buildImportRow(
     analysisKind: classification.analysisKind,
     category: classification.category,
     isIncluded: classification.isIncluded,
+    impactReason: classification.impactReason,
     action: "create",
-    reason: classification.isIncluded ? null : "交易未完成或默认不计入",
+    reason:
+      classification.analysisKind === "neutral"
+        ? financeImpactReasonLabel(classification.impactReason)
+        : null,
   };
 }
 
@@ -190,6 +195,7 @@ function errorRow(
     analysisKind: "neutral",
     category: "其他",
     isIncluded: false,
+    impactReason: "failed_or_closed",
     action: "error",
     reason: error instanceof Error ? error.message : String(error),
   };
@@ -243,7 +249,23 @@ function buildParsedFile(
       sourceCount: rows.length,
       newCount: parsedRows.filter((row) => row.action === "create").length,
       duplicateCount: 0,
-      excludedCount: parsedRows.filter((row) => !row.isIncluded).length,
+      excludedCount: parsedRows.filter(
+        (row) => row.action !== "error" && !row.isIncluded,
+      ).length,
+      positiveCount: parsedRows.filter(
+        (row) =>
+          row.action !== "error" &&
+          (row.analysisKind === "expense" ||
+            row.analysisKind === "transfer_out"),
+      ).length,
+      negativeCount: parsedRows.filter(
+        (row) =>
+          row.action !== "error" &&
+          (row.analysisKind === "income" || row.analysisKind === "refund"),
+      ).length,
+      zeroCount: parsedRows.filter(
+        (row) => row.action !== "error" && row.analysisKind === "neutral",
+      ).length,
       errorCount: parsedRows.filter((row) => row.action === "error").length,
     },
     rows: parsedRows,
@@ -252,7 +274,7 @@ function buildParsedFile(
 
 function localDateTimeText(value: Date): string {
   const part = (item: number): string => String(item).padStart(2, "0");
-  return `${value.getFullYear()}-${part(value.getMonth() + 1)}-${part(value.getDate())} ${part(value.getHours())}:${part(value.getMinutes())}:${part(value.getSeconds())}`;
+  return `${value.getUTCFullYear()}-${part(value.getUTCMonth() + 1)}-${part(value.getUTCDate())} ${part(value.getUTCHours())}:${part(value.getUTCMinutes())}:${part(value.getUTCSeconds())}`;
 }
 
 async function parseAlipay(path: string, bytes: Buffer): Promise<ParsedFile> {
@@ -364,7 +386,23 @@ export class FinanceImportService {
         source: rows.length,
         create: rows.filter((row) => row.action === "create").length,
         duplicate: 0,
-        excluded: rows.filter((row) => !row.isIncluded).length,
+        excluded: rows.filter(
+          (row) => row.action !== "error" && !row.isIncluded,
+        ).length,
+        positive: rows.filter(
+          (row) =>
+            row.action !== "error" &&
+            (row.analysisKind === "expense" ||
+              row.analysisKind === "transfer_out"),
+        ).length,
+        negative: rows.filter(
+          (row) =>
+            row.action !== "error" &&
+            (row.analysisKind === "income" || row.analysisKind === "refund"),
+        ).length,
+        zero: rows.filter(
+          (row) => row.action !== "error" && row.analysisKind === "neutral",
+        ).length,
         error: rows.filter((row) => row.action === "error").length,
       },
       canCommit: false,

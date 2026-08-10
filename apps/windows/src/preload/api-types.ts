@@ -11,6 +11,7 @@ import type {
 import type {
   FinanceAnalysisKind,
   FinanceCategory,
+  FinanceImpactReason,
   FinancePlatform,
 } from "../shared/finance";
 
@@ -136,6 +137,7 @@ export interface FinanceTransactionRecord {
   rawNote: string | null;
   rawPayloadJson: string;
   analysisKind: FinanceAnalysisKind;
+  impactReason: FinanceImpactReason;
   category: FinanceCategory;
   isIncluded: boolean;
   note: string | null;
@@ -153,6 +155,7 @@ export interface FinanceQuery {
   platforms?: FinancePlatform[];
   categories?: FinanceCategory[];
   inclusion?: "all" | "included" | "excluded";
+  impact?: "all" | "positive" | "negative" | "zero";
   statuses?: string[];
   types?: string[];
   paymentMethods?: string[];
@@ -215,6 +218,7 @@ export interface FinanceImportRow {
   rawNote: string | null;
   rawPayloadJson: string;
   analysisKind: FinanceAnalysisKind;
+  impactReason: FinanceImpactReason;
   category: FinanceCategory;
   isIncluded: boolean;
   action: "create" | "duplicate" | "error";
@@ -231,6 +235,9 @@ export interface FinancePreviewFile {
   newCount: number;
   duplicateCount: number;
   excludedCount: number;
+  positiveCount: number;
+  negativeCount: number;
+  zeroCount: number;
   errorCount: number;
 }
 
@@ -243,6 +250,9 @@ export interface FinanceImportPreview {
     create: number;
     duplicate: number;
     excluded: number;
+    positive: number;
+    negative: number;
+    zero: number;
     error: number;
   };
   canCommit: boolean;

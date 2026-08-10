@@ -44,6 +44,7 @@ import {
 import type { FinanceCategory, FinancePlatform } from "../../../shared/finance";
 import {
   FINANCE_CATEGORIES,
+  financeImpactReasonLabel,
   financePlatformLabel,
 } from "../../../shared/finance";
 import type {
@@ -102,6 +103,7 @@ function dateTimeLabel(value: string): string {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }).format(new Date(value));
 }
 
@@ -120,6 +122,8 @@ export function FinancePage({
   const [inclusion, setInclusion] = useState<"all" | "included" | "excluded">(
     "all",
   );
+  const [impact, setImpact] =
+    useState<NonNullable<FinanceQuery["impact"]>>("all");
   const [status, setStatus] = useState("all");
   const [rawType, setRawType] = useState("all");
   const [paymentMethod, setPaymentMethod] = useState("all");
@@ -140,6 +144,7 @@ export function FinancePage({
         platforms: platform === "all" ? undefined : [platform],
         categories: category === "all" ? undefined : [category],
         inclusion,
+        impact,
         statuses: status === "all" ? undefined : [status],
         types: rawType === "all" ? undefined : [rawType],
         paymentMethods: paymentMethod === "all" ? undefined : [paymentMethod],
@@ -151,6 +156,7 @@ export function FinancePage({
       category,
       filters,
       inclusion,
+      impact,
       maxAmount,
       minAmount,
       paymentMethod,
@@ -186,7 +192,7 @@ export function FinancePage({
       onPreviewChange(null);
       setError(null);
       setMessage(
-        `导入完成：新增 ${result.importedCount} 条，重复 ${result.duplicateCount} 条，默认关闭 ${result.excludedCount} 条`,
+        `导入完成：新增 ${result.importedCount} 条，重复 ${result.duplicateCount} 条，全部有效记录已开启`,
       );
       setTab("records");
       await client.invalidateQueries({ queryKey: queryKeys.finance });
@@ -212,6 +218,7 @@ export function FinancePage({
     platform !== "all",
     category !== "all",
     inclusion !== "all",
+    impact !== "all",
     status !== "all",
     rawType !== "all",
     paymentMethod !== "all",
@@ -223,6 +230,7 @@ export function FinancePage({
     setPlatform("all");
     setCategory("all");
     setInclusion("all");
+    setImpact("all");
     setStatus("all");
     setRawType("all");
     setPaymentMethod("all");
@@ -450,6 +458,23 @@ export function FinancePage({
                                 {item}
                               </option>
                             ))}
+                          </select>
+                        </Field>
+                        <Field label="净消费影响">
+                          <select
+                            value={impact}
+                            onChange={(event) =>
+                              setImpact(
+                                event.target.value as NonNullable<
+                                  FinanceQuery["impact"]
+                                >,
+                              )
+                            }
+                          >
+                            <option value="all">全部影响</option>
+                            <option value="positive">正数</option>
+                            <option value="negative">负数</option>
+                            <option value="zero">零影响</option>
                           </select>
                         </Field>
                         <Field label="状态">
@@ -798,6 +823,11 @@ export function FinancePage({
                             >
                               {formatFinanceCents(record.impactCents)}
                             </strong>
+                            {record.impactCents === 0 ? (
+                              <small className="finance-impact-reason">
+                                {financeImpactReasonLabel(record.impactReason)}
+                              </small>
+                            ) : null}
                           </td>
                           <td>
                             <span
@@ -852,8 +882,8 @@ export function FinancePage({
                           <dd>{batch.duplicateCount}</dd>
                         </div>
                         <div>
-                          <dt>默认关闭</dt>
-                          <dd>{batch.excludedCount}</dd>
+                          <dt>默认开启</dt>
+                          <dd>{batch.sourceCount - batch.errorCount}</dd>
                         </div>
                       </dl>
                     </article>
@@ -896,8 +926,16 @@ export function FinancePage({
                       <strong>{preview.counts.duplicate}</strong>
                     </div>
                     <div>
-                      <span>默认关闭</span>
-                      <strong>{preview.counts.excluded}</strong>
+                      <span>正数影响</span>
+                      <strong>{preview.counts.positive}</strong>
+                    </div>
+                    <div>
+                      <span>负数影响</span>
+                      <strong>{preview.counts.negative}</strong>
+                    </div>
+                    <div>
+                      <span>零影响</span>
+                      <strong>{preview.counts.zero}</strong>
                     </div>
                     <div>
                       <span>错误</span>
@@ -912,9 +950,15 @@ export function FinancePage({
                           {financePlatformLabel(file.platform)} ·{" "}
                           {file.sourceCount} 条
                         </span>
+                        <span>
+                          {file.rangeStart && file.rangeEnd
+                            ? `${dateTimeLabel(file.rangeStart)} - ${dateTimeLabel(file.rangeEnd)}`
+                            : "无有效日期范围"}
+                        </span>
                         <small>
                           新增 {file.newCount} · 重复 {file.duplicateCount} ·
-                          默认关闭 {file.excludedCount}
+                          正数 {file.positiveCount} · 负数 {file.negativeCount}{" "}
+                          · 零影响 {file.zeroCount} · 错误 {file.errorCount}
                         </small>
                       </article>
                     ))}
@@ -1010,6 +1054,17 @@ export function FinancePage({
                     <div>
                       <dt>原始收支</dt>
                       <dd>{detail.record.rawFlow || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>原始状态</dt>
+                      <dd>{detail.record.rawStatus || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>净消费影响</dt>
+                      <dd>
+                        {formatFinanceCents(detail.record.impactCents)} ·{" "}
+                        {financeImpactReasonLabel(detail.record.impactReason)}
+                      </dd>
                     </div>
                     <div>
                       <dt>金额</dt>

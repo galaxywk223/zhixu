@@ -10,6 +10,17 @@ export const FINANCE_ANALYSIS_KINDS = [
 ] as const;
 export type FinanceAnalysisKind = (typeof FINANCE_ANALYSIS_KINDS)[number];
 
+export const FINANCE_IMPACT_REASONS = [
+  "expense",
+  "transfer_out",
+  "income",
+  "refund",
+  "internal_transfer",
+  "repayment",
+  "failed_or_closed",
+] as const;
+export type FinanceImpactReason = (typeof FINANCE_IMPACT_REASONS)[number];
+
 export const FINANCE_CATEGORIES = [
   "餐饮",
   "交通",
@@ -45,15 +56,17 @@ export interface FinanceClassification {
   analysisKind: FinanceAnalysisKind;
   category: FinanceCategory;
   isIncluded: boolean;
+  impactReason: FinanceImpactReason;
 }
 
-const successfulStatus =
-  /成功|已完成|支付成功|已收钱|已转账|对方已收钱|已存入零钱通/;
-const unavailableStatus = /失败|关闭|未支付|待支付|处理中|已撤销|已退回/;
+const unavailableStatus =
+  /失败|关闭|未支付|待支付|处理中|进行中|已撤销|已取消|未完成/;
 const refundText = /退款|退回|退款成功|已全额退款|已退款/;
-const neutralText =
-  /充值|提现|还款|理财|基金|余额宝|零钱通|信用卡|银行卡转入|银行卡转出|账户互转/;
 const transferText = /转账|红包|收款|二维码收付款|群收款|AA收款/;
+const repaymentText =
+  /花呗.{0,12}还款|还款.{0,12}花呗|信用卡.{0,12}还款|还款.{0,12}信用卡/;
+const internalTransferText =
+  /零钱提现|零钱充值|充值零钱|零钱转零钱通|零钱通转零钱|存入零钱通|转入零钱通|转出零钱通|余额宝自动转入|转入余额宝|转出余额宝|基金买入|基金卖出|理财申购|理财赎回|银行卡转入|银行卡转出|账户互转|余额互转|资金转入|资金转出/;
 
 const categoryRules: Array<[FinanceCategory, RegExp]> = [
   [
@@ -105,44 +118,78 @@ function initialCategory(text: string): FinanceCategory {
 export function classifyFinanceTransaction(
   input: FinanceClassificationInput,
 ): FinanceClassification {
-  const text = [
+  const businessText = [
     input.rawType,
     input.counterparty,
     input.description,
-    input.paymentMethod,
   ].join(" ");
+  const categoryText = `${businessText} ${input.paymentMethod}`;
   const flow = input.rawFlow.trim();
   const status = input.rawStatus.trim();
-  const isRefund = refundText.test(`${status} ${text}`);
-  const isNeutral = neutralText.test(text) && !isRefund;
+  const isUnavailable = unavailableStatus.test(status);
+  const isRepayment = repaymentText.test(businessText);
+  const isInternalTransfer = internalTransferText.test(businessText);
   const isTransfer = transferText.test(`${input.rawType} ${input.description}`);
+  const isRefundIncome =
+    !/支出/.test(flow) &&
+    refundText.test(`${input.rawType} ${input.description} ${status}`);
+  const isFamilyCardPurchase =
+    /亲情卡|亲属卡/.test(input.paymentMethod) && !isUnavailable;
 
   let analysisKind: FinanceAnalysisKind;
-  if (isRefund) analysisKind = "refund";
-  else if (isNeutral) analysisKind = "neutral";
-  else if (/收入|收款/.test(flow)) analysisKind = "income";
+  let impactReason: FinanceImpactReason | undefined;
+  if (isUnavailable) {
+    analysisKind = "neutral";
+    impactReason = "failed_or_closed";
+  } else if (isRepayment) {
+    analysisKind = "neutral";
+    impactReason = "repayment";
+  } else if (isInternalTransfer) {
+    analysisKind = "neutral";
+    impactReason = "internal_transfer";
+  } else if (isRefundIncome) {
+    analysisKind = "refund";
+    impactReason = "refund";
+  } else if (/收入|收款/.test(flow)) analysisKind = "income";
   else if (/支出/.test(flow))
     analysisKind = isTransfer ? "transfer_out" : "expense";
-  else if (/亲属卡/.test(input.paymentMethod) && successfulStatus.test(status))
-    analysisKind = "expense";
+  else if (isFamilyCardPurchase) analysisKind = "expense";
   else if (isTransfer && /收款/.test(`${input.rawType} ${status}`))
     analysisKind = "income";
+  else if (/商户消费|消费|付款/.test(businessText)) analysisKind = "expense";
   else analysisKind = "neutral";
+
+  if (!impactReason) {
+    impactReason =
+      analysisKind === "expense"
+        ? "expense"
+        : analysisKind === "transfer_out"
+          ? "transfer_out"
+          : analysisKind === "income"
+            ? "income"
+            : analysisKind === "refund"
+              ? "refund"
+              : "internal_transfer";
+  }
 
   let category: FinanceCategory;
   if (analysisKind === "refund") category = "退款";
   else if (analysisKind === "income") category = "收入";
   else if (analysisKind === "neutral") category = "资金流转";
   else if (analysisKind === "transfer_out") category = "转账往来";
-  else category = initialCategory(text);
+  else category = initialCategory(categoryText);
 
-  const isUnavailable = unavailableStatus.test(status);
-  const isIncluded = input.isRefundedOriginal
-    ? true
-    : !isUnavailable &&
-      (successfulStatus.test(status) || status === "" || status === "/");
+  return { analysisKind, category, isIncluded: true, impactReason };
+}
 
-  return { analysisKind, category, isIncluded };
+export function financeImpactReasonLabel(reason: FinanceImpactReason): string {
+  if (reason === "internal_transfer") return "内部转移";
+  if (reason === "repayment") return "还款结算";
+  if (reason === "failed_or_closed") return "交易失败/关闭";
+  if (reason === "refund") return "退款到账";
+  if (reason === "income") return "收入";
+  if (reason === "transfer_out") return "转账支出";
+  return "消费支出";
 }
 
 export function financePlatformLabel(platform: FinancePlatform): string {

@@ -52,6 +52,7 @@ import { addLocalDays, localDayStart } from "../shared/local-date";
 import { localDateKey, parseLocalDateKey } from "../shared/local-date";
 import {
   FINANCE_CATEGORIES,
+  classifyFinanceTransaction,
   financeImpactCents,
   type FinanceCategory,
   type FinancePlatform,
@@ -200,6 +201,15 @@ function asFinance(row: SqlRow): FinanceTransactionRecord {
   ) as FinanceTransactionRecord["analysisKind"];
   const amountCents = Number(row.amount_cents ?? 0);
   const isIncluded = bool(row.is_included);
+  const impactReason = classifyFinanceTransaction({
+    platform: String(row.platform) as FinancePlatform,
+    rawFlow: String(row.raw_flow),
+    rawStatus: String(row.raw_status),
+    rawType: String(row.raw_type),
+    counterparty: String(row.counterparty),
+    description: String(row.description),
+    paymentMethod: String(row.payment_method),
+  }).impactReason;
   return {
     id: String(row.id),
     platform: String(row.platform) as FinancePlatform,
@@ -223,6 +233,7 @@ function asFinance(row: SqlRow): FinanceTransactionRecord {
     rawNote: row.raw_note == null ? null : String(row.raw_note),
     rawPayloadJson: String(row.raw_payload_json),
     analysisKind,
+    impactReason,
     category: String(row.category) as FinanceCategory,
     isIncluded,
     note: row.note == null ? null : String(row.note),
@@ -642,6 +653,9 @@ export class ZhixuStore {
         return false;
       if (query.inclusion === "included" && !item.isIncluded) return false;
       if (query.inclusion === "excluded" && item.isIncluded) return false;
+      if (query.impact === "positive" && item.impactCents <= 0) return false;
+      if (query.impact === "negative" && item.impactCents >= 0) return false;
+      if (query.impact === "zero" && item.impactCents !== 0) return false;
       if (query.statuses?.length && !query.statuses.includes(item.rawStatus))
         return false;
       if (query.types?.length && !query.types.includes(item.rawType))
@@ -876,7 +890,23 @@ export class ZhixuStore {
         newCount: fileRows.filter((row) => row.action === "create").length,
         duplicateCount: fileRows.filter((row) => row.action === "duplicate")
           .length,
-        excludedCount: fileRows.filter((row) => !row.isIncluded).length,
+        excludedCount: fileRows.filter(
+          (row) => row.action !== "error" && !row.isIncluded,
+        ).length,
+        positiveCount: fileRows.filter(
+          (row) =>
+            row.action !== "error" &&
+            (row.analysisKind === "expense" ||
+              row.analysisKind === "transfer_out"),
+        ).length,
+        negativeCount: fileRows.filter(
+          (row) =>
+            row.action !== "error" &&
+            (row.analysisKind === "income" || row.analysisKind === "refund"),
+        ).length,
+        zeroCount: fileRows.filter(
+          (row) => row.action !== "error" && row.analysisKind === "neutral",
+        ).length,
         errorCount: fileRows.filter((row) => row.action === "error").length,
       };
     });
@@ -884,7 +914,22 @@ export class ZhixuStore {
       source: rows.length,
       create: rows.filter((row) => row.action === "create").length,
       duplicate: rows.filter((row) => row.action === "duplicate").length,
-      excluded: rows.filter((row) => !row.isIncluded).length,
+      excluded: rows.filter((row) => row.action !== "error" && !row.isIncluded)
+        .length,
+      positive: rows.filter(
+        (row) =>
+          row.action !== "error" &&
+          (row.analysisKind === "expense" ||
+            row.analysisKind === "transfer_out"),
+      ).length,
+      negative: rows.filter(
+        (row) =>
+          row.action !== "error" &&
+          (row.analysisKind === "income" || row.analysisKind === "refund"),
+      ).length,
+      zero: rows.filter(
+        (row) => row.action !== "error" && row.analysisKind === "neutral",
+      ).length,
       error: rows.filter((row) => row.action === "error").length,
     };
     return { ...preview, rows, files, counts, canCommit: counts.error === 0 };

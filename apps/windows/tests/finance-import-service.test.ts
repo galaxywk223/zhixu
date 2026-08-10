@@ -152,7 +152,7 @@ async function writeWechat(path: string): Promise<void> {
   ];
   sheet.getRow(18).values = headers;
   sheet.getRow(19).values = [
-    "2026-08-10 07:30:00",
+    46244.77125,
     "商户消费",
     "早餐店",
     "早餐",
@@ -164,6 +164,7 @@ async function writeWechat(path: string): Promise<void> {
     "wx-merchant-a",
     "",
   ];
+  sheet.getCell(19, 1).numFmt = "yyyy-mm-dd hh:mm:ss";
   sheet.getRow(20).values = [
     "2026-08-10 11:00:00",
     "转账",
@@ -177,6 +178,20 @@ async function writeWechat(path: string): Promise<void> {
     "",
     "AA",
   ];
+  sheet.getRow(21).values = [
+    46244.0208333333,
+    "商户消费",
+    "夜间便利店",
+    "饮用水",
+    "支出",
+    "¥1.00",
+    "零钱通",
+    "支付成功",
+    "wx-c",
+    "wx-merchant-c",
+    "",
+  ];
+  sheet.getCell(21, 1).numFmt = "yyyy-mm-dd hh:mm:ss";
   await workbook.xlsx.writeFile(path);
 }
 
@@ -190,29 +205,48 @@ describe("finance import service", () => {
 
     const preview = await service.previewPaths([alipay, wechat]);
     expect(preview.counts).toEqual({
-      source: 7,
-      create: 7,
+      source: 8,
+      create: 8,
       duplicate: 0,
-      excluded: 1,
+      excluded: 0,
+      positive: 4,
+      negative: 2,
+      zero: 2,
       error: 0,
     });
     expect(
       preview.rows.find((row) => row.transactionId === "order-a"),
-    ).toMatchObject({ analysisKind: "expense", isIncluded: true });
+    ).toMatchObject({ analysisKind: "neutral", isIncluded: true });
+    expect(
+      preview.rows.find((row) => row.transactionId === "order-a")?.transactedAt,
+    ).toBe(new Date(2026, 7, 9, 12, 0, 0).toISOString());
     expect(
       preview.rows.find((row) => row.transactionId === "order-a_merchant-a"),
     ).toMatchObject({ analysisKind: "refund", amountCents: 3000 });
     expect(
       preview.rows.find((row) => row.paymentMethod === "亲属卡"),
     ).toMatchObject({ analysisKind: "expense", category: "交通" });
+    expect(
+      preview.rows.find((row) => row.transactionId === "wx-a")?.transactedAt,
+    ).toBe(new Date(2026, 7, 10, 18, 30, 36).toISOString());
+    expect(
+      preview.rows.find((row) => row.transactionId === "wx-a")?.reason,
+    ).toBeNull();
+    expect(
+      preview.rows.find((row) => row.transactionId === "wx-c"),
+    ).toMatchObject({
+      transactedAt: new Date(2026, 7, 10, 0, 30, 0).toISOString(),
+      analysisKind: "expense",
+      isIncluded: true,
+    });
 
     expect(service.confirm(preview.token)).toMatchObject({
-      importedCount: 7,
+      importedCount: 8,
       duplicateCount: 0,
     });
     const all = store.listFinance({ view: "all" });
-    expect(all.metrics.netCents).toBe(-486650);
-    expect(all.totalCount).toBe(7);
+    expect(all.metrics.netCents).toBe(-496550);
+    expect(all.totalCount).toBe(8);
 
     const parent = all.records.find((row) => row.counterparty === "妈妈")!;
     store.updateFinance({
@@ -222,7 +256,7 @@ describe("finance import service", () => {
       note: "父母生活费不计入消费",
     });
     const duplicatePreview = await service.previewPaths([wechat, alipay]);
-    expect(duplicatePreview.counts.duplicate).toBe(7);
+    expect(duplicatePreview.counts.duplicate).toBe(8);
     expect(service.confirm(duplicatePreview.token).importedCount).toBe(0);
     const updated = store.listFinance({ view: "all", search: "妈妈" })
       .records[0]!;
@@ -231,7 +265,10 @@ describe("finance import service", () => {
       category: "转账往来",
       note: "父母生活费不计入消费",
     });
-    expect(store.listFinance({ view: "all" }).metrics.netCents).toBe(13350);
+    expect(store.listFinance({ view: "all" }).metrics.netCents).toBe(3450);
+    expect(store.listFinance({ view: "all", impact: "zero" }).totalCount).toBe(
+      3,
+    );
     context.db.close();
   });
 

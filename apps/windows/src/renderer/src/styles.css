@@ -5046,6 +5046,13 @@ button {
 .finance-impact.zero {
   color: var(--muted);
 }
+.finance-impact-reason {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
 .finance-status {
   display: inline-flex;
   align-items: center;

@@ -59,6 +59,9 @@ const preview: FinanceImportPreview = {
       newCount: 1,
       duplicateCount: 1,
       excludedCount: 0,
+      positiveCount: 1,
+      negativeCount: 0,
+      zeroCount: 0,
       errorCount: 0,
     },
   ],
@@ -82,13 +85,23 @@ const preview: FinanceImportPreview = {
       rawNote: null,
       rawPayloadJson: "{}",
       analysisKind: "expense",
+      impactReason: "expense",
       category: "餐饮",
       isIncluded: true,
       action: "create",
       reason: null,
     },
   ],
-  counts: { source: 2, create: 1, duplicate: 1, excluded: 0, error: 0 },
+  counts: {
+    source: 2,
+    create: 1,
+    duplicate: 1,
+    excluded: 0,
+    positive: 1,
+    negative: 0,
+    zero: 0,
+    error: 0,
+  },
   canCommit: true,
 };
 
@@ -134,6 +147,8 @@ describe("finance workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "筛选" }));
     expect(await screen.findByText("筛选与排序")).toBeTruthy();
     expect(screen.getByText("支付方式")).toBeTruthy();
+    expect(screen.getByText("净消费影响")).toBeTruthy();
+    expect(screen.getByText("零影响")).toBeTruthy();
     expect(screen.getByText("最小金额（元）")).toBeTruthy();
     expect(container.querySelector(".finance-workspace-layout")).toBeTruthy();
   });
@@ -144,6 +159,7 @@ describe("finance workspace", () => {
     expect(screen.getByText("alipay.csv")).toBeTruthy();
     expect(screen.getByText("校园餐厅")).toBeTruthy();
     expect(screen.getByText("重复")).toBeTruthy();
+    expect(screen.getByText("正数影响")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "确认导入" }));
     await waitFor(() => expect(onPreviewChange).toHaveBeenCalledWith(null));
     expect(dialog).toBeTruthy();

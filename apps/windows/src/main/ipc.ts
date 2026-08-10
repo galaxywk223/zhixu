@@ -70,6 +70,7 @@ const financeQuerySchema = z.object({
   platforms: z.array(z.enum(FINANCE_PLATFORMS)).optional(),
   categories: z.array(z.enum(FINANCE_CATEGORIES)).optional(),
   inclusion: z.enum(["all", "included", "excluded"]).optional(),
+  impact: z.enum(["all", "positive", "negative", "zero"]).optional(),
   statuses: z.array(z.string().max(100)).optional(),
   types: z.array(z.string().max(100)).optional(),
   paymentMethods: z.array(z.string().max(200)).optional(),
