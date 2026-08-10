@@ -21,6 +21,7 @@ import {
 } from "./services/secure-storage";
 import { SyncService } from "./services/sync";
 import { SyncRepository } from "./services/sync-repository";
+import { FinanceImportService } from "./services/finance-import";
 import { TomatoImportService } from "./services/tomato-import";
 import { UpdateService } from "./services/updates";
 import { ZhixuStore } from "./store";
@@ -198,7 +199,7 @@ else {
         const focusSessions = store.listFocusSessions();
         process.stdout.write(
           `${JSON.stringify({
-            schemaVersion: 8,
+            schemaVersion: 9,
             integrity: store.integrityCheck(),
             migration: context.report,
             counts: store.entityCounts(),
@@ -238,12 +239,14 @@ else {
         projectRoot,
         app.isPackaged,
       );
+      const financeImporter = new FinanceImportService(store);
       registerIpc({
         store,
         migration: context.report,
         version: app.getVersion(),
         getWindow: () => mainWindow,
         importer,
+        financeImporter,
         updates,
         sync: syncService,
         packaged: app.isPackaged,

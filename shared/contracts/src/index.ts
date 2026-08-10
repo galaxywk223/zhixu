@@ -10,6 +10,7 @@ export const entityTypeSchema = z.enum([
   "focus_session",
   "life_event",
   "countdown",
+  "finance_transaction",
 ]);
 
 export const taskStatusSchema = z.enum(["todo", "in_progress", "done"]);
@@ -149,6 +150,15 @@ export const backupManifestV7Schema = z.object({
   entityCounts: z.record(z.string(), z.number().int().nonnegative()),
 });
 
+export const backupManifestV8Schema = z.object({
+  schemaVersion: z.literal(8),
+  appVersion: z.string(),
+  exportedAt: z.string().datetime(),
+  payloadFile: z.literal("data.json"),
+  payloadSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  entityCounts: z.record(z.string(), z.number().int().nonnegative()),
+});
+
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 export type TaskBatchDraft = z.infer<typeof taskBatchDraftSchema>;
 export type MemoDraft = Omit<z.infer<typeof memoDraftSchema>, "priority"> & {
@@ -162,5 +172,6 @@ export type LifeEventDraft = z.infer<typeof lifeEventDraftSchema>;
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
 export type BackupManifestV6 = z.infer<typeof backupManifestV6Schema>;
 export type BackupManifestV7 = z.infer<typeof backupManifestV7Schema>;
+export type BackupManifestV8 = z.infer<typeof backupManifestV8Schema>;
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 export type UiScale = z.infer<typeof uiScaleSchema>;

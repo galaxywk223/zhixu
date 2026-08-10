@@ -6,7 +6,8 @@ import JSZip from "jszip";
 import {
   backupManifestV6Schema,
   backupManifestV7Schema,
-  type BackupManifestV7,
+  backupManifestV8Schema,
+  type BackupManifestV8,
 } from "@zhixu/contracts";
 import { ZhixuStore } from "../store";
 
@@ -39,8 +40,8 @@ export class BackupService {
   private async writeBackup(path: string): Promise<void> {
     const payload = JSON.stringify(this.store.exportData());
     const payloadSha256 = createHash("sha256").update(payload).digest("hex");
-    const manifest: BackupManifestV7 = {
-      schemaVersion: 7,
+    const manifest: BackupManifestV8 = {
+      schemaVersion: 8,
       appVersion: this.appVersion,
       exportedAt: new Date().toISOString(),
       payloadFile: "data.json",
@@ -58,7 +59,7 @@ export class BackupService {
 
   private async verifyBackup(path: string): Promise<void> {
     const zip = await JSZip.loadAsync(await readFile(path));
-    const manifest = backupManifestV7Schema.parse(
+    const manifest = backupManifestV8Schema.parse(
       JSON.parse(await zip.file("manifest.json")!.async("string")),
     );
     const payload = await zip.file(manifest.payloadFile)!.async("string");
@@ -91,11 +92,17 @@ export class BackupService {
     ) as Record<string, unknown>;
     const current = this.store.exportData();
     try {
-      if (rawManifest.schemaVersion === 6 || rawManifest.schemaVersion === 7) {
+      if (
+        rawManifest.schemaVersion === 6 ||
+        rawManifest.schemaVersion === 7 ||
+        rawManifest.schemaVersion === 8
+      ) {
         const manifest =
-          rawManifest.schemaVersion === 7
-            ? backupManifestV7Schema.parse(rawManifest)
-            : backupManifestV6Schema.parse(rawManifest);
+          rawManifest.schemaVersion === 8
+            ? backupManifestV8Schema.parse(rawManifest)
+            : rawManifest.schemaVersion === 7
+              ? backupManifestV7Schema.parse(rawManifest)
+              : backupManifestV6Schema.parse(rawManifest);
         const payloadEntry = zip.file(manifest.payloadFile);
         if (!payloadEntry) throw new Error("备份缺少 data.json");
         const payloadText = await payloadEntry.async("string");

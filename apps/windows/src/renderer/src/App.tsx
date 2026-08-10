@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FluentProvider, Spinner } from "@fluentui/react-components";
-import type { TaskRecord, TomatoPreview } from "../../preload/api-types";
+import type {
+  FinanceImportPreview,
+  TaskRecord,
+  TomatoPreview,
+} from "../../preload/api-types";
 import { SearchDialog } from "./components/SearchDialog";
 import { AuthGate } from "./components/AuthGate";
 import { routeForNumericShortcut, Shell, type Route } from "./components/Shell";
@@ -9,6 +13,7 @@ import { TaskEditor } from "./components/TaskEditor";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CountdownsPage } from "./pages/CountdownsPage";
 import { FocusPage } from "./pages/FocusPage";
+import { FinancePage } from "./pages/FinancePage";
 import { NotesPage } from "./pages/NotesPage";
 import { MemosPage } from "./pages/MemosPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -50,6 +55,8 @@ export function App(): React.JSX.Element {
     "appearance" | "sync"
   >("appearance");
   const [focusPreview, setFocusPreview] = useState<TomatoPreview | null>(null);
+  const [financePreview, setFinancePreview] =
+    useState<FinanceImportPreview | null>(null);
   const [dragging, setDragging] = useState(false);
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
@@ -100,6 +107,7 @@ export function App(): React.JSX.Element {
             "focus",
             "sleep",
             "notes",
+            "finance",
             "settings",
           ].includes(target)
         )
@@ -165,15 +173,24 @@ export function App(): React.JSX.Element {
   const handleDrop = async (event: React.DragEvent): Promise<void> => {
     event.preventDefault();
     setDragging(false);
-    const file = event.dataTransfer.files[0];
-    if (!file) return;
-    if (file.name.toLocaleLowerCase().endsWith(".xls")) {
-      const preview = await window.zhixu.focus.previewDropped(file);
+    const files = [...event.dataTransfer.files];
+    if (!files.length) return;
+    if (
+      files.length === 1 &&
+      files[0]!.name.toLocaleLowerCase().endsWith(".xls")
+    ) {
+      const preview = await window.zhixu.focus.previewDropped(files[0]!);
       setFocusPreview(preview);
       setRoute("focus");
       return;
     }
-    alert("仅支持番茄 TODO .xls 文件");
+    if (files.every((file) => /\.(csv|xlsx)$/i.test(file.name))) {
+      const preview = await window.zhixu.finance.previewDropped(files);
+      setFinancePreview(preview);
+      setRoute("finance");
+      return;
+    }
+    alert("支持番茄 TODO .xls、支付宝 .csv 和微信 .xlsx 文件");
   };
   const page = {
     today: (
@@ -203,6 +220,12 @@ export function App(): React.JSX.Element {
       <FocusPage preview={focusPreview} onPreviewChange={setFocusPreview} />
     ),
     sleep: <SleepPage />,
+    finance: (
+      <FinancePage
+        preview={financePreview}
+        onPreviewChange={setFinancePreview}
+      />
+    ),
     notes: <NotesPage initialSelectedId={selectedNoteId} />,
     settings: <SettingsPage initialSection={settingsInitialSection} />,
   }[route];
@@ -248,8 +271,8 @@ export function App(): React.JSX.Element {
             </Shell>
             {dragging ? (
               <div className="drop-overlay">
-                <strong>拖放 .xls 导入</strong>
-                <span>番茄 TODO 文件将在主进程中校验并预览</span>
+                <strong>拖放账单或番茄记录导入</strong>
+                <span>.csv / .xlsx / .xls 将在主进程中校验并预览</span>
               </div>
             ) : null}
           </div>

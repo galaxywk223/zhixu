@@ -53,7 +53,7 @@ SUPABASE_ANON_KEY=<anon-key>
 - 迁移备份：`%LOCALAPPDATA%\Zhixu\MigrationBackups`
 - 首次同步备份：`%LOCALAPPDATA%\Zhixu\SyncBackups`
 
-首次启动只读取旧数据库，并在独立副本上执行 schema 8 迁移。旧数据库和旧客户端不会自动删除。
+首次启动只读取旧数据库，并在独立副本上执行 schema 9 迁移。旧数据库和旧客户端不会自动删除。
 
 ## 发布边界
 

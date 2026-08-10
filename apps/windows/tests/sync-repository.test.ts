@@ -127,6 +127,57 @@ describe("sync repository", () => {
     close();
   });
 
+  it("merges finance transactions by platform and source key", () => {
+    const { store, repository, close } = setup();
+    repository.mergeInitialSnapshot({
+      revision: 14,
+      entities: {
+        finance_transaction: [
+          {
+            id: "remote-finance",
+            platform: "wechat",
+            source_key: "wx-source",
+            transaction_id: "wx-order",
+            merchant_order_id: null,
+            transacted_at: "2026-08-10T04:00:00.000Z",
+            amount_cents: 2200,
+            raw_flow: "支出",
+            raw_status: "支付成功",
+            raw_type: "商户消费",
+            counterparty: "书店",
+            counterparty_account: null,
+            description: "教材",
+            payment_method: "零钱",
+            raw_note: null,
+            raw_payload_json: "{}",
+            analysis_kind: "expense",
+            category: "教育",
+            is_included: true,
+            note: null,
+            import_batch_id: null,
+            created_at: "2026-08-10T04:00:00.000Z",
+            updated_at: "2026-08-10T04:00:00.000Z",
+            deleted_at: null,
+            device_id: "remote",
+            server_revision: 14,
+          },
+        ],
+      },
+    });
+    expect(store.listFinance({ view: "all" }).records[0]).toMatchObject({
+      id: "remote-finance",
+      platform: "wechat",
+      category: "教育",
+      impactCents: 2200,
+    });
+    store.updateFinance({ id: "remote-finance", isIncluded: false });
+    expect(repository.listPending()[0]).toMatchObject({
+      entityType: "finance_transaction",
+      entityId: "remote-finance",
+    });
+    close();
+  });
+
   it("resolves a note conflict by retaining both versions", () => {
     const { store, repository, close } = setup();
     const noteId = store.saveNote({

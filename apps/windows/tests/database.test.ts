@@ -133,7 +133,7 @@ function createLegacyDatabase(path: string, version: 1 | 2 | 3 | 4 | 5): void {
   db.close();
 }
 
-describe("schema 8 migration", () => {
+describe("schema 9 migration", () => {
   it.each([1, 2, 3, 4, 5] as const)(
     "copies and migrates v%i without changing the source file",
     (version) => {
@@ -171,14 +171,14 @@ describe("schema 8 migration", () => {
     },
   );
 
-  it("is idempotent when schema 8 is opened again", () => {
+  it("is idempotent when schema 9 is opened again", () => {
     const paths = temporaryPaths();
     createLegacyDatabase(paths.source, 5);
     const first = initializeDatabase(paths);
     first.db.close();
     const second = initializeDatabase(paths);
     expect(second.report.status).toBe("current");
-    expect(second.report.fromVersion).toBe(8);
+    expect(second.report.fromVersion).toBe(9);
     expect(second.report.entityCounts.tasks).toBe(2);
     expect(second.db.pragma("integrity_check", { simple: true })).toBe("ok");
     second.db.close();
@@ -196,7 +196,7 @@ describe("schema 8 migration", () => {
 
     const upgraded = initializeDatabase(paths);
     expect(upgraded.report.fromVersion).toBe(6);
-    expect(upgraded.report.toVersion).toBe(8);
+    expect(upgraded.report.toVersion).toBe(9);
     expect(
       upgraded.db
         .prepare(
@@ -240,7 +240,7 @@ describe("schema 8 migration", () => {
     expect(
       store.listTasks().find((item) => item.id === id)?.estimatedMinutes,
     ).toBe(30);
-    expect(context.db.pragma("user_version", { simple: true })).toBe(8);
+    expect(context.db.pragma("user_version", { simple: true })).toBe(9);
     expect(store.integrityCheck()).toBe("ok");
     context.db.close();
   });

@@ -18,13 +18,19 @@ const entityTables = {
   focus_session: "focus_sessions",
   life_event: "life_events",
   countdown: "countdowns",
+  finance_transaction: "finance_transactions",
 } as const;
 
 export type SyncEntityType = keyof typeof entityTables;
 
 export const syncEntityOrder = Object.keys(entityTables) as SyncEntityType[];
 
-const booleanColumns = new Set(["is_archived", "is_pinned", "is_all_day"]);
+const booleanColumns = new Set([
+  "is_archived",
+  "is_pinned",
+  "is_all_day",
+  "is_included",
+]);
 
 export interface PendingOperation extends SyncOperation {
   rowId: number;
@@ -214,6 +220,7 @@ export class SyncRepository {
       baseRevision: Number(row.base_revision ?? 0),
       payload: this.toRemotePayload(
         JSON.parse(String(row.payload_json)) as SqlRow,
+        String(row.entity_type) as SyncEntityType,
       ),
     }));
   }
@@ -258,6 +265,11 @@ export class SyncRepository {
           const remote = this.toLocalPayload(remoteRaw);
           const remoteId = String(remote.id);
           let local = this.findMatchingLocal(entityType, remote);
+          if (
+            entityType === "finance_transaction" &&
+            local?.import_batch_id != null
+          )
+            remote.import_batch_id = local.import_batch_id;
           if (local && String(local.id) !== remoteId)
             local = this.adoptRemoteId(entityType, local, remoteId);
           if (!local) {
@@ -307,6 +319,11 @@ export class SyncRepository {
         const local = this.db
           .prepare(`SELECT * FROM ${table} WHERE id = ?`)
           .get(change.entity_id) as SqlRow | undefined;
+        if (
+          change.entity_type === "finance_transaction" &&
+          local?.import_batch_id != null
+        )
+          remote.import_batch_id = local.import_batch_id;
         const pending = this.db
           .prepare(
             "SELECT * FROM sync_outbox WHERE entity_type = ? AND entity_id = ?",
@@ -565,6 +582,12 @@ export class SyncRepository {
       return this.db
         .prepare(`SELECT * FROM ${table} WHERE source_key = ?`)
         .get(remote.source_key) as SqlRow | undefined;
+    if (entityType === "finance_transaction")
+      return this.db
+        .prepare(
+          "SELECT * FROM finance_transactions WHERE platform = ? AND source_key = ?",
+        )
+        .get(remote.platform, remote.source_key) as SqlRow | undefined;
     if (entityType === "tag_link")
       return this.db
         .prepare(
@@ -657,13 +680,20 @@ export class SyncRepository {
       .run(...entries.map(([, value]) => bindable(value)));
   }
 
-  private toRemotePayload(row: SqlRow): SqlRow {
+  private toRemotePayload(row: SqlRow, entityType?: SyncEntityType): SqlRow {
     return Object.fromEntries(
-      Object.entries(row).map(([key, value]) => {
-        if (key.endsWith("_at") && value != null) return [key, toIso(value)];
-        if (booleanColumns.has(key)) return [key, Boolean(Number(value))];
-        return [key, value];
-      }),
+      Object.entries(row)
+        .filter(
+          ([key]) =>
+            !(
+              entityType === "finance_transaction" && key === "import_batch_id"
+            ),
+        )
+        .map(([key, value]) => {
+          if (key.endsWith("_at") && value != null) return [key, toIso(value)];
+          if (booleanColumns.has(key)) return [key, Boolean(Number(value))];
+          return [key, value];
+        }),
     );
   }
 

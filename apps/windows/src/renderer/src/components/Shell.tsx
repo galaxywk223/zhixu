@@ -7,6 +7,7 @@ import {
   Home24Regular,
   Note24Regular,
   NotePinRegular,
+  Money24Regular,
   PanelLeftContract24Regular,
   PanelLeftExpand24Regular,
   Settings24Regular,
@@ -24,6 +25,7 @@ export type Route =
   | "calendar"
   | "focus"
   | "sleep"
+  | "finance"
   | "notes"
   | "settings";
 
@@ -75,6 +77,12 @@ const navigation = [
     label: "睡眠",
     shortcut: 8,
     icon: <WeatherMoon24Regular />,
+  },
+  {
+    route: "finance" as const,
+    label: "消费",
+    shortcut: 9,
+    icon: <Money24Regular />,
   },
 ];
 

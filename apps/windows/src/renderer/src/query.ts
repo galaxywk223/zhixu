@@ -11,6 +11,8 @@ export const queryKeys = {
   notes: ["notes"] as const,
   focus: ["focus"] as const,
   batches: ["import-batches"] as const,
+  finance: ["finance"] as const,
+  financeBatches: ["finance-import-batches"] as const,
   events: ["life-events"] as const,
   summary: ["dashboard-summary"] as const,
   settings: ["settings"] as const,
@@ -41,6 +43,7 @@ export function useDataInvalidation(): void {
             queryKeys.summary,
           ],
           sleep: [queryKeys.events],
+          finance: [queryKeys.finance, queryKeys.financeBatches],
           settings: [queryKeys.settings, queryKeys.bootstrap],
           all: [],
         };

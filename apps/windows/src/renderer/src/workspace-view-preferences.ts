@@ -2,6 +2,8 @@ import type { FocusFilters, FocusView } from "./pages/focus-workspace-model";
 import type { MemoView } from "./pages/memo-workspace-model";
 import type { SleepFilters, SleepView } from "./pages/sleep-workspace-model";
 import type { TaskView } from "./pages/task-workspace-model";
+import type { FinanceFilters } from "./pages/finance-workspace-model";
+import type { FinanceView } from "../../preload/api-types";
 import { parseLocalDateKey } from "../../shared/local-date";
 
 export const WORKSPACE_VIEW_PREFERENCES_KEY = "zhixu-workspace-views-v1";
@@ -11,6 +13,7 @@ interface WorkspaceViewPreferences {
   memoView?: MemoView;
   focus?: FocusFilters;
   sleep?: SleepFilters;
+  finance?: FinanceFilters;
 }
 
 const taskViews: TaskView[] = [
@@ -25,6 +28,14 @@ const taskViews: TaskView[] = [
 const memoViews: MemoView[] = ["all", "high", "medium", "low"];
 const focusViews: FocusView[] = ["today", "week", "month", "all", "custom"];
 const sleepViews: SleepView[] = ["last7", "last30", "all", "custom"];
+const financeViews: FinanceView[] = [
+  "today",
+  "week",
+  "month",
+  "year",
+  "all",
+  "custom",
+];
 
 function readPreferences(): WorkspaceViewPreferences {
   try {
@@ -60,7 +71,7 @@ function validDate(value: unknown): value is string {
   }
 }
 
-function validRange<T extends FocusFilters | SleepFilters>(
+function validRange<T extends FocusFilters | SleepFilters | FinanceFilters>(
   value: unknown,
   views: ReadonlyArray<T["view"]>,
   fallback: T,
@@ -116,4 +127,12 @@ export function loadSleepFilters(fallback: SleepFilters): SleepFilters {
 
 export function saveSleepFilters(value: SleepFilters): void {
   updatePreferences({ sleep: value });
+}
+
+export function loadFinanceFilters(fallback: FinanceFilters): FinanceFilters {
+  return validRange(readPreferences().finance, financeViews, fallback);
+}
+
+export function saveFinanceFilters(value: FinanceFilters): void {
+  updatePreferences({ finance: value });
 }

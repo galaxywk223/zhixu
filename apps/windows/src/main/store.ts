@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
   countdownDraftSchema,
@@ -24,6 +24,12 @@ import type {
   CountdownRecord,
   DashboardSummary,
   FocusSessionRecord,
+  FinanceImportBatchRecord,
+  FinanceImportPreview,
+  FinanceImportResult,
+  FinanceListResult,
+  FinanceQuery,
+  FinanceTransactionRecord,
   ImportBatchRecord,
   ImportResult,
   LifeEventRecord,
@@ -43,6 +49,13 @@ import { classifyLifeEvent, normalizeLegacyTomatoText } from "../shared/domain";
 import { normalizeTagName, tagColorHex } from "../shared/tag-colors";
 import { buildFocusByLocalDay } from "../shared/focus-dates";
 import { addLocalDays, localDayStart } from "../shared/local-date";
+import { localDateKey, parseLocalDateKey } from "../shared/local-date";
+import {
+  FINANCE_CATEGORIES,
+  financeImpactCents,
+  type FinanceCategory,
+  type FinancePlatform,
+} from "../shared/finance";
 import {
   buildOccurrenceDates,
   combineLocalDueAt,
@@ -62,6 +75,8 @@ const dataTables = [
   "focus_sessions",
   "life_events",
   "countdowns",
+  "finance_transactions",
+  "finance_import_batches",
   "import_batches",
   "import_batch_changes",
 ] as const;
@@ -77,6 +92,18 @@ interface TomatoEntity {
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+function financeEntityId(platform: FinancePlatform, sourceKey: string): string {
+  const hex = createHash("sha256")
+    .update(`zhixu:finance:${platform}:${sourceKey}`)
+    .digest("hex")
+    .slice(0, 32)
+    .split("");
+  hex[12] = "5";
+  hex[16] = ((Number.parseInt(hex[16]!, 16) & 0x3) | 0x8).toString(16);
+  const value = hex.join("");
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
 }
 
 function toEpoch(value: string | null | undefined): number | null {
@@ -165,6 +192,121 @@ function asCountdown(row: SqlRow): CountdownRecord {
     createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
     updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
   };
+}
+
+function asFinance(row: SqlRow): FinanceTransactionRecord {
+  const analysisKind = String(
+    row.analysis_kind,
+  ) as FinanceTransactionRecord["analysisKind"];
+  const amountCents = Number(row.amount_cents ?? 0);
+  const isIncluded = bool(row.is_included);
+  return {
+    id: String(row.id),
+    platform: String(row.platform) as FinancePlatform,
+    sourceKey: String(row.source_key),
+    transactionId:
+      row.transaction_id == null ? null : String(row.transaction_id),
+    merchantOrderId:
+      row.merchant_order_id == null ? null : String(row.merchant_order_id),
+    transactedAt: toIso(row.transacted_at) ?? new Date(0).toISOString(),
+    amountCents,
+    rawFlow: String(row.raw_flow),
+    rawStatus: String(row.raw_status),
+    rawType: String(row.raw_type),
+    counterparty: String(row.counterparty),
+    counterpartyAccount:
+      row.counterparty_account == null
+        ? null
+        : String(row.counterparty_account),
+    description: String(row.description),
+    paymentMethod: String(row.payment_method),
+    rawNote: row.raw_note == null ? null : String(row.raw_note),
+    rawPayloadJson: String(row.raw_payload_json),
+    analysisKind,
+    category: String(row.category) as FinanceCategory,
+    isIncluded,
+    note: row.note == null ? null : String(row.note),
+    impactCents: financeImpactCents(analysisKind, amountCents, isIncluded),
+    importBatchId:
+      row.import_batch_id == null ? null : String(row.import_batch_id),
+    createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+    updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
+  };
+}
+
+function financeRangeBounds(
+  view: FinanceQuery["view"],
+  customStart: string | undefined,
+  customEnd: string | undefined,
+  records: FinanceTransactionRecord[],
+  now = new Date(),
+): { start: Date | null; end: Date | null; error: string | null } {
+  const today = localDayStart(now);
+  if (view === "all") {
+    const sorted = records
+      .map((item) => new Date(item.transactedAt))
+      .filter((date) => Number.isFinite(date.getTime()))
+      .sort((left, right) => left.getTime() - right.getTime());
+    return sorted.length
+      ? {
+          start: localDayStart(sorted[0]!),
+          end: addLocalDays(localDayStart(sorted[sorted.length - 1]!), 1),
+          error: null,
+        }
+      : { start: null, end: null, error: null };
+  }
+  if (view === "custom") {
+    try {
+      if (!customStart || !customEnd)
+        return { start: null, end: null, error: "请选择完整的起止日期" };
+      const start = parseLocalDateKey(customStart);
+      const endDate = parseLocalDateKey(customEnd);
+      if (start > endDate)
+        return { start: null, end: null, error: "结束日期不能早于开始日期" };
+      return { start, end: addLocalDays(endDate, 1), error: null };
+    } catch {
+      return { start: null, end: null, error: "日期范围无效" };
+    }
+  }
+  if (view === "today")
+    return { start: today, end: addLocalDays(today, 1), error: null };
+  if (view === "week") {
+    const start = addLocalDays(today, -((today.getDay() + 6) % 7));
+    return { start, end: addLocalDays(start, 7), error: null };
+  }
+  if (view === "month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    return {
+      start,
+      end: new Date(today.getFullYear(), today.getMonth() + 1, 1),
+      error: null,
+    };
+  }
+  const start = new Date(today.getFullYear(), 0, 1);
+  return {
+    start,
+    end: new Date(today.getFullYear() + 1, 0, 1),
+    error: null,
+  };
+}
+
+function inFinanceRange(
+  item: FinanceTransactionRecord,
+  bounds: { start: Date | null; end: Date | null },
+): boolean {
+  const value = Date.parse(item.transactedAt);
+  return (
+    Number.isFinite(value) &&
+    (bounds.start == null || value >= bounds.start.getTime()) &&
+    (bounds.end == null || value < bounds.end.getTime())
+  );
+}
+
+function formatFinanceTrendLabel(key: string, weekly: boolean): string {
+  const date = parseLocalDateKey(key);
+  return weekly
+    ? `${date.getMonth() + 1}/${date.getDate()} 周`
+    : `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function bindable(value: unknown): string | number | bigint | Buffer | null {
@@ -463,6 +605,393 @@ export class ZhixuStore {
       )
       .run(now, now, id);
     this.enqueue("countdown", id, "delete", { id, deleted_at: now });
+  }
+
+  listFinance(input: FinanceQuery): FinanceListResult {
+    const query: FinanceQuery = {
+      ...input,
+      view: input.view ?? "month",
+      inclusion: input.inclusion ?? "all",
+      sort: input.sort ?? "time_desc",
+      cursor: Math.max(0, input.cursor ?? 0),
+      limit: Math.min(200, Math.max(20, input.limit ?? 100)),
+    };
+    const all = (
+      this.db
+        .prepare(
+          "SELECT * FROM finance_transactions WHERE deleted_at IS NULL ORDER BY transacted_at DESC",
+        )
+        .all() as SqlRow[]
+    ).map(asFinance);
+    const facets = {
+      statuses: [
+        ...new Set(all.map((item) => item.rawStatus).filter(Boolean)),
+      ].sort(),
+      types: [
+        ...new Set(all.map((item) => item.rawType).filter(Boolean)),
+      ].sort(),
+      paymentMethods: [
+        ...new Set(all.map((item) => item.paymentMethod).filter(Boolean)),
+      ].sort(),
+    };
+    const search = query.search?.trim().toLocaleLowerCase("zh-CN") ?? "";
+    const base = all.filter((item) => {
+      if (query.platforms?.length && !query.platforms.includes(item.platform))
+        return false;
+      if (query.categories?.length && !query.categories.includes(item.category))
+        return false;
+      if (query.inclusion === "included" && !item.isIncluded) return false;
+      if (query.inclusion === "excluded" && item.isIncluded) return false;
+      if (query.statuses?.length && !query.statuses.includes(item.rawStatus))
+        return false;
+      if (query.types?.length && !query.types.includes(item.rawType))
+        return false;
+      if (
+        query.paymentMethods?.length &&
+        !query.paymentMethods.includes(item.paymentMethod)
+      )
+        return false;
+      if (
+        query.minAmountCents !== undefined &&
+        item.amountCents < query.minAmountCents
+      )
+        return false;
+      if (
+        query.maxAmountCents !== undefined &&
+        item.amountCents > query.maxAmountCents
+      )
+        return false;
+      if (search) {
+        const haystack = [
+          item.counterparty,
+          item.description,
+          item.rawNote ?? "",
+          item.note ?? "",
+          item.transactionId ?? "",
+        ]
+          .join(" ")
+          .toLocaleLowerCase("zh-CN");
+        if (!haystack.includes(search)) return false;
+      }
+      return true;
+    });
+    const countFor = (view: FinanceQuery["view"]): number => {
+      const bounds = financeRangeBounds(
+        view,
+        query.customStart,
+        query.customEnd,
+        base,
+      );
+      return bounds.error
+        ? 0
+        : base.filter((item) => inFinanceRange(item, bounds)).length;
+    };
+    const bounds = financeRangeBounds(
+      query.view,
+      query.customStart,
+      query.customEnd,
+      base,
+    );
+    const filtered = bounds.error
+      ? []
+      : base.filter((item) => inFinanceRange(item, bounds));
+    const netCents = filtered.reduce((sum, item) => sum + item.impactCents, 0);
+    const consumptionDays = new Set(
+      filtered
+        .filter((item) => item.impactCents > 0)
+        .map((item) => localDateKey(new Date(item.transactedAt))),
+    ).size;
+    const dayCount =
+      bounds.start && bounds.end
+        ? Math.max(
+            1,
+            Math.round(
+              (bounds.end.getTime() - bounds.start.getTime()) / 86_400_000,
+            ),
+          )
+        : 0;
+    const todayBounds = financeRangeBounds("today", undefined, undefined, base);
+    const monthBounds = financeRangeBounds("month", undefined, undefined, base);
+    const netForBounds = (range: {
+      start: Date | null;
+      end: Date | null;
+    }): number =>
+      base
+        .filter((item) => inFinanceRange(item, range))
+        .reduce((sum, item) => sum + item.impactCents, 0);
+
+    const spanDays = dayCount;
+    const weekly = spanDays > 120;
+    const trendGroups = new Map<string, number>();
+    for (const item of filtered) {
+      const date = localDayStart(new Date(item.transactedAt));
+      const groupedDate = weekly
+        ? addLocalDays(date, -((date.getDay() + 6) % 7))
+        : date;
+      const key = localDateKey(groupedDate);
+      trendGroups.set(key, (trendGroups.get(key) ?? 0) + item.impactCents);
+    }
+    const trend = [] as FinanceListResult["overview"]["trend"];
+    if (bounds.start && bounds.end) {
+      const step = weekly ? 7 : 1;
+      let cursor = weekly
+        ? addLocalDays(bounds.start, -((bounds.start.getDay() + 6) % 7))
+        : bounds.start;
+      while (cursor < bounds.end) {
+        const key = localDateKey(cursor);
+        trend.push({
+          key,
+          label: formatFinanceTrendLabel(key, weekly),
+          impactCents: trendGroups.get(key) ?? 0,
+        });
+        cursor = addLocalDays(cursor, step);
+      }
+    }
+    const categoryMap = new Map<FinanceCategory, number>();
+    const platformMap = new Map<FinancePlatform, number>();
+    for (const item of filtered) {
+      categoryMap.set(
+        item.category,
+        (categoryMap.get(item.category) ?? 0) + item.impactCents,
+      );
+      platformMap.set(
+        item.platform,
+        (platformMap.get(item.platform) ?? 0) + item.impactCents,
+      );
+    }
+    const sorted = [...filtered].sort((left, right) => {
+      if (query.sort === "time_asc")
+        return Date.parse(left.transactedAt) - Date.parse(right.transactedAt);
+      if (query.sort === "amount_desc")
+        return right.amountCents - left.amountCents;
+      if (query.sort === "amount_asc")
+        return left.amountCents - right.amountCents;
+      return Date.parse(right.transactedAt) - Date.parse(left.transactedAt);
+    });
+    const offset = query.cursor ?? 0;
+    const limit = query.limit ?? 100;
+    const records = sorted.slice(offset, offset + limit);
+    return {
+      records,
+      nextCursor:
+        offset + records.length < sorted.length
+          ? offset + records.length
+          : null,
+      totalCount: sorted.length,
+      range: {
+        start: bounds.start ? localDateKey(bounds.start) : null,
+        end: bounds.end ? localDateKey(addLocalDays(bounds.end, -1)) : null,
+      },
+      rangeError: bounds.error,
+      viewCounts: {
+        today: countFor("today"),
+        week: countFor("week"),
+        month: countFor("month"),
+        year: countFor("year"),
+        all: countFor("all"),
+        custom: countFor("custom"),
+      },
+      metrics: {
+        netCents,
+        includedCount: filtered.filter((item) => item.isIncluded).length,
+        consumptionDays,
+        dailyAverageCents: dayCount > 0 ? Math.round(netCents / dayCount) : 0,
+        monthNetCents: netForBounds(monthBounds),
+        todayNetCents: netForBounds(todayBounds),
+      },
+      overview: {
+        trend,
+        categories: FINANCE_CATEGORIES.map((category) => ({
+          category,
+          impactCents: categoryMap.get(category) ?? 0,
+        })).filter((item) => item.impactCents !== 0),
+        platforms: (["alipay", "wechat"] as const).map((platform) => ({
+          platform,
+          impactCents: platformMap.get(platform) ?? 0,
+        })),
+      },
+      facets,
+    };
+  }
+
+  updateFinance(input: {
+    id: string;
+    isIncluded?: boolean;
+    category?: FinanceCategory;
+    note?: string | null;
+  }): void {
+    const existing = this.db
+      .prepare(
+        "SELECT * FROM finance_transactions WHERE id = ? AND deleted_at IS NULL",
+      )
+      .get(input.id) as SqlRow | undefined;
+    if (!existing) throw new Error("消费记录不存在");
+    const category = input.category ?? String(existing.category);
+    if (!FINANCE_CATEGORIES.includes(category as FinanceCategory))
+      throw new Error("消费分类无效");
+    const note =
+      input.note === undefined ? existing.note : input.note?.trim() || null;
+    if (typeof note === "string" && note.length > 10_000)
+      throw new Error("备注不能超过 10000 个字符");
+    const updated = {
+      ...existing,
+      is_included:
+        input.isIncluded === undefined
+          ? Number(existing.is_included)
+          : input.isIncluded
+            ? 1
+            : 0,
+      category,
+      note,
+      updated_at: nowSeconds(),
+    };
+    this.updateFromObject("finance_transactions", input.id, updated);
+    this.enqueue("finance_transaction", input.id, "upsert", updated);
+  }
+
+  previewFinanceImport(preview: FinanceImportPreview): FinanceImportPreview {
+    const keys = new Set(
+      (
+        this.db
+          .prepare("SELECT platform, source_key FROM finance_transactions")
+          .all() as SqlRow[]
+      ).map((row) => `${String(row.platform)}:${String(row.source_key)}`),
+    );
+    const seen = new Set<string>();
+    const rows = preview.rows.map((row) => {
+      if (row.action === "error") return row;
+      const key = `${row.platform}:${row.sourceKey}`;
+      const duplicate = keys.has(key) || seen.has(key);
+      seen.add(key);
+      return {
+        ...row,
+        action: duplicate ? ("duplicate" as const) : ("create" as const),
+        reason: duplicate ? "该账单记录已导入" : row.reason,
+      };
+    });
+    const files = preview.files.map((file) => {
+      const fileRows = rows.filter((row) => row.fileHash === file.fileHash);
+      return {
+        ...file,
+        newCount: fileRows.filter((row) => row.action === "create").length,
+        duplicateCount: fileRows.filter((row) => row.action === "duplicate")
+          .length,
+        excludedCount: fileRows.filter((row) => !row.isIncluded).length,
+        errorCount: fileRows.filter((row) => row.action === "error").length,
+      };
+    });
+    const counts = {
+      source: rows.length,
+      create: rows.filter((row) => row.action === "create").length,
+      duplicate: rows.filter((row) => row.action === "duplicate").length,
+      excluded: rows.filter((row) => !row.isIncluded).length,
+      error: rows.filter((row) => row.action === "error").length,
+    };
+    return { ...preview, rows, files, counts, canCommit: counts.error === 0 };
+  }
+
+  importFinance(preview: FinanceImportPreview): FinanceImportResult {
+    const checked = this.previewFinanceImport(preview);
+    if (!checked.canCommit) throw new Error("导入预检存在错误，无法提交");
+    const batchIds: string[] = [];
+    let importedCount = 0;
+    const run = this.db.transaction(() => {
+      for (const file of checked.files) {
+        const batchId = randomUUID();
+        batchIds.push(batchId);
+        const fileRows = checked.rows.filter(
+          (row) => row.fileHash === file.fileHash,
+        );
+        this.db
+          .prepare(
+            `INSERT INTO finance_import_batches
+             (id, file_name, file_hash, platform, range_start, range_end,
+              source_count, imported_count, duplicate_count, excluded_count,
+              error_count, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(
+            batchId,
+            file.fileName,
+            file.fileHash,
+            file.platform,
+            toEpoch(file.rangeStart),
+            toEpoch(file.rangeEnd),
+            file.sourceCount,
+            file.newCount,
+            file.duplicateCount,
+            file.excludedCount,
+            file.errorCount,
+            nowSeconds(),
+          );
+        for (const row of fileRows) {
+          if (row.action !== "create") continue;
+          const id = financeEntityId(row.platform, row.sourceKey);
+          const now = nowSeconds();
+          const entity: SqlRow = {
+            id,
+            platform: row.platform,
+            source_key: row.sourceKey,
+            transaction_id: row.transactionId,
+            merchant_order_id: row.merchantOrderId,
+            transacted_at: toEpoch(row.transactedAt),
+            amount_cents: row.amountCents,
+            raw_flow: row.rawFlow,
+            raw_status: row.rawStatus,
+            raw_type: row.rawType,
+            counterparty: row.counterparty,
+            counterparty_account: row.counterpartyAccount,
+            description: row.description,
+            payment_method: row.paymentMethod,
+            raw_note: row.rawNote,
+            raw_payload_json: row.rawPayloadJson,
+            analysis_kind: row.analysisKind,
+            category: row.category,
+            is_included: row.isIncluded ? 1 : 0,
+            note: null,
+            import_batch_id: batchId,
+            created_at: now,
+            updated_at: now,
+            deleted_at: null,
+            device_id: this.deviceId,
+            server_revision: 0,
+          };
+          this.insertObject("finance_transactions", entity);
+          this.enqueue("finance_transaction", id, "upsert", entity);
+          importedCount += 1;
+        }
+      }
+    });
+    run();
+    return {
+      batchIds,
+      importedCount,
+      duplicateCount: checked.counts.duplicate,
+      excludedCount: checked.counts.excluded,
+    };
+  }
+
+  listFinanceImportBatches(): FinanceImportBatchRecord[] {
+    return (
+      this.db
+        .prepare(
+          "SELECT * FROM finance_import_batches ORDER BY created_at DESC",
+        )
+        .all() as SqlRow[]
+    ).map((row) => ({
+      id: String(row.id),
+      fileName: String(row.file_name),
+      fileHash: String(row.file_hash),
+      platform: String(row.platform) as FinancePlatform,
+      rangeStart: toIso(row.range_start),
+      rangeEnd: toIso(row.range_end),
+      sourceCount: Number(row.source_count),
+      importedCount: Number(row.imported_count),
+      duplicateCount: Number(row.duplicate_count),
+      excludedCount: Number(row.excluded_count),
+      errorCount: Number(row.error_count),
+      createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+    }));
   }
 
   setTaskStatus(id: string, status: TaskRecord["status"]): void {
@@ -1566,6 +2095,7 @@ export class ZhixuStore {
       focus_sessions: "focus_session",
       life_events: "life_event",
       countdowns: "countdown",
+      finance_transactions: "finance_transaction",
     } as const;
     const now = nowSeconds();
     const run = this.db.transaction(() => {
@@ -1694,6 +2224,7 @@ export class ZhixuStore {
       focus_session: "focus_sessions",
       life_event: "life_events",
       countdown: "countdowns",
+      finance_transaction: "finance_transactions",
     }[entityType];
     if (table)
       this.db

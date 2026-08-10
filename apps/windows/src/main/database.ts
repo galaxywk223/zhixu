@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { MigrationReport } from "../preload/api-types";
 
-export const SCHEMA_VERSION = 8 as const;
+export const SCHEMA_VERSION = 9 as const;
 
 const preservedTables = [
   "tasks",
@@ -20,6 +20,8 @@ const preservedTables = [
   "focus_sessions",
   "life_events",
   "countdowns",
+  "finance_transactions",
+  "finance_import_batches",
   "import_batches",
   "import_batch_changes",
 ] as const;
@@ -338,6 +340,48 @@ function createSchema(db: Database.Database): void {
       device_id TEXT NOT NULL,
       server_revision INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS finance_transactions (
+      id TEXT PRIMARY KEY NOT NULL,
+      platform TEXT NOT NULL,
+      source_key TEXT NOT NULL,
+      transaction_id TEXT,
+      merchant_order_id TEXT,
+      transacted_at INTEGER NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      raw_flow TEXT NOT NULL,
+      raw_status TEXT NOT NULL,
+      raw_type TEXT NOT NULL,
+      counterparty TEXT NOT NULL,
+      counterparty_account TEXT,
+      description TEXT NOT NULL,
+      payment_method TEXT NOT NULL,
+      raw_note TEXT,
+      raw_payload_json TEXT NOT NULL,
+      analysis_kind TEXT NOT NULL,
+      category TEXT NOT NULL,
+      is_included INTEGER NOT NULL DEFAULT 1,
+      note TEXT,
+      import_batch_id TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      device_id TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS finance_import_batches (
+      id TEXT PRIMARY KEY NOT NULL,
+      file_name TEXT NOT NULL,
+      file_hash TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      range_start INTEGER,
+      range_end INTEGER,
+      source_count INTEGER NOT NULL DEFAULT 0,
+      imported_count INTEGER NOT NULL DEFAULT 0,
+      duplicate_count INTEGER NOT NULL DEFAULT 0,
+      excluded_count INTEGER NOT NULL DEFAULT 0,
+      error_count INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS import_batches (
       id TEXT PRIMARY KEY NOT NULL,
       source TEXT NOT NULL,
@@ -430,7 +474,7 @@ function createSchema(db: Database.Database): void {
   `);
 }
 
-function migrateToV8(db: Database.Database, fromVersion: number): void {
+function migrateToV9(db: Database.Database, fromVersion: number): void {
   if (fromVersion > SCHEMA_VERSION)
     throw new Error(`数据库版本 ${fromVersion} 高于客户端支持版本`);
   const run = db.transaction(() => {
@@ -524,7 +568,13 @@ function migrateToV8(db: Database.Database, fromVersion: number): void {
       CREATE INDEX IF NOT EXISTS focus_start_idx ON focus_sessions(start_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS life_events_time_idx ON life_events(occurred_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS countdowns_target_idx ON countdowns(target_date) WHERE deleted_at IS NULL;
-      PRAGMA user_version = 8;
+      CREATE UNIQUE INDEX IF NOT EXISTS finance_transactions_source_idx
+        ON finance_transactions(platform, source_key);
+      CREATE INDEX IF NOT EXISTS finance_transactions_time_idx
+        ON finance_transactions(transacted_at) WHERE deleted_at IS NULL;
+      CREATE INDEX IF NOT EXISTS finance_transactions_category_idx
+        ON finance_transactions(category) WHERE deleted_at IS NULL;
+      PRAGMA user_version = 9;
     `);
   });
   run();
@@ -570,7 +620,7 @@ export function initializeDatabase(
     db.pragma("busy_timeout = 5000");
     const fromVersion = Number(db.pragma("user_version", { simple: true }));
     const before = snapshot(db);
-    migrateToV8(db, fromVersion);
+    migrateToV9(db, fromVersion);
     verifySnapshot(before, db);
     const integrity = String(db.pragma("integrity_check", { simple: true }));
     if (integrity !== "ok")

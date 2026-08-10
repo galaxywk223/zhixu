@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
@@ -177,6 +177,61 @@ describe("backup compatibility", () => {
     expect(target.store.listMemos()[0]).toMatchObject({
       title: "高优先级备忘",
       priority: 3,
+    });
+    source.close();
+    target.close();
+  });
+
+  it("writes schema 8 automatic backups with finance transactions", async () => {
+    const source = setup();
+    source.store.restoreData({
+      finance_transactions: [
+        {
+          id: "finance-1",
+          platform: "alipay",
+          source_key: "source-1",
+          transaction_id: "order-1",
+          merchant_order_id: null,
+          transacted_at: "2026-08-10T04:00:00.000Z",
+          amount_cents: 1880,
+          raw_flow: "支出",
+          raw_status: "交易成功",
+          raw_type: "餐饮美食",
+          counterparty: "校园餐厅",
+          counterparty_account: null,
+          description: "午餐",
+          payment_method: "余额",
+          raw_note: null,
+          raw_payload_json: "{}",
+          analysis_kind: "expense",
+          category: "餐饮",
+          is_included: true,
+          note: "保留人工备注",
+          import_batch_id: null,
+          created_at: "2026-08-10T04:00:00.000Z",
+          updated_at: "2026-08-10T04:00:00.000Z",
+          deleted_at: null,
+          device_id: "backup-test",
+          server_revision: 0,
+        },
+      ],
+    });
+    const backupPath = await source.service.createAutomaticBackup(
+      join(source.root, "automatic"),
+    );
+    const zip = await JSZip.loadAsync(readFileSync(backupPath));
+    const manifest = JSON.parse(
+      await zip.file("manifest.json")!.async("string"),
+    ) as { schemaVersion: number; entityCounts: Record<string, number> };
+    expect(manifest.schemaVersion).toBe(8);
+    expect(manifest.entityCounts.finance_transactions).toBe(1);
+
+    const target = setup();
+    await target.service.restoreFromPath(backupPath);
+    expect(target.store.listFinance({ view: "all" }).records[0]).toMatchObject({
+      counterparty: "校园餐厅",
+      note: "保留人工备注",
+      impactCents: 1880,
     });
     source.close();
     target.close();

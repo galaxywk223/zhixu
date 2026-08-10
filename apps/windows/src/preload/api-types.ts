@@ -8,6 +8,11 @@ import type {
   ThemeMode,
   UiScale,
 } from "@zhixu/contracts";
+import type {
+  FinanceAnalysisKind,
+  FinanceCategory,
+  FinancePlatform,
+} from "../shared/finance";
 
 export interface TaskRecord {
   id: string;
@@ -108,6 +113,161 @@ export interface LifeEventRecord {
   occurredAt: string;
   note: string | null;
   importBatchId: string | null;
+}
+
+export type FinanceView =
+  "today" | "week" | "month" | "year" | "all" | "custom";
+
+export interface FinanceTransactionRecord {
+  id: string;
+  platform: FinancePlatform;
+  sourceKey: string;
+  transactionId: string | null;
+  merchantOrderId: string | null;
+  transactedAt: string;
+  amountCents: number;
+  rawFlow: string;
+  rawStatus: string;
+  rawType: string;
+  counterparty: string;
+  counterpartyAccount: string | null;
+  description: string;
+  paymentMethod: string;
+  rawNote: string | null;
+  rawPayloadJson: string;
+  analysisKind: FinanceAnalysisKind;
+  category: FinanceCategory;
+  isIncluded: boolean;
+  note: string | null;
+  impactCents: number;
+  importBatchId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceQuery {
+  view: FinanceView;
+  customStart?: string;
+  customEnd?: string;
+  search?: string;
+  platforms?: FinancePlatform[];
+  categories?: FinanceCategory[];
+  inclusion?: "all" | "included" | "excluded";
+  statuses?: string[];
+  types?: string[];
+  paymentMethods?: string[];
+  minAmountCents?: number;
+  maxAmountCents?: number;
+  sort?: "time_desc" | "time_asc" | "amount_desc" | "amount_asc";
+  cursor?: number;
+  limit?: number;
+}
+
+export interface FinanceTrendPoint {
+  key: string;
+  label: string;
+  impactCents: number;
+}
+
+export interface FinanceListResult {
+  records: FinanceTransactionRecord[];
+  nextCursor: number | null;
+  totalCount: number;
+  range: { start: string | null; end: string | null };
+  rangeError: string | null;
+  viewCounts: Record<FinanceView, number>;
+  metrics: {
+    netCents: number;
+    includedCount: number;
+    consumptionDays: number;
+    dailyAverageCents: number;
+    monthNetCents: number;
+    todayNetCents: number;
+  };
+  overview: {
+    trend: FinanceTrendPoint[];
+    categories: Array<{ category: FinanceCategory; impactCents: number }>;
+    platforms: Array<{ platform: FinancePlatform; impactCents: number }>;
+  };
+  facets: {
+    statuses: string[];
+    types: string[];
+    paymentMethods: string[];
+  };
+}
+
+export interface FinanceImportRow {
+  sourceRow: number;
+  fileHash: string;
+  platform: FinancePlatform;
+  sourceKey: string;
+  transactionId: string | null;
+  merchantOrderId: string | null;
+  transactedAt: string;
+  amountCents: number;
+  rawFlow: string;
+  rawStatus: string;
+  rawType: string;
+  counterparty: string;
+  counterpartyAccount: string | null;
+  description: string;
+  paymentMethod: string;
+  rawNote: string | null;
+  rawPayloadJson: string;
+  analysisKind: FinanceAnalysisKind;
+  category: FinanceCategory;
+  isIncluded: boolean;
+  action: "create" | "duplicate" | "error";
+  reason: string | null;
+}
+
+export interface FinancePreviewFile {
+  fileName: string;
+  fileHash: string;
+  platform: FinancePlatform;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+  sourceCount: number;
+  newCount: number;
+  duplicateCount: number;
+  excludedCount: number;
+  errorCount: number;
+}
+
+export interface FinanceImportPreview {
+  token: string;
+  files: FinancePreviewFile[];
+  rows: FinanceImportRow[];
+  counts: {
+    source: number;
+    create: number;
+    duplicate: number;
+    excluded: number;
+    error: number;
+  };
+  canCommit: boolean;
+}
+
+export interface FinanceImportResult {
+  batchIds: string[];
+  importedCount: number;
+  duplicateCount: number;
+  excludedCount: number;
+}
+
+export interface FinanceImportBatchRecord {
+  id: string;
+  fileName: string;
+  fileHash: string;
+  platform: FinancePlatform;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+  sourceCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  excludedCount: number;
+  errorCount: number;
+  createdAt: string;
 }
 
 export interface ImportBatchRecord {
@@ -218,7 +378,7 @@ export interface MigrationReport {
   sourceHash: string | null;
   backupPath: string | null;
   fromVersion: number;
-  toVersion: 8;
+  toVersion: 9;
   integrity: string;
   entityCounts: Record<string, number>;
 }
@@ -322,6 +482,19 @@ export interface ZhixuApi {
     previewDropped(file: File): Promise<TomatoPreview>;
     confirm(token: string): Promise<ImportResult>;
     rollback(batchId: string): Promise<void>;
+  };
+  finance: {
+    list(query: FinanceQuery): Promise<FinanceListResult>;
+    preview(): Promise<FinanceImportPreview | null>;
+    previewDropped(files: File[]): Promise<FinanceImportPreview>;
+    confirm(token: string): Promise<FinanceImportResult>;
+    update(input: {
+      id: string;
+      isIncluded?: boolean;
+      category?: FinanceCategory;
+      note?: string | null;
+    }): Promise<void>;
+    batches(): Promise<FinanceImportBatchRecord[]>;
   };
   sleep: {
     events(): Promise<LifeEventRecord[]>;

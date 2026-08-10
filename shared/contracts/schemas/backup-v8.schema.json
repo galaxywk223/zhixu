@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhixu.app/schemas/backup-v8.schema.json",
+  "title": "Zhixu backup manifest v8",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "appVersion",
+    "exportedAt",
+    "payloadFile",
+    "payloadSha256",
+    "entityCounts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 8 },
+    "appVersion": { "type": "string" },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "payloadFile": { "const": "data.json" },
+    "payloadSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "entityCounts": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    }
+  },
+  "additionalProperties": false
+}

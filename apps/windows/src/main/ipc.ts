@@ -14,9 +14,11 @@ import {
 } from "@zhixu/contracts";
 import type { MigrationReport } from "../preload/api-types";
 import { TomatoImportService } from "./services/tomato-import";
+import { FinanceImportService } from "./services/finance-import";
 import { UpdateService } from "./services/updates";
 import { SyncService } from "./services/sync";
 import { ZhixuStore } from "./store";
+import { FINANCE_CATEGORIES, FINANCE_PLATFORMS } from "../shared/finance";
 
 interface IpcDependencies {
   store: ZhixuStore;
@@ -24,6 +26,7 @@ interface IpcDependencies {
   version: string;
   getWindow: () => BrowserWindow | null;
   importer: TomatoImportService;
+  financeImporter: FinanceImportService;
   updates: UpdateService;
   sync: SyncService;
   packaged: boolean;
@@ -51,6 +54,47 @@ const credentialsSchema = z.object({
 });
 const emailSchema = z.string().trim().email().max(320);
 const conflictResolutionSchema = z.enum(["local", "remote", "both"]);
+const financeViewSchema = z.enum([
+  "today",
+  "week",
+  "month",
+  "year",
+  "all",
+  "custom",
+]);
+const financeQuerySchema = z.object({
+  view: financeViewSchema,
+  customStart: z.string().optional(),
+  customEnd: z.string().optional(),
+  search: z.string().max(300).optional(),
+  platforms: z.array(z.enum(FINANCE_PLATFORMS)).optional(),
+  categories: z.array(z.enum(FINANCE_CATEGORIES)).optional(),
+  inclusion: z.enum(["all", "included", "excluded"]).optional(),
+  statuses: z.array(z.string().max(100)).optional(),
+  types: z.array(z.string().max(100)).optional(),
+  paymentMethods: z.array(z.string().max(200)).optional(),
+  minAmountCents: z.number().int().nonnegative().optional(),
+  maxAmountCents: z.number().int().nonnegative().optional(),
+  sort: z
+    .enum(["time_desc", "time_asc", "amount_desc", "amount_asc"])
+    .optional(),
+  cursor: z.number().int().nonnegative().optional(),
+  limit: z.number().int().min(20).max(200).optional(),
+});
+const financeUpdateSchema = z
+  .object({
+    id: idSchema,
+    isIncluded: z.boolean().optional(),
+    category: z.enum(FINANCE_CATEGORIES).optional(),
+    note: z.string().max(10_000).nullable().optional(),
+  })
+  .refine(
+    (value) =>
+      value.isIncluded !== undefined ||
+      value.category !== undefined ||
+      value.note !== undefined,
+    "至少修改一项消费记录",
+  );
 
 export function registerIpc(dependencies: IpcDependencies): void {
   const { store, getWindow } = dependencies;
@@ -171,6 +215,31 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle(
     "focus:rollback",
     mutation("focus", (id) => store.rollbackImportBatch(idSchema.parse(id))),
+  );
+
+  ipcMain.handle("finance:list", (_event, value) =>
+    store.listFinance(financeQuerySchema.parse(value)),
+  );
+  ipcMain.handle("finance:batches", () => store.listFinanceImportBatches());
+  ipcMain.handle("finance:preview", () =>
+    dependencies.financeImporter.preview(),
+  );
+  ipcMain.handle("finance:preview-paths", (_event, value) =>
+    dependencies.financeImporter.previewPaths(
+      z.array(z.string().min(1)).min(1).max(20).parse(value),
+    ),
+  );
+  ipcMain.handle(
+    "finance:confirm",
+    mutation("finance", (token) =>
+      dependencies.financeImporter.confirm(idSchema.parse(token)),
+    ),
+  );
+  ipcMain.handle(
+    "finance:update",
+    mutation("finance", (value) =>
+      store.updateFinance(financeUpdateSchema.parse(value)),
+    ),
   );
 
   ipcMain.handle("sleep:events", () => store.listLifeEvents());

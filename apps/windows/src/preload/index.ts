@@ -58,6 +58,18 @@ const api: ZhixuApi = {
     confirm: (token) => ipcRenderer.invoke("focus:confirm", token),
     rollback: (batchId) => ipcRenderer.invoke("focus:rollback", batchId),
   },
+  finance: {
+    list: (query) => ipcRenderer.invoke("finance:list", query),
+    preview: () => ipcRenderer.invoke("finance:preview"),
+    previewDropped: (files) =>
+      ipcRenderer.invoke(
+        "finance:preview-paths",
+        files.map((file) => webUtils.getPathForFile(file)),
+      ),
+    confirm: (token) => ipcRenderer.invoke("finance:confirm", token),
+    update: (input) => ipcRenderer.invoke("finance:update", input),
+    batches: () => ipcRenderer.invoke("finance:batches"),
+  },
   sleep: {
     events: () => ipcRenderer.invoke("sleep:events"),
     save: (draft) => ipcRenderer.invoke("sleep:save", draft),

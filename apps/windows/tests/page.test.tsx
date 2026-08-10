@@ -120,7 +120,7 @@ describe("shared page components", () => {
     expect(routeForNumericShortcut("5")).toBe("memos");
     expect(routeForNumericShortcut("6")).toBe("countdowns");
     expect(routeForNumericShortcut("8")).toBe("sleep");
-    expect(routeForNumericShortcut("9")).toBeNull();
+    expect(routeForNumericShortcut("9")).toBe("finance");
     expect(routeForNumericShortcut("0")).toBeNull();
   });
 });

@@ -17,6 +17,13 @@ const fixMigration = readFileSync(
   ),
   "utf8",
 );
+const financeMigration = readFileSync(
+  resolve(
+    __dirname,
+    "../../../supabase/migrations/202608110009_finance_transactions.sql",
+  ),
+  "utf8",
+);
 const syncService = readFileSync(
   resolve(__dirname, "../src/main/services/sync.ts"),
   "utf8",
@@ -74,6 +81,21 @@ describe("Supabase sync migration", () => {
     expect(fixMigration).toContain(
       "revoke all on function public.zhixu_apply_operation(jsonb) from public",
     );
+  });
+
+  it("adds finance transactions to RLS, revisions, snapshots, and push mapping", () => {
+    expect(financeMigration).toContain(
+      "create table if not exists public.finance_transactions",
+    );
+    expect(financeMigration).toContain("unique(user_id, platform, source_key)");
+    expect(financeMigration).toContain(
+      "create policy finance_transactions_owner_policy",
+    );
+    expect(financeMigration).toContain(
+      "when 'finance_transaction' then 'finance_transactions'",
+    );
+    expect(financeMigration).toContain("'finance_transaction', coalesce");
+    expect(contract).toContain('"finance_transaction"');
   });
 
   it("catches background failures while preserving manual sync errors", () => {

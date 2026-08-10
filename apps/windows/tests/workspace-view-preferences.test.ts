@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   loadFocusFilters,
+  loadFinanceFilters,
   loadMemoView,
   loadSleepFilters,
   loadTaskView,
   saveFocusFilters,
+  saveFinanceFilters,
   saveMemoView,
   saveSleepFilters,
   saveTaskView,
@@ -27,6 +29,11 @@ describe("workspace view preferences", () => {
       customStart: "2026-07-01",
       customEnd: "2026-07-07",
     });
+    saveFinanceFilters({
+      view: "year",
+      customStart: "2026-01-01",
+      customEnd: "2026-08-10",
+    });
 
     expect(loadTaskView("active")).toBe("overdue");
     expect(loadMemoView("all")).toBe("high");
@@ -43,6 +50,13 @@ describe("workspace view preferences", () => {
       view: "last7",
       customStart: "2026-07-01",
       customEnd: "2026-07-07",
+    });
+    expect(
+      loadFinanceFilters({ view: "month", customStart: "", customEnd: "" }),
+    ).toEqual({
+      view: "year",
+      customStart: "2026-01-01",
+      customEnd: "2026-08-10",
     });
   });
 
@@ -65,6 +79,11 @@ describe("workspace view preferences", () => {
           customStart: "invalid",
           customEnd: "2026-08-10",
         },
+        finance: {
+          view: "custom",
+          customStart: "bad-date",
+          customEnd: "2026-08-10",
+        },
       }),
     );
 
@@ -84,5 +103,16 @@ describe("workspace view preferences", () => {
     expect(
       loadSleepFilters({ view: "last30", customStart: "", customEnd: "" }),
     ).toEqual({ view: "last30", customStart: "", customEnd: "" });
+    expect(
+      loadFinanceFilters({
+        view: "month",
+        customStart: "2026-08-01",
+        customEnd: "2026-08-31",
+      }),
+    ).toEqual({
+      view: "month",
+      customStart: "2026-08-01",
+      customEnd: "2026-08-31",
+    });
   });
 });

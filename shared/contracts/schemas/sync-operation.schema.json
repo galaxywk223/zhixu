@@ -23,7 +23,8 @@
         "schedule_block",
         "focus_session",
         "life_event",
-        "countdown"
+        "countdown",
+        "finance_transaction"
       ]
     },
     "entityId": { "type": "string", "minLength": 1 },
