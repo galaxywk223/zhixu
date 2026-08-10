@@ -127,7 +127,7 @@ jobs:
           test -s "${installer}.sha256"
           test -s release-assets/latest.yml
           test -s release-assets/update-manifest.json
-          sha256sum --check "${installer}.sha256"
+          (cd release-assets && sha256sum --check "Zhixu-Setup-${VERSION}.exe.sha256")
           jq -e --arg version "$VERSION" \
             '.version == $version and .assets.windows.fileName == ("Zhixu-Setup-" + $version + ".exe") and .assets.windows.size > 0' \
             release-assets/update-manifest.json > /dev/null
