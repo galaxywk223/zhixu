@@ -182,7 +182,16 @@ function bindable(value: unknown): string | number | bigint | Buffer | null {
 }
 
 export class ZhixuStore {
-  constructor(private readonly db: Database.Database) {}
+  private outboxChanged: (() => void) | null = null;
+
+  constructor(
+    private readonly db: Database.Database,
+    private readonly deviceId = "electron-windows",
+  ) {}
+
+  setOutboxChangedListener(listener: (() => void) | null): void {
+    this.outboxChanged = listener;
+  }
 
   listTasks(): TaskRecord[] {
     const rows = this.db
@@ -1273,11 +1282,20 @@ export class ZhixuStore {
       )
       .get(normalized);
     if (existing) {
+      const id = String((existing as SqlRow).id);
       this.db
         .prepare(
           "UPDATE task_categories SET last_seen_at = ?, is_archived = 0, updated_at = ? WHERE id = ?",
         )
-        .run(now, now, (existing as SqlRow).id);
+        .run(now, now, id);
+      this.enqueue(
+        "task_category",
+        id,
+        "upsert",
+        this.db
+          .prepare("SELECT * FROM task_categories WHERE id = ?")
+          .get(id) as SqlRow,
+      );
       return;
     }
     const id = randomUUID();
@@ -1289,6 +1307,14 @@ export class ZhixuStore {
          VALUES (?, ?, ?, '#175CD3', 'tomatodo', ?, 0, ?, ?, 'electron-windows', 0)`,
       )
       .run(id, name, normalized, now, now, now);
+    this.enqueue(
+      "task_category",
+      id,
+      "upsert",
+      this.db
+        .prepare("SELECT * FROM task_categories WHERE id = ?")
+        .get(id) as SqlRow,
+    );
   }
 
   listLifeEvents(): LifeEventRecord[] {
@@ -1529,6 +1555,50 @@ export class ZhixuStore {
     run();
   }
 
+  rebuildSyncOutbox(previous?: Record<string, unknown>): void {
+    const entities = {
+      task_categories: "task_category",
+      tags: "tag",
+      tasks: "task",
+      tag_links: "tag_link",
+      notes: "note",
+      schedule_blocks: "schedule_block",
+      focus_sessions: "focus_session",
+      life_events: "life_event",
+      countdowns: "countdown",
+    } as const;
+    const now = nowSeconds();
+    const run = this.db.transaction(() => {
+      this.db.prepare("DELETE FROM sync_outbox").run();
+      for (const [table, entityType] of Object.entries(entities)) {
+        const currentRows = this.db
+          .prepare(`SELECT * FROM ${table}`)
+          .all() as SqlRow[];
+        const currentIds = new Set(currentRows.map((row) => String(row.id)));
+        for (const row of currentRows)
+          this.enqueue(
+            entityType,
+            String(row.id),
+            row.deleted_at == null ? "upsert" : "delete",
+            row,
+          );
+        const oldRows = Array.isArray(previous?.[table])
+          ? (previous[table] as SqlRow[])
+          : [];
+        for (const row of oldRows) {
+          if (currentIds.has(String(row.id))) continue;
+          this.enqueue(entityType, String(row.id), "delete", {
+            id: row.id,
+            deleted_at: now,
+            updated_at: now,
+            server_revision: row.server_revision ?? 0,
+          });
+        }
+      }
+    });
+    run();
+  }
+
   entityCounts(): Record<string, number> {
     return Object.fromEntries(
       dataTables.map((table) => [
@@ -1614,21 +1684,50 @@ export class ZhixuStore {
     payload: SqlRow,
   ): void {
     const baseRevision = Number(payload.server_revision ?? 0);
+    const table = {
+      task_category: "task_categories",
+      tag: "tags",
+      task: "tasks",
+      tag_link: "tag_links",
+      note: "notes",
+      schedule_block: "schedule_blocks",
+      focus_session: "focus_sessions",
+      life_event: "life_events",
+      countdown: "countdowns",
+    }[entityType];
+    if (table)
+      this.db
+        .prepare(`UPDATE ${table} SET device_id = ? WHERE id = ?`)
+        .run(this.deviceId, entityId);
+    const normalizedPayload = {
+      ...payload,
+      ...(table ? { device_id: this.deviceId } : {}),
+      ...(operation === "delete" && payload.updated_at === undefined
+        ? { updated_at: payload.deleted_at ?? nowSeconds() }
+        : {}),
+    };
     this.db
       .prepare(
         `INSERT INTO sync_outbox
          (entity_type, entity_id, operation, payload_json, created_at, retry_count,
-          operation_id, base_revision, status)
-         VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'pending')`,
+          last_error, operation_id, base_revision, status)
+         VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, 'pending')
+         ON CONFLICT(entity_type, entity_id) DO UPDATE SET
+           operation = excluded.operation, payload_json = excluded.payload_json,
+           created_at = excluded.created_at, retry_count = 0, last_error = NULL,
+           operation_id = excluded.operation_id,
+           base_revision = MAX(sync_outbox.base_revision, excluded.base_revision),
+           status = 'pending'`,
       )
       .run(
         entityType,
         entityId,
         operation,
-        JSON.stringify(payload),
+        JSON.stringify(normalizedPayload),
         nowSeconds(),
         randomUUID(),
         baseRevision,
       );
+    queueMicrotask(() => this.outboxChanged?.());
   }
 }

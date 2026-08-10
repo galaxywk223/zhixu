@@ -35,6 +35,7 @@ import type {
 import { tagTone } from "../../../shared/tag-colors";
 import { DEFAULT_UI_SCALE, stepUiScale } from "../../../shared/ui-scale";
 import { Loading, PageHeader } from "../components/Page";
+import { AccountSyncPanel } from "../components/AccountSyncPanel";
 import { queryKeys } from "../query";
 
 type SettingsSection =
@@ -56,7 +57,9 @@ const settingsSections: Array<{
   { value: "about", label: "关于与更新", icon: <CheckmarkCircle20Regular /> },
 ];
 
-export function SettingsPage(): React.JSX.Element {
+export function SettingsPage(props: {
+  initialSection?: "appearance" | "sync";
+}): React.JSX.Element {
   const client = useQueryClient();
   const bootstrap = useQuery({
     queryKey: queryKeys.bootstrap,
@@ -70,10 +73,6 @@ export function SettingsPage(): React.JSX.Element {
     queryKey: queryKeys.tags,
     queryFn: window.zhixu.tasks.tags,
   });
-  const sync = useQuery({
-    queryKey: ["sync"],
-    queryFn: window.zhixu.sync.getState,
-  });
   const updates = useQuery({
     queryKey: queryKeys.updates,
     queryFn: window.zhixu.updates.getState,
@@ -81,10 +80,15 @@ export function SettingsPage(): React.JSX.Element {
   const [draft, setDraft] = useState<AppSettings | null>(null);
   const [editingTag, setEditingTag] = useState<TagRecord | "new" | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const [activeSection, setActiveSection] =
-    useState<SettingsSection>("appearance");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(
+    props.initialSection ?? "appearance",
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (props.initialSection) setActiveSection(props.initialSection);
+  }, [props.initialSection]);
 
   useEffect(() => {
     if (settings.data)
@@ -410,7 +414,7 @@ export function SettingsPage(): React.JSX.Element {
                 </SettingRow>
                 <SettingRow
                   title="导出备份"
-                  description="创建包含当前本地数据的 v6 ZIP 备份。"
+                  description="创建包含当前本地业务数据的 v7 ZIP 备份。"
                 >
                   <Button
                     icon={<ArrowDownload20Regular />}
@@ -421,44 +425,25 @@ export function SettingsPage(): React.JSX.Element {
                       exportBackup.mutate();
                     }}
                   >
-                    {exportBackup.isPending ? "正在导出" : "导出 v6 备份"}
+                    {exportBackup.isPending ? "正在导出" : "导出 v7 备份"}
                   </Button>
                 </SettingRow>
                 <SettingRow
                   title="恢复备份"
-                  description="支持 v1–v6 备份；恢复会覆盖当前数据，校验失败时自动回滚。"
+                  description="支持 v1–v7 备份；恢复会覆盖当前数据，校验失败时自动回滚。"
                 >
                   <Button
                     icon={<ArrowUpload20Regular />}
                     disabled={restore.isPending}
                     onClick={() => setConfirmAction({ kind: "restore" })}
                   >
-                    恢复 v1–v6 备份
+                    恢复 v1–v7 备份
                   </Button>
                 </SettingRow>
               </section>
             ) : null}
 
-            {activeSection === "sync" ? (
-              <section className="settings-section" aria-label="账户与同步设置">
-                <SettingRow
-                  title="同步模式"
-                  description={
-                    sync.isError
-                      ? "同步状态读取失败。"
-                      : (sync.data?.message ?? "正在读取同步状态。")
-                  }
-                >
-                  {sync.isError ? (
-                    <Button onClick={() => void sync.refetch()}>重试</Button>
-                  ) : (
-                    <SettingsStatus>
-                      {sync.isLoading ? "读取中" : "本地完整"}
-                    </SettingsStatus>
-                  )}
-                </SettingRow>
-              </section>
-            ) : null}
+            {activeSection === "sync" ? <AccountSyncPanel /> : null}
 
             {activeSection === "migration" ? (
               <section className="settings-section" aria-label="数据库迁移设置">

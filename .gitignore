@@ -39,3 +39,4 @@ Thumbs.db
 *.sqlite-shm
 *.sqlite-wal
 MigrationBackups/
+supabase/.temp/

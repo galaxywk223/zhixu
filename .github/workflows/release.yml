@@ -13,6 +13,9 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,6 +35,13 @@ jobs:
       - run: cargo fmt --manifest-path native/tomatodo_importer/Cargo.toml -- --check
       - run: cargo test --manifest-path native/tomatodo_importer/Cargo.toml
       - run: cargo build --release --manifest-path native/tomatodo_importer/Cargo.toml
+      - name: Validate tagged sync configuration
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_ANON_KEY) {
+            throw 'Tagged builds require SUPABASE_URL and SUPABASE_ANON_KEY secrets.'
+          }
       - run: pnpm build:windows
       - name: Build NSIS package
         run: pnpm --filter @zhixu/windows exec electron-builder --win nsis --x64 --publish never

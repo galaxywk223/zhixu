@@ -10,6 +10,9 @@ importers:
 
   apps/windows:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: 2.112.2
+        version: 2.112.2
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3
@@ -29,9 +32,6 @@ importers:
       '@fluentui/react-timepicker-compat':
         specifier: 0.4.37
         version: 0.4.37(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(scheduler@0.27.0)
-      '@supabase/supabase-js':
-        specifier: ^2.57.4
-        version: 2.112.2
       '@tanstack/react-query':
         specifier: 5.101.4
         version: 5.101.4(react@19.2.8)

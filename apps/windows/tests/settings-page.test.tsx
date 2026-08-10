@@ -47,6 +47,8 @@ function renderSettings(options?: {
   removeTag: ReturnType<typeof vi.fn>;
   restore: ReturnType<typeof vi.fn>;
   client: QueryClient;
+  signIn: ReturnType<typeof vi.fn>;
+  runSync: ReturnType<typeof vi.fn>;
 } {
   const settings: AppSettings = {
     themeMode: "light",
@@ -60,6 +62,17 @@ function renderSettings(options?: {
   const saveTag = vi.fn().mockResolvedValue("tag-algorithm");
   const removeTag = vi.fn().mockResolvedValue(undefined);
   const restore = vi.fn().mockResolvedValue(true);
+  const signIn = vi.fn().mockResolvedValue(undefined);
+  const runSync = vi.fn().mockResolvedValue({
+    status: "idle",
+    configured: true,
+    email: "user@example.com",
+    boundEmail: "user@example.com",
+    lastSyncedAt: "2026-08-10T04:00:00.000Z",
+    pendingCount: 0,
+    conflictCount: 0,
+    message: "同步完成",
+  });
   const api = {
     app: {
       bootstrap: vi.fn().mockResolvedValue({
@@ -71,7 +84,7 @@ function renderSettings(options?: {
           sourceHash: null,
           backupPath: null,
           fromVersion: 7,
-          toVersion: 7,
+          toVersion: 8,
           integrity: "ok",
           entityCounts: {},
         },
@@ -87,10 +100,29 @@ function renderSettings(options?: {
       saveTag,
       removeTag,
     },
+    account: {
+      signUp: vi.fn().mockResolvedValue(undefined),
+      signIn,
+      resendVerification: vi.fn().mockResolvedValue(undefined),
+      requestPasswordReset: vi.fn().mockResolvedValue(undefined),
+      completePasswordReset: vi.fn().mockResolvedValue(undefined),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    },
     sync: {
-      getState: vi
-        .fn()
-        .mockResolvedValue({ status: "deferred", message: "本地模式" }),
+      getState: vi.fn().mockResolvedValue({
+        status: "signed_out",
+        configured: true,
+        email: null,
+        boundEmail: null,
+        lastSyncedAt: null,
+        pendingCount: 0,
+        conflictCount: 0,
+        message: "本地模式",
+      }),
+      run: runSync,
+      listNoteConflicts: vi.fn().mockResolvedValue([]),
+      resolveNoteConflict: vi.fn(),
+      onState: vi.fn().mockReturnValue(() => undefined),
     },
     updates: {
       getState: vi.fn().mockResolvedValue(options?.update ?? idleUpdate),
@@ -120,7 +152,16 @@ function renderSettings(options?: {
     </QueryClientProvider>,
   );
 
-  return { settings, updateSettings, saveTag, removeTag, restore, client };
+  return {
+    settings,
+    updateSettings,
+    saveTag,
+    removeTag,
+    restore,
+    client,
+    signIn,
+    runSync,
+  };
 }
 
 describe("settings page", () => {
@@ -202,7 +243,7 @@ describe("settings page", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "数据与备份" }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "恢复 v1–v6 备份" }));
+    fireEvent.click(screen.getByRole("button", { name: "恢复 v1–v7 备份" }));
     const restoreDialog = screen.getByRole("dialog");
     expect(
       within(restoreDialog).getByText(/覆盖当前 Electron 本地数据/),
@@ -243,5 +284,27 @@ describe("settings page", () => {
         .getAttribute("value"),
     ).toBe("42");
     expect(screen.getByText("下载中")).toBeTruthy();
+  });
+
+  it("opens the account sign-in dialog and validates credentials", async () => {
+    const { signIn } = renderSettings();
+    expect(await screen.findByText("100%")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "账户与同步" }));
+    expect(await screen.findByText("未登录")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/邮箱/), {
+      target: { value: "user@example.com" },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/密码/), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "登录" }));
+    await waitFor(() =>
+      expect(signIn).toHaveBeenCalledWith({
+        email: "user@example.com",
+        password: "password123",
+      }),
+    );
   });
 });

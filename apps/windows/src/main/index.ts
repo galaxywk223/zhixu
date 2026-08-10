@@ -15,6 +15,12 @@ import log from "electron-log/main";
 import { initializeDatabase } from "./database";
 import { registerIpc } from "./ipc";
 import { BackupService } from "./services/backup";
+import {
+  EncryptedSessionStorage,
+  loadDeviceId,
+} from "./services/secure-storage";
+import { SyncService } from "./services/sync";
+import { SyncRepository } from "./services/sync-repository";
 import { TomatoImportService } from "./services/tomato-import";
 import { UpdateService } from "./services/updates";
 import { ZhixuStore } from "./store";
@@ -40,6 +46,25 @@ let tray: Tray | null = null;
 let forceQuit = false;
 let closeToTray = true;
 let currentUiScale: UiScale = 100;
+let syncService: SyncService | null = null;
+let pendingAuthUrl: string | null = null;
+
+function authUrlFromArguments(arguments_: string[]): string | null {
+  return arguments_.find((value) => value.startsWith("zhixu://auth/")) ?? null;
+}
+
+function handleAuthUrl(url: string): void {
+  if (!syncService) {
+    pendingAuthUrl = url;
+    return;
+  }
+  void syncService
+    .handleAuthCallback(url)
+    .then(() => sendNavigation("settings-sync"))
+    .catch((error: unknown) =>
+      log.error("Authentication callback failed", error),
+    );
+}
 
 function statePath(): string {
   return join(app.getPath("userData"), "window-state.json");
@@ -145,12 +170,26 @@ async function createWindow(): Promise<void> {
 const lock = app.requestSingleInstanceLock();
 if (!lock) app.quit();
 else {
-  app.on("second-instance", () => sendNavigation("today"));
+  if (process.defaultApp && process.argv[1])
+    app.setAsDefaultProtocolClient("zhixu", process.execPath, [
+      resolve(process.argv[1]),
+    ]);
+  else app.setAsDefaultProtocolClient("zhixu");
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    handleAuthUrl(url);
+  });
+  app.on("second-instance", (_event, argv) => {
+    const authUrl = authUrlFromArguments(argv);
+    if (authUrl) handleAuthUrl(authUrl);
+    else sendNavigation("today");
+  });
   app
     .whenReady()
     .then(async () => {
       const context = initializeDatabase();
-      const store = new ZhixuStore(context.db);
+      const deviceId = loadDeviceId(app.getPath("userData"));
+      const store = new ZhixuStore(context.db, deviceId);
       const settings = store.getSettings();
       closeToTray = settings.closeToTray;
       currentUiScale = settings.uiScale;
@@ -159,7 +198,7 @@ else {
         const focusSessions = store.listFocusSessions();
         process.stdout.write(
           `${JSON.stringify({
-            schemaVersion: 7,
+            schemaVersion: 8,
             integrity: store.integrityCheck(),
             migration: context.report,
             counts: store.entityCounts(),
@@ -179,6 +218,19 @@ else {
       );
       const updates = new UpdateService(() => mainWindow);
       const backup = new BackupService(store, app.getVersion());
+      const syncRepository = new SyncRepository(context.db, deviceId);
+      syncService = new SyncService({
+        url: __SUPABASE_URL__,
+        anonKey: __SUPABASE_ANON_KEY__,
+        repository: syncRepository,
+        backup,
+        storage: new EncryptedSessionStorage(app.getPath("userData")),
+        userDataPath: app.getPath("userData"),
+        getWindow: () => mainWindow,
+        notifyDataChanged: () =>
+          mainWindow?.webContents.send("app:data-changed", "all"),
+      });
+      store.setOutboxChangedListener(() => syncService?.requestSync());
       const projectRoot = resolve(__dirname, "../../../..");
       const importer = new TomatoImportService(
         store,
@@ -194,6 +246,7 @@ else {
         backup,
         importer,
         updates,
+        sync: syncService,
         packaged: app.isPackaged,
         applyUiScale: (uiScale) => {
           currentUiScale = uiScale;
@@ -204,7 +257,17 @@ else {
         },
       });
       Menu.setApplicationMenu(null);
+      await syncService.initialize();
       await createWindow();
+      if (pendingAuthUrl) {
+        const url = pendingAuthUrl;
+        pendingAuthUrl = null;
+        handleAuthUrl(url);
+      } else {
+        const initialAuthUrl = authUrlFromArguments(process.argv);
+        if (initialAuthUrl) handleAuthUrl(initialAuthUrl);
+      }
+      mainWindow?.on("focus", () => syncService?.requestSync(0));
       if (settings.startMinimized) mainWindow?.hide();
       app.on("activate", () => {
         if (!mainWindow) void createWindow();
@@ -217,7 +280,10 @@ else {
     });
 }
 
-app.on("before-quit", () => (forceQuit = true));
+app.on("before-quit", () => {
+  forceQuit = true;
+  syncService?.dispose();
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin" && forceQuit) app.quit();
 });

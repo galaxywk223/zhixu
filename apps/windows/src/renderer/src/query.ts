@@ -15,6 +15,8 @@ export const queryKeys = {
   summary: ["dashboard-summary"] as const,
   settings: ["settings"] as const,
   updates: ["updates"] as const,
+  sync: ["sync"] as const,
+  noteConflicts: ["note-conflicts"] as const,
 };
 
 export function useDataInvalidation(): void {

@@ -22,7 +22,8 @@
         "note",
         "schedule_block",
         "focus_session",
-        "life_event"
+        "life_event",
+        "countdown"
       ]
     },
     "entityId": { "type": "string", "minLength": 1 },

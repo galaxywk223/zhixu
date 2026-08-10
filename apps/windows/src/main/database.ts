@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { MigrationReport } from "../preload/api-types";
 
-export const SCHEMA_VERSION = 7 as const;
+export const SCHEMA_VERSION = 8 as const;
 
 const preservedTables = [
   "tasks",
@@ -382,6 +382,16 @@ function createSchema(db: Database.Database): void {
       cursor INTEGER,
       cursor_revision INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS sync_account_binding (
+      singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
+      user_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'initializing',
+      snapshot_revision INTEGER NOT NULL DEFAULT 0,
+      bound_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      last_synced_at INTEGER
+    );
     CREATE TABLE IF NOT EXISTS migration_runs (
       id TEXT PRIMARY KEY NOT NULL,
       source_path TEXT,
@@ -402,6 +412,12 @@ function createSchema(db: Database.Database): void {
       remote_content_md TEXT NOT NULL,
       base_revision INTEGER NOT NULL,
       remote_revision INTEGER NOT NULL,
+      operation_id TEXT,
+      server_conflict_id TEXT,
+      local_is_pinned INTEGER NOT NULL DEFAULT 0,
+      remote_is_pinned INTEGER NOT NULL DEFAULT 0,
+      local_updated_at INTEGER,
+      remote_updated_at INTEGER,
       resolved_at INTEGER,
       created_at INTEGER NOT NULL
     );
@@ -414,7 +430,7 @@ function createSchema(db: Database.Database): void {
   `);
 }
 
-function migrateToV7(db: Database.Database, fromVersion: number): void {
+function migrateToV8(db: Database.Database, fromVersion: number): void {
   if (fromVersion > SCHEMA_VERSION)
     throw new Error(`数据库版本 ${fromVersion} 高于客户端支持版本`);
   const run = db.transaction(() => {
@@ -470,6 +486,22 @@ function migrateToV7(db: Database.Database, fromVersion: number): void {
       "cursor_revision",
       "INTEGER NOT NULL DEFAULT 0",
     );
+    ensureColumn(db, "note_conflicts", "operation_id", "TEXT");
+    ensureColumn(db, "note_conflicts", "server_conflict_id", "TEXT");
+    ensureColumn(
+      db,
+      "note_conflicts",
+      "local_is_pinned",
+      "INTEGER NOT NULL DEFAULT 0",
+    );
+    ensureColumn(
+      db,
+      "note_conflicts",
+      "remote_is_pinned",
+      "INTEGER NOT NULL DEFAULT 0",
+    );
+    ensureColumn(db, "note_conflicts", "local_updated_at", "INTEGER");
+    ensureColumn(db, "note_conflicts", "remote_updated_at", "INTEGER");
     db.exec(`
       UPDATE tags SET normalized_name = lower(trim(name)) WHERE normalized_name = '';
       DELETE FROM sync_outbox
@@ -478,6 +510,10 @@ function migrateToV7(db: Database.Database, fromVersion: number): void {
       SET operation_id = COALESCE(operation_id, 'legacy-' || id),
           base_revision = COALESCE(base_revision, 0),
           status = COALESCE(status, 'pending');
+      CREATE UNIQUE INDEX IF NOT EXISTS sync_outbox_entity_idx
+        ON sync_outbox(entity_type, entity_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS note_conflicts_operation_idx
+        ON note_conflicts(operation_id) WHERE operation_id IS NOT NULL;
       CREATE UNIQUE INDEX IF NOT EXISTS task_categories_active_name_idx
         ON task_categories(source, normalized_name) WHERE deleted_at IS NULL;
       CREATE UNIQUE INDEX IF NOT EXISTS tags_active_name_idx
@@ -488,7 +524,7 @@ function migrateToV7(db: Database.Database, fromVersion: number): void {
       CREATE INDEX IF NOT EXISTS focus_start_idx ON focus_sessions(start_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS life_events_time_idx ON life_events(occurred_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS countdowns_target_idx ON countdowns(target_date) WHERE deleted_at IS NULL;
-      PRAGMA user_version = 7;
+      PRAGMA user_version = 8;
     `);
   });
   run();
@@ -534,7 +570,7 @@ export function initializeDatabase(
     db.pragma("busy_timeout = 5000");
     const fromVersion = Number(db.pragma("user_version", { simple: true }));
     const before = snapshot(db);
-    migrateToV7(db, fromVersion);
+    migrateToV8(db, fromVersion);
     verifySnapshot(before, db);
     const integrity = String(db.pragma("integrity_check", { simple: true }));
     if (integrity !== "ok")

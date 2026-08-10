@@ -39,6 +39,9 @@ export function App(): React.JSX.Element {
   const [selectedCountdownId, setSelectedCountdownId] = useState<string | null>(
     null,
   );
+  const [settingsInitialSection, setSettingsInitialSection] = useState<
+    "appearance" | "sync"
+  >("appearance");
   const [focusPreview, setFocusPreview] = useState<TomatoPreview | null>(null);
   const [dragging, setDragging] = useState(false);
   const [systemDark, setSystemDark] = useState(
@@ -68,7 +71,10 @@ export function App(): React.JSX.Element {
         if (target === "new-task")
           setEditor({ open: true, task: null, initialDueDate: null });
         else if (target === "search") setSearch(true);
-        else if (
+        else if (target === "settings-sync") {
+          setSettingsInitialSection("sync");
+          setRoute("settings");
+        } else if (
           [
             "today",
             "tasks",
@@ -187,7 +193,7 @@ export function App(): React.JSX.Element {
     ),
     sleep: <SleepPage />,
     notes: <NotesPage initialSelectedId={selectedNoteId} />,
-    settings: <SettingsPage />,
+    settings: <SettingsPage initialSection={settingsInitialSection} />,
   }[route];
   return (
     <FluentProvider
@@ -212,6 +218,8 @@ export function App(): React.JSX.Element {
             if (nextRoute === "notes") setSelectedNoteId(null);
             if (nextRoute === "memos") setSelectedMemoId(null);
             if (nextRoute === "countdowns") setSelectedCountdownId(null);
+            if (nextRoute === "settings")
+              setSettingsInitialSection("appearance");
             setRoute(nextRoute);
           }}
         >

@@ -82,7 +82,25 @@ const api: ZhixuApi = {
     install: () => ipcRenderer.invoke("updates:install"),
     onState: (listener) => subscription("updates:state", listener),
   },
-  sync: { getState: () => ipcRenderer.invoke("sync:get-state") },
+  account: {
+    signUp: (input) => ipcRenderer.invoke("account:sign-up", input),
+    signIn: (input) => ipcRenderer.invoke("account:sign-in", input),
+    resendVerification: (email) =>
+      ipcRenderer.invoke("account:resend-verification", email),
+    requestPasswordReset: (email) =>
+      ipcRenderer.invoke("account:request-password-reset", email),
+    completePasswordReset: (password) =>
+      ipcRenderer.invoke("account:complete-password-reset", password),
+    signOut: () => ipcRenderer.invoke("account:sign-out"),
+  },
+  sync: {
+    getState: () => ipcRenderer.invoke("sync:get-state"),
+    run: () => ipcRenderer.invoke("sync:run"),
+    listNoteConflicts: () => ipcRenderer.invoke("sync:list-note-conflicts"),
+    resolveNoteConflict: (id, resolution) =>
+      ipcRenderer.invoke("sync:resolve-note-conflict", { id, resolution }),
+    onState: (listener) => subscription("sync:state", listener),
+  },
 };
 
 contextBridge.exposeInMainWorld("zhixu", api);

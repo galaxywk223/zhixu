@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { dialog } from "electron";
 import JSZip from "jszip";
 import {
@@ -23,6 +23,20 @@ export class BackupService {
       filters: [{ name: "知序备份", extensions: ["zip"] }],
     });
     if (result.canceled || !result.filePath) return null;
+    await this.writeBackup(result.filePath);
+    return result.filePath;
+  }
+
+  async createAutomaticBackup(directory: string): Promise<string> {
+    await mkdir(directory, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const path = join(directory, `before-sync-${stamp}.zip`);
+    await this.writeBackup(path);
+    await this.verifyBackup(path);
+    return path;
+  }
+
+  private async writeBackup(path: string): Promise<void> {
     const payload = JSON.stringify(this.store.exportData());
     const payloadSha256 = createHash("sha256").update(payload).digest("hex");
     const manifest: BackupManifestV7 = {
@@ -37,10 +51,20 @@ export class BackupService {
     zip.file("manifest.json", JSON.stringify(manifest, null, 2));
     zip.file("data.json", payload);
     await writeFile(
-      result.filePath,
+      path,
       await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }),
     );
-    return result.filePath;
+  }
+
+  private async verifyBackup(path: string): Promise<void> {
+    const zip = await JSZip.loadAsync(await readFile(path));
+    const manifest = backupManifestV7Schema.parse(
+      JSON.parse(await zip.file("manifest.json")!.async("string")),
+    );
+    const payload = await zip.file(manifest.payloadFile)!.async("string");
+    const digest = createHash("sha256").update(payload).digest("hex");
+    if (digest !== manifest.payloadSha256)
+      throw new Error("同步前备份校验失败");
   }
 
   async restoreBackup(): Promise<boolean> {
@@ -87,11 +111,13 @@ export class BackupService {
           throw new Error("不支持的备份版本");
         this.store.restoreData(rawManifest);
       }
+      this.store.rebuildSyncOutbox(current);
       if (this.store.integrityCheck() !== "ok")
         throw new Error("恢复后的数据库完整性检查失败");
       return true;
     } catch (error) {
       this.store.restoreData(current);
+      this.store.rebuildSyncOutbox();
       throw error;
     }
   }

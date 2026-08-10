@@ -218,7 +218,7 @@ export interface MigrationReport {
   sourceHash: string | null;
   backupPath: string | null;
   fromVersion: number;
-  toVersion: 7;
+  toVersion: 8;
   integrity: string;
   entityCounts: Record<string, number>;
 }
@@ -236,6 +236,42 @@ export interface UpdateState {
   progress: number;
   message: string | null;
 }
+
+export type SyncStatus =
+  | "unconfigured"
+  | "signed_out"
+  | "verification_required"
+  | "password_recovery"
+  | "binding"
+  | "syncing"
+  | "idle"
+  | "offline"
+  | "error";
+
+export interface SyncState {
+  status: SyncStatus;
+  configured: boolean;
+  email: string | null;
+  boundEmail: string | null;
+  lastSyncedAt: string | null;
+  pendingCount: number;
+  conflictCount: number;
+  message: string | null;
+}
+
+export interface NoteConflictRecord {
+  id: string;
+  noteId: string;
+  localTitle: string;
+  localContentMd: string;
+  localUpdatedAt: string | null;
+  remoteTitle: string;
+  remoteContentMd: string;
+  remoteUpdatedAt: string | null;
+  createdAt: string;
+}
+
+export type NoteConflictResolution = "local" | "remote" | "both";
 
 export interface ZhixuApi {
   app: {
@@ -313,8 +349,23 @@ export interface ZhixuApi {
     install(): Promise<void>;
     onState(listener: (state: UpdateState) => void): () => void;
   };
+  account: {
+    signUp(input: { email: string; password: string }): Promise<void>;
+    signIn(input: { email: string; password: string }): Promise<void>;
+    resendVerification(email: string): Promise<void>;
+    requestPasswordReset(email: string): Promise<void>;
+    completePasswordReset(password: string): Promise<void>;
+    signOut(): Promise<void>;
+  };
   sync: {
-    getState(): Promise<{ status: "deferred"; message: string }>;
+    getState(): Promise<SyncState>;
+    run(): Promise<SyncState>;
+    listNoteConflicts(): Promise<NoteConflictRecord[]>;
+    resolveNoteConflict(
+      id: string,
+      resolution: NoteConflictResolution,
+    ): Promise<void>;
+    onState(listener: (state: SyncState) => void): () => void;
   };
 }
 

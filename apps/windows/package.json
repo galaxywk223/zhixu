@@ -16,6 +16,7 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.112.2",
     "better-sqlite3": "13.0.3"
   },
   "devDependencies": {
@@ -23,7 +24,6 @@
     "@fluentui/react-datepicker-compat": "0.6.35",
     "@fluentui/react-icons": "^2.0.320",
     "@fluentui/react-timepicker-compat": "0.4.37",
-    "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "5.101.4",
     "@zhixu/contracts": "workspace:*",
     "date-fns": "^4.1.0",
@@ -68,6 +68,14 @@
     "files": [
       "out/**/*",
       "package.json"
+    ],
+    "protocols": [
+      {
+        "name": "Zhixu Authentication",
+        "schemes": [
+          "zhixu"
+        ]
+      }
     ],
     "extraResources": [
       {

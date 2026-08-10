@@ -16,6 +16,7 @@ import type { MigrationReport } from "../preload/api-types";
 import { BackupService } from "./services/backup";
 import { TomatoImportService } from "./services/tomato-import";
 import { UpdateService } from "./services/updates";
+import { SyncService } from "./services/sync";
 import { ZhixuStore } from "./store";
 
 interface IpcDependencies {
@@ -26,6 +27,7 @@ interface IpcDependencies {
   backup: BackupService;
   importer: TomatoImportService;
   updates: UpdateService;
+  sync: SyncService;
   packaged: boolean;
   applyUiScale(uiScale: UiScale): void;
   applyCloseToTray(value: boolean): void;
@@ -45,6 +47,12 @@ const settingsSchema = z.object({
 const settingsPatchSchema = settingsSchema
   .partial()
   .refine((value) => Object.keys(value).length > 0, "至少修改一项设置");
+const credentialsSchema = z.object({
+  email: z.string().trim().email().max(320),
+  password: z.string().min(8).max(72),
+});
+const emailSchema = z.string().trim().email().max(320);
+const conflictResolutionSchema = z.enum(["local", "remote", "both"]);
 
 export function registerIpc(dependencies: IpcDependencies): void {
   const { store, getWindow } = dependencies;
@@ -212,8 +220,33 @@ export function registerIpc(dependencies: IpcDependencies): void {
   );
   ipcMain.handle("updates:download", () => dependencies.updates.download());
   ipcMain.handle("updates:install", () => dependencies.updates.install());
-  ipcMain.handle("sync:get-state", () => ({
-    status: "deferred" as const,
-    message: "本地完整版本验收后启用 Supabase schema 7 同步。",
-  }));
+  ipcMain.handle("account:sign-up", (_event, value) =>
+    dependencies.sync.signUp(credentialsSchema.parse(value)),
+  );
+  ipcMain.handle("account:sign-in", (_event, value) =>
+    dependencies.sync.signIn(credentialsSchema.parse(value)),
+  );
+  ipcMain.handle("account:resend-verification", (_event, value) =>
+    dependencies.sync.resendVerification(emailSchema.parse(value)),
+  );
+  ipcMain.handle("account:request-password-reset", (_event, value) =>
+    dependencies.sync.requestPasswordReset(emailSchema.parse(value)),
+  );
+  ipcMain.handle("account:complete-password-reset", (_event, value) =>
+    dependencies.sync.completePasswordReset(
+      z.string().min(8).max(72).parse(value),
+    ),
+  );
+  ipcMain.handle("account:sign-out", () => dependencies.sync.signOut());
+  ipcMain.handle("sync:get-state", () => dependencies.sync.getState());
+  ipcMain.handle("sync:run", () => dependencies.sync.run("manual"));
+  ipcMain.handle("sync:list-note-conflicts", () =>
+    dependencies.sync.listNoteConflicts(),
+  );
+  ipcMain.handle("sync:resolve-note-conflict", (_event, value) => {
+    const parsed = z
+      .object({ id: idSchema, resolution: conflictResolutionSchema })
+      .parse(value);
+    return dependencies.sync.resolveNoteConflict(parsed.id, parsed.resolution);
+  });
 }
