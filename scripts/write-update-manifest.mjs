@@ -18,7 +18,7 @@ const manifest = {
   schemaVersion: 1,
   version,
   notes:
-    "知序 Windows Electron 预览版。旧 Flutter 客户端和原数据库保持不变，首次启动只迁移独立副本。",
+    "知序 Windows Electron 稳定版。账号登录与云同步已启用；旧 Flutter 客户端和原数据库保持不变，首次启动只迁移独立副本。",
   releaseUrl: `https://github.com/${repository}/releases/tag/${tag}`,
   assets: {
     windows: {

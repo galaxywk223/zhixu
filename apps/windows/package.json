@@ -106,7 +106,7 @@
       "provider": "github",
       "owner": "galaxywk223",
       "repo": "zhixu",
-      "releaseType": "prerelease"
+      "releaseType": "release"
     }
   }
 }

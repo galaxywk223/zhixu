@@ -11,7 +11,27 @@ permissions:
   contents: read
 
 jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          root_version="$(node -p "require('./package.json').version")"
+          windows_version="$(node -p "require('./apps/windows/package.json').version")"
+          test -n "$root_version"
+          test "$root_version" = "$windows_version"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "$GITHUB_REF_NAME" = "v${root_version}"
+          fi
+          echo "value=$root_version" >> "$GITHUB_OUTPUT"
+
   windows:
+    needs: metadata
     runs-on: windows-latest
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -81,3 +101,45 @@ jobs:
             release/windows/Zhixu-Setup-*.exe.sha256
             release/windows/latest.yml
             release/windows/update-manifest.json
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [metadata, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: zhixu-windows
+          path: release-assets
+      - name: Validate release assets
+        shell: bash
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          installer="release-assets/Zhixu-Setup-${VERSION}.exe"
+          test -s "$installer"
+          test -s "${installer}.sha256"
+          test -s release-assets/latest.yml
+          test -s release-assets/update-manifest.json
+          sha256sum --check "${installer}.sha256"
+          jq -e --arg version "$VERSION" \
+            '.version == $version and .assets.windows.fileName == ("Zhixu-Setup-" + $version + ".exe") and .assets.windows.size > 0' \
+            release-assets/update-manifest.json > /dev/null
+      - name: Create stable GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true
+          body: |
+            ## v${{ needs.metadata.outputs.version }} 稳定版
+
+            - Electron + React Windows 客户端成为当前主版本，保留旧 Flutter 客户端与原数据库兼容路径。
+            - 账号登录、邮箱验证、找回密码、首次本地与云端合并及离线同步已启用。
+            - 任务、备忘、倒数、日历、专注和睡眠工作区完成统一布局与数据展示改造。
+            - 番茄 TODO 历史导入支持预检、纠错、去重和本地日期分组。
+            - 安装包暂未接入代码签名，Windows SmartScreen 可能显示未知发布者。
+          files: release-assets/*
