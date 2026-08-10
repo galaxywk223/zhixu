@@ -10,6 +10,18 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const fixMigration = readFileSync(
+  resolve(
+    __dirname,
+    "../../../supabase/migrations/202608100008_fix_sync_apply_operation.sql",
+  ),
+  "utf8",
+);
+const syncService = readFileSync(
+  resolve(__dirname, "../src/main/services/sync.ts"),
+  "utf8",
+);
+const ipc = readFileSync(resolve(__dirname, "../src/main/ipc.ts"), "utf8");
 const contract = readFileSync(
   resolve(
     __dirname,
@@ -52,5 +64,25 @@ describe("Supabase sync migration", () => {
     expect(migration).toContain(
       "revoke all on function public.push_operations(jsonb) from public",
     );
+  });
+
+  it("uses an unambiguous target table variable in the corrective RPC", () => {
+    expect(fixMigration).toContain("target_table_name text");
+    expect(fixMigration).toContain("from information_schema.columns c");
+    expect(fixMigration).toContain("c.table_name = target_table_name");
+    expect(fixMigration).not.toContain("zhixu_apply_operation.table_name");
+    expect(fixMigration).toContain(
+      "revoke all on function public.zhixu_apply_operation(jsonb) from public",
+    );
+  });
+
+  it("catches background failures while preserving manual sync errors", () => {
+    expect(syncService).toContain(
+      "void this.run(reason).catch(() => undefined)",
+    );
+    expect(syncService).not.toMatch(
+      /void this\.run\("(?:periodic|online|local-change|login|retry)"\)/,
+    );
+    expect(ipc).toContain('dependencies.sync.run("manual")');
   });
 });

@@ -106,9 +106,9 @@ export class SyncService {
     }
     if (data.session) await this.establishSession(data.session.user);
     this.periodicTimer = setInterval(() => {
-      if (this.user && net.isOnline()) void this.run("periodic");
+      if (this.user && net.isOnline()) this.runInBackground("periodic");
       else if (this.user && this.state.status === "offline" && net.isOnline())
-        void this.run("online");
+        this.runInBackground("online");
     }, 60_000);
   }
 
@@ -131,7 +131,10 @@ export class SyncService {
   requestSync(delay = 750): void {
     if (!this.user || !this.client) return;
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => void this.run("local-change"), delay);
+    this.debounceTimer = setTimeout(
+      () => this.runInBackground("local-change"),
+      delay,
+    );
   }
 
   async signUp(input: { email: string; password: string }): Promise<void> {
@@ -430,7 +433,7 @@ export class SyncService {
       email: user.email ?? null,
       message: binding ? "账号已登录。" : "正在准备首次同步。",
     });
-    void this.run("login");
+    this.runInBackground("login");
   }
 
   private async handleAuthChange(
@@ -464,8 +467,12 @@ export class SyncService {
     this.retryIndex += 1;
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null;
-      if (this.user) void this.run("retry");
+      if (this.user) this.runInBackground("retry");
     }, delay);
+  }
+
+  private runInBackground(reason: string): void {
+    void this.run(reason).catch(() => undefined);
   }
 
   private setError(error: unknown): void {
