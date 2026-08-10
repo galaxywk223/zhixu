@@ -48,25 +48,22 @@ function event(
 }
 
 describe("task date grouping", () => {
-  const now = new Date("2026-08-08T12:00:00+08:00");
+  const localTime = (day: number, hour: number, minute = 0): string =>
+    new Date(2026, 7, day, hour, minute).toISOString();
+  const now = new Date(2026, 7, 8, 12);
 
   it("uses local day boundaries and keeps completed tasks separate", () => {
-    expect(taskGroupKind(task("late", "2026-08-07T10:00:00+08:00"), now)).toBe(
-      "overdue",
-    );
-    expect(taskGroupKind(task("today", "2026-08-08T23:59:00+08:00"), now)).toBe(
+    expect(taskGroupKind(task("late", localTime(7, 10)), now)).toBe("overdue");
+    expect(taskGroupKind(task("today", localTime(8, 23, 59)), now)).toBe(
       "today",
     );
-    expect(
-      taskGroupKind(task("tomorrow", "2026-08-09T00:01:00+08:00"), now),
-    ).toBe("tomorrow");
+    expect(taskGroupKind(task("tomorrow", localTime(9, 0, 1)), now)).toBe(
+      "tomorrow",
+    );
     expect(taskGroupKind(task("done", null, "done"), now)).toBe("done");
     expect(
       groupTasks(
-        [
-          task("done", null, "done"),
-          task("today", "2026-08-08T09:00:00+08:00"),
-        ],
+        [task("done", null, "done"), task("today", localTime(8, 9))],
         now,
       ).at(-1)?.kind,
     ).toBe("done");
