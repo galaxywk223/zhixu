@@ -18,7 +18,7 @@ const manifest = {
   schemaVersion: 1,
   version,
   notes:
-    "知序 Windows Electron 稳定版。账号登录与云同步已启用；旧 Flutter 客户端和原数据库保持不变，首次启动只迁移独立副本。",
+    "知序 v0.3.0 新增消费分析、支付宝与微信账单导入，以及支持反馈学习的每日格言；账号登录、云同步和历史数据兼容保持启用。",
   releaseUrl: `https://github.com/${repository}/releases/tag/${tag}`,
   assets: {
     windows: {

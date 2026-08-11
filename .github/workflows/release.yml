@@ -23,8 +23,10 @@ jobs:
           set -euo pipefail
           root_version="$(node -p "require('./package.json').version")"
           windows_version="$(node -p "require('./apps/windows/package.json').version")"
+          contracts_version="$(node -p "require('./shared/contracts/package.json').version")"
           test -n "$root_version"
           test "$root_version" = "$windows_version"
+          test "$root_version" = "$contracts_version"
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             test "$GITHUB_REF_NAME" = "v${root_version}"
           fi
@@ -140,9 +142,10 @@ jobs:
           body: |
             ## v${{ needs.metadata.outputs.version }} 稳定版
 
-            - Electron + React Windows 客户端成为当前主版本，保留旧 Flutter 客户端与原数据库兼容路径。
-            - 账号登录、邮箱验证、找回密码、首次本地与云端合并及离线同步已启用。
-            - 任务、备忘、倒数、日历、专注和睡眠工作区完成统一布局与数据展示改造。
-            - 番茄 TODO 历史导入支持预检、纠错、去重和本地日期分组。
+            - 新增消费分析工作区，支持支付宝 CSV 与微信 XLSX 账单导入、稳定去重、人工计入调整和净消费可视化。
+            - 新增 AI 与离线精选语料混合的每日格言，收藏和不喜欢反馈会参与后续内容生成。
+            - 移除用户可见的笔记功能，同时保留历史数据库与备份兼容。
+            - 优化日历周视图、专注图表、中文输入法稳定性和消费统计日期口径。
+            - 账号登录、云同步和离线使用保持启用，财务记录与每日格言参与同步。
             - 安装包暂未接入代码签名，Windows SmartScreen 可能显示未知发布者。
           files: release-assets/*

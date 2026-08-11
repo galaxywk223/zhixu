@@ -57,4 +57,4 @@ SUPABASE_ANON_KEY=<anon-key>
 
 ## 发布边界
 
-Windows 稳定版使用独立 NSIS 安装目录和应用数据目录。`v0.2.0` 安装包尚未接入代码签名，Windows SmartScreen 可能显示未知发布者。推送版本标签后，CI 会完成验证、打包并创建 GitHub Latest Release，同时上传安装包、SHA256 校验文件、`latest.yml` 和 `update-manifest.json`。
+Windows 稳定版使用独立 NSIS 安装目录和应用数据目录。`v0.3.0` 新增消费分析、支付宝与微信账单导入，以及支持反馈学习的每日格言；用户可见的笔记功能已移除，历史数据库与备份继续兼容。安装包尚未接入代码签名，Windows SmartScreen 可能显示未知发布者。推送版本标签后，CI 会完成验证、打包并创建 GitHub Latest Release，同时上传安装包、SHA256 校验文件、`latest.yml` 和 `update-manifest.json`。
