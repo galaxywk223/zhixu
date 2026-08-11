@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FluentProvider, Spinner } from "@fluentui/react-components";
 import type {
@@ -8,7 +8,7 @@ import type {
 } from "../../preload/api-types";
 import { SearchDialog } from "./components/SearchDialog";
 import { AuthGate } from "./components/AuthGate";
-import { routeForNumericShortcut, Shell, type Route } from "./components/Shell";
+import { Shell, type Route } from "./components/Shell";
 import { TaskEditor } from "./components/TaskEditor";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CountdownsPage } from "./pages/CountdownsPage";
@@ -21,7 +21,6 @@ import { SleepPage } from "./pages/SleepPage";
 import { TasksPage } from "./pages/TasksPage";
 import { TodayPage } from "./pages/TodayPage";
 import { queryKeys, useDataInvalidation } from "./query";
-import { uiScaleForShortcut } from "../../shared/ui-scale";
 import { zhixuDarkTheme, zhixuLightTheme } from "./theme";
 
 export function App(): React.JSX.Element {
@@ -61,7 +60,6 @@ export function App(): React.JSX.Element {
   const [systemDark, setSystemDark] = useState(
     matchMedia("(prefers-color-scheme: dark)").matches,
   );
-  const uiScale = useRef(100);
   const [renderedUiScale, setRenderedUiScale] = useState(100);
   useDataInvalidation();
 
@@ -75,10 +73,7 @@ export function App(): React.JSX.Element {
 
   useEffect(() => {
     const current = settings.data ?? bootstrap.data?.settings;
-    if (current) {
-      uiScale.current = current.uiScale;
-      setRenderedUiScale(current.uiScale);
-    }
+    if (current) setRenderedUiScale(current.uiScale);
   }, [bootstrap.data, settings.data]);
 
   useEffect(() => {
@@ -115,43 +110,6 @@ export function App(): React.JSX.Element {
       }),
     [canUseApp],
   );
-  useEffect(() => {
-    const handler = (event: KeyboardEvent): void => {
-      if (!event.ctrlKey) return;
-      const nextScale = uiScaleForShortcut(uiScale.current, event.key);
-      if (nextScale !== null) {
-        event.preventDefault();
-        if (nextScale !== uiScale.current) {
-          uiScale.current = nextScale;
-          setRenderedUiScale(nextScale);
-          void window.zhixu.settings.update({ uiScale: nextScale });
-        }
-        return;
-      }
-      if (!canUseApp) return;
-      if (event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSearch(true);
-      }
-      if (event.key.toLowerCase() === "n") {
-        event.preventDefault();
-        setEditor({ open: true, task: null, initialDueDate: null });
-      }
-      if (event.key === ",") {
-        event.preventDefault();
-        setRoute("settings");
-        return;
-      }
-      const nextRoute = routeForNumericShortcut(event.key);
-      if (nextRoute) {
-        event.preventDefault();
-        setRoute(nextRoute);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [canUseApp]);
-
   if (bootstrap.isError)
     return (
       <div className="startup error-message">{String(bootstrap.error)}</div>

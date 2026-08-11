@@ -246,10 +246,7 @@ export function SettingsPage(props: {
                     role="group"
                     aria-label="界面缩放"
                   >
-                    <Tooltip
-                      content="缩小界面  Ctrl+-"
-                      relationship="description"
-                    >
+                    <Tooltip content="缩小界面" relationship="description">
                       <Button
                         appearance="subtle"
                         icon={<ZoomOut20Regular />}
@@ -265,10 +262,7 @@ export function SettingsPage(props: {
                       />
                     </Tooltip>
                     <output aria-live="polite">{draft.uiScale}%</output>
-                    <Tooltip
-                      content="放大界面  Ctrl++"
-                      relationship="description"
-                    >
+                    <Tooltip content="放大界面" relationship="description">
                       <Button
                         appearance="subtle"
                         icon={<ZoomIn20Regular />}
@@ -283,10 +277,7 @@ export function SettingsPage(props: {
                         }
                       />
                     </Tooltip>
-                    <Tooltip
-                      content="恢复 100%  Ctrl+0"
-                      relationship="description"
-                    >
+                    <Tooltip content="恢复 100%" relationship="description">
                       <Button
                         appearance="subtle"
                         icon={<ArrowReset20Regular />}

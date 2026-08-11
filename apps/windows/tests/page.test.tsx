@@ -7,7 +7,6 @@ import {
   StatCard,
 } from "../src/renderer/src/components/Page";
 import {
-  routeForNumericShortcut,
   Shell,
   SIDEBAR_COLLAPSED_STORAGE_KEY,
 } from "../src/renderer/src/components/Shell";
@@ -77,23 +76,13 @@ describe("shared page components", () => {
     expect(
       screen
         .getByRole("button", { name: "倒数" })
-        .getAttribute("aria-keyshortcuts"),
-    ).toBe("Control+6");
-    expect(
-      screen
-        .getByRole("button", { name: "日历" })
-        .getAttribute("aria-keyshortcuts"),
-    ).toBe("Control+4");
-    expect(
-      screen
-        .getByRole("button", { name: "专注" })
-        .getAttribute("aria-keyshortcuts"),
-    ).toBe("Control+3");
+        .hasAttribute("aria-keyshortcuts"),
+    ).toBe(false);
     expect(
       screen
         .getByRole("button", { name: "设置" })
-        .getAttribute("aria-keyshortcuts"),
-    ).toBe("Control+,");
+        .hasAttribute("aria-keyshortcuts"),
+    ).toBe(false);
   });
 
   it("defaults to an expanded sidebar for invalid stored preferences", () => {
@@ -111,16 +100,5 @@ describe("shared page components", () => {
       screen.getByRole("button", { name: "折叠侧栏" }).querySelector("span")
         ?.textContent,
     ).toBe("收起");
-  });
-
-  it("maps numeric shortcuts to the sidebar order", () => {
-    expect(routeForNumericShortcut("1")).toBe("today");
-    expect(routeForNumericShortcut("3")).toBe("focus");
-    expect(routeForNumericShortcut("4")).toBe("calendar");
-    expect(routeForNumericShortcut("5")).toBe("memos");
-    expect(routeForNumericShortcut("6")).toBe("countdowns");
-    expect(routeForNumericShortcut("8")).toBe("sleep");
-    expect(routeForNumericShortcut("9")).toBe("finance");
-    expect(routeForNumericShortcut("0")).toBeNull();
   });
 });

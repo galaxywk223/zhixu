@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -11,20 +11,21 @@ import {
 } from "@fluentui/react-components";
 import { Search24Regular } from "@fluentui/react-icons";
 import type { Route } from "./Shell";
+import { useImeSearch } from "../use-ime-search";
 
 export function SearchDialog(props: {
   open: boolean;
   onClose(): void;
   onNavigate(route: Route, id?: string): void;
 }): React.JSX.Element {
-  const [query, setQuery] = useState("");
+  const search = useImeSearch();
   useEffect(() => {
-    if (props.open) setQuery("");
-  }, [props.open]);
+    if (props.open) search.reset();
+  }, [props.open, search.reset]);
   const results = useQuery({
-    queryKey: ["search", query],
-    queryFn: () => window.zhixu.search.query(query),
-    enabled: props.open && query.trim().length > 0,
+    queryKey: ["search", search.query],
+    queryFn: () => window.zhixu.search.query(search.query),
+    enabled: props.open && search.query.trim().length > 0,
   });
   const routeMap = {
     task: "tasks",
@@ -49,8 +50,12 @@ export function SearchDialog(props: {
               size="large"
               contentBefore={<Search24Regular />}
               placeholder="搜索任务、备忘、倒数、笔记或专注事项"
-              value={query}
-              onChange={(_, data) => setQuery(data.value)}
+              value={search.value}
+              onChange={(_, data) => search.change(data.value)}
+              onCompositionStart={search.compositionStart}
+              onCompositionEnd={(event) =>
+                search.compositionEnd(event.currentTarget.value)
+              }
             />
             <div className="search-results">
               {results.isFetching ? <Spinner size="tiny" /> : null}
@@ -78,7 +83,7 @@ export function SearchDialog(props: {
                   <small>{result.subtitle}</small>
                 </button>
               ))}
-              {query && results.data?.length === 0 ? (
+              {search.query && results.data?.length === 0 ? (
                 <p className="muted">没有匹配结果</p>
               ) : null}
             </div>

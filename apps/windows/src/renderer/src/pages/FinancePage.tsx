@@ -55,6 +55,7 @@ import type {
 import { LocalDateField } from "../components/DateTimeFields";
 import { EmptyState, Loading } from "../components/Page";
 import { queryKeys } from "../query";
+import { useImeSearch } from "../use-ime-search";
 import {
   loadFinanceFilters,
   saveFinanceFilters,
@@ -116,7 +117,7 @@ export function FinancePage({
     loadFinanceFilters(defaultFinanceFilters()),
   );
   const [tab, setTab] = useState<FinanceTab>("overview");
-  const [search, setSearch] = useState("");
+  const search = useImeSearch();
   const [platform, setPlatform] = useState<FinancePlatform | "all">("all");
   const [category, setCategory] = useState<FinanceCategory | "all">("all");
   const [inclusion, setInclusion] = useState<"all" | "included" | "excluded">(
@@ -140,7 +141,7 @@ export function FinancePage({
   const query = useMemo(
     () =>
       financeQueryForFilters(filters, {
-        search: search || undefined,
+        search: search.query || undefined,
         platforms: platform === "all" ? undefined : [platform],
         categories: category === "all" ? undefined : [category],
         inclusion,
@@ -162,7 +163,7 @@ export function FinancePage({
       paymentMethod,
       platform,
       rawType,
-      search,
+      search.query,
       sort,
       status,
     ],
@@ -173,6 +174,7 @@ export function FinancePage({
       window.zhixu.finance.list({ ...query, cursor: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    placeholderData: (previousData) => previousData,
   });
   const batches = useQuery({
     queryKey: queryKeys.financeBatches,
@@ -209,8 +211,8 @@ export function FinancePage({
     onError: (value) => setError(String(value)),
   });
 
-  if (finance.isLoading) return <Loading />;
-  if (finance.isError)
+  if (!finance.data && finance.isLoading) return <Loading />;
+  if (!finance.data && finance.isError)
     return <div className="error-message">{String(finance.error)}</div>;
   const data = finance.data!.pages[0]!;
   const records = finance.data!.pages.flatMap((page) => page.records);
@@ -398,8 +400,12 @@ export function FinancePage({
                     className="finance-search"
                     contentBefore={<Search20Regular />}
                     placeholder="搜索对方、商品或备注"
-                    value={search}
-                    onChange={(_, value) => setSearch(value.value)}
+                    value={search.value}
+                    onChange={(_, data) => search.change(data.value)}
+                    onCompositionStart={search.compositionStart}
+                    onCompositionEnd={(event) =>
+                      search.compositionEnd(event.currentTarget.value)
+                    }
                   />
                   <Popover positioning="below-end" trapFocus>
                     <PopoverTrigger disableButtonEnhancement>
@@ -580,6 +586,9 @@ export function FinancePage({
           <div className="focus-workspace-content finance-workspace-content">
             {message ? <p className="finance-message">{message}</p> : null}
             {error ? <p className="error-message">{error}</p> : null}
+            {finance.isError ? (
+              <p className="error-message">{String(finance.error)}</p>
+            ) : null}
             {tab === "overview" ? (
               data.totalCount === 0 ? (
                 <EmptyState

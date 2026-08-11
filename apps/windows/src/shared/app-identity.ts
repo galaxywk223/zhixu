@@ -1,12 +1,9 @@
 import { join, resolve } from "node:path";
 
 export const PRODUCTION_APP_USER_MODEL_ID = "com.galaxywk.zhixu.desktop";
-export const DEVELOPMENT_APP_USER_MODEL_ID = "com.galaxywk.zhixu.desktop.dev";
 
-export function appUserModelId(isPackaged: boolean): string {
-  return isPackaged
-    ? PRODUCTION_APP_USER_MODEL_ID
-    : DEVELOPMENT_APP_USER_MODEL_ID;
+export function appUserModelId(_isPackaged: boolean): string {
+  return PRODUCTION_APP_USER_MODEL_ID;
 }
 
 export function resolveAppIconPath(options: {

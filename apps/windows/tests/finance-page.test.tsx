@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -18,6 +19,7 @@ import { FinancePage } from "../src/renderer/src/pages/FinancePage";
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  vi.useRealTimers();
 });
 
 const listResult: FinanceListResult = {
@@ -106,9 +108,10 @@ const preview: FinanceImportPreview = {
 };
 
 function renderPage(value: FinanceImportPreview | null = null) {
+  const financeList = vi.fn().mockResolvedValue(listResult);
   const api = {
     finance: {
-      list: vi.fn().mockResolvedValue(listResult),
+      list: financeList,
       batches: vi.fn().mockResolvedValue([]),
       preview: vi.fn().mockResolvedValue(value),
       confirm: vi.fn().mockResolvedValue({
@@ -132,7 +135,7 @@ function renderPage(value: FinanceImportPreview | null = null) {
       </FluentProvider>
     </QueryClientProvider>,
   );
-  return { ...rendered, onPreviewChange, api };
+  return { ...rendered, onPreviewChange, api, financeList };
 }
 
 describe("finance workspace", () => {
@@ -163,5 +166,28 @@ describe("finance workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "确认导入" }));
     await waitFor(() => expect(onPreviewChange).toHaveBeenCalledWith(null));
     expect(dialog).toBeTruthy();
+  });
+
+  it("keeps the search input mounted while an IME query is pending", async () => {
+    const { financeList } = renderPage();
+    await screen.findByRole("heading", { name: "消费", level: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "交易明细" }));
+    const input = screen.getByPlaceholderText("搜索对方、商品或备注");
+    financeList.mockImplementationOnce(() => new Promise(() => undefined));
+    vi.useFakeTimers();
+
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "zhong" } });
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    expect(financeList).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(input, { target: { value: "中文" } });
+    fireEvent.compositionEnd(input);
+    await act(() => vi.advanceTimersByTimeAsync(250));
+    expect(financeList).toHaveBeenCalledTimes(2);
+    expect(financeList.mock.calls[1]?.[0]).toMatchObject({ search: "中文" });
+    expect(screen.getByPlaceholderText("搜索对方、商品或备注")).toBe(input);
+    expect((input as HTMLInputElement).value).toBe("中文");
+    expect(screen.queryByText("正在加载")).toBeNull();
   });
 });

@@ -39,6 +39,7 @@ const localData = process.env.LOCALAPPDATA
   ? join(process.env.LOCALAPPDATA, "Zhixu")
   : app.getPath("userData");
 app.setPath("userData", localData);
+app.setName("知序");
 app.setAppUserModelId(appUserModelId(app.isPackaged));
 log.initialize();
 

@@ -80,7 +80,7 @@ describe("visual system", () => {
 
   it("reflows metric grids at high application zoom", () => {
     expect(appSource).toContain("ui-scale-${renderedUiScale}");
-    expect(appSource).toContain("setRenderedUiScale(nextScale)");
+    expect(appSource).toContain("setRenderedUiScale(current.uiScale)");
     expect(styles).toContain(".ui-scale-125");
     expect(styles).toContain(".ui-scale-150");
     expect(styles).toMatch(

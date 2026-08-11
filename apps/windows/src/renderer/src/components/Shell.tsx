@@ -33,64 +33,49 @@ const navigation = [
   {
     route: "today" as const,
     label: "今天",
-    shortcut: 1,
     icon: <Home24Regular />,
   },
   {
     route: "tasks" as const,
     label: "任务",
-    shortcut: 2,
     icon: <CheckmarkSquare24Regular />,
   },
   {
     route: "focus" as const,
     label: "专注",
-    shortcut: 3,
     icon: <Timer24Regular />,
   },
   {
     route: "calendar" as const,
     label: "日历",
-    shortcut: 4,
     icon: <Calendar24Regular />,
   },
   {
     route: "memos" as const,
     label: "备忘",
-    shortcut: 5,
     icon: <NotePinRegular />,
   },
   {
     route: "countdowns" as const,
     label: "倒数",
-    shortcut: 6,
     icon: <CalendarClock24Regular />,
   },
   {
     route: "notes" as const,
     label: "笔记",
-    shortcut: 7,
     icon: <Note24Regular />,
   },
   {
     route: "sleep" as const,
     label: "睡眠",
-    shortcut: 8,
     icon: <WeatherMoon24Regular />,
   },
   {
     route: "finance" as const,
     label: "消费",
-    shortcut: 9,
     icon: <Money24Regular />,
   },
 ];
-
-export function routeForNumericShortcut(key: string): Route | null {
-  const shortcut = Number(key);
-  if (!Number.isInteger(shortcut)) return null;
-  return navigation.find((item) => item.shortcut === shortcut)?.route ?? null;
-}
 
 interface ShellProps {
   route: Route;
@@ -131,13 +116,12 @@ export function Shell(props: ShellProps): React.JSX.Element {
           {navigation.map((item) => (
             <Tooltip
               key={item.route}
-              content={`${item.label}  Ctrl+${item.shortcut}`}
+              content={item.label}
               relationship="description"
             >
               <button
                 type="button"
                 className={`nav-item ${props.route === item.route ? "active" : ""}`}
-                aria-keyshortcuts={`Control+${item.shortcut}`}
                 onClick={() => props.onRouteChange(item.route)}
               >
                 {item.icon}
@@ -162,11 +146,10 @@ export function Shell(props: ShellProps): React.JSX.Element {
             {!collapsed ? <span>收起</span> : null}
           </button>
         </Tooltip>
-        <Tooltip content="设置  Ctrl+," relationship="description">
+        <Tooltip content="设置" relationship="description">
           <button
             type="button"
             className={`nav-item sidebar-settings ${props.route === "settings" ? "active" : ""}`}
-            aria-keyshortcuts="Control+,"
             onClick={() => props.onRouteChange("settings")}
           >
             <Settings24Regular />

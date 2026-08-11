@@ -17,13 +17,3 @@ export function stepUiScale(current: unknown, direction: -1 | 1): UiScale {
   );
   return UI_SCALE_STEPS[nextIndex] ?? DEFAULT_UI_SCALE;
 }
-
-export function uiScaleForShortcut(
-  current: unknown,
-  key: string,
-): UiScale | null {
-  if (key === "0") return DEFAULT_UI_SCALE;
-  if (key === "+" || key === "=") return stepUiScale(current, 1);
-  if (key === "-" || key === "_") return stepUiScale(current, -1);
-  return null;
-}

@@ -71,16 +71,6 @@ export function NotesPage(props: {
       await client.invalidateQueries({ queryKey: queryKeys.notes });
     },
   });
-  useEffect(() => {
-    const handler = (event: KeyboardEvent): void => {
-      if (event.ctrlKey && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        if (dirty) save.mutate();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [dirty, title, content, pinned, selected?.id]);
   if (notes.isLoading) return <Loading />;
   const create = (): void => {
     setSelectedId(null);
