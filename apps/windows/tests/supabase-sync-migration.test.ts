@@ -31,6 +31,13 @@ const quoteMigration = readFileSync(
   ),
   "utf8",
 );
+const quoteSourcesMigration = readFileSync(
+  resolve(
+    __dirname,
+    "../../../supabase/migrations/202608110011_daily_quote_sources.sql",
+  ),
+  "utf8",
+);
 const quoteFunction = readFileSync(
   resolve(__dirname, "../../../supabase/functions/daily-quote/index.ts"),
   "utf8",
@@ -123,6 +130,24 @@ describe("Supabase sync migration", () => {
     expect(quoteFunction).toContain('Deno.env.get("DEEPSEEK_API_KEY")');
     expect(quoteFunction).toContain("supabase.auth.getUser(token)");
     expect(quoteFunction).not.toContain("sb_publishable_");
+  });
+
+  it("adds quote provenance while preserving legacy client updates", () => {
+    expect(quoteSourcesMigration).toContain(
+      "add column if not exists source_kind",
+    );
+    expect(quoteSourcesMigration).toContain(
+      "add column if not exists generation_version",
+    );
+    expect(quoteSourcesMigration).toContain(
+      "public.zhixu_apply_operation_v10(operation)",
+    );
+    expect(quoteSourcesMigration).toContain(
+      "when incoming_payload ? 'source_kind' then excluded.source_kind",
+    );
+    expect(quoteSourcesMigration).toContain("else daily_quotes.source_kind");
+    expect(quoteFunction).toContain("temperature: attempt === 0 ? 0.75 : 0.6");
+    expect(quoteFunction).not.toContain("temperature: attempt === 0 ? 1");
   });
 
   it("catches background failures while preserving manual sync errors", () => {

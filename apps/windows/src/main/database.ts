@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { MigrationReport } from "../preload/api-types";
 
-export const SCHEMA_VERSION = 10 as const;
+export const SCHEMA_VERSION = 11 as const;
 
 const preservedTables = [
   "tasks",
@@ -389,6 +389,10 @@ function createSchema(db: Database.Database): void {
       local_date TEXT NOT NULL,
       reaction TEXT NOT NULL DEFAULT 'none'
         CHECK(reaction IN ('none', 'favorite', 'disliked')),
+      source_kind TEXT NOT NULL DEFAULT 'ai'
+        CHECK(source_kind IN ('ai', 'corpus')),
+      source_id TEXT,
+      generation_version INTEGER NOT NULL DEFAULT 1,
       generated_at INTEGER NOT NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
@@ -488,7 +492,7 @@ function createSchema(db: Database.Database): void {
   `);
 }
 
-function migrateToV10(db: Database.Database, fromVersion: number): void {
+function migrateToV11(db: Database.Database, fromVersion: number): void {
   if (fromVersion > SCHEMA_VERSION)
     throw new Error(`数据库版本 ${fromVersion} 高于客户端支持版本`);
   const run = db.transaction(() => {
@@ -560,6 +564,19 @@ function migrateToV10(db: Database.Database, fromVersion: number): void {
     );
     ensureColumn(db, "note_conflicts", "local_updated_at", "INTEGER");
     ensureColumn(db, "note_conflicts", "remote_updated_at", "INTEGER");
+    ensureColumn(
+      db,
+      "daily_quotes",
+      "source_kind",
+      "TEXT NOT NULL DEFAULT 'ai' CHECK(source_kind IN ('ai', 'corpus'))",
+    );
+    ensureColumn(db, "daily_quotes", "source_id", "TEXT");
+    ensureColumn(
+      db,
+      "daily_quotes",
+      "generation_version",
+      "INTEGER NOT NULL DEFAULT 1",
+    );
     db.exec(`
       UPDATE tags SET normalized_name = lower(trim(name)) WHERE normalized_name = '';
       DELETE FROM sync_outbox
@@ -592,7 +609,7 @@ function migrateToV10(db: Database.Database, fromVersion: number): void {
         ON daily_quotes(local_date, generated_at DESC) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS daily_quotes_reaction_idx
         ON daily_quotes(reaction, updated_at DESC) WHERE deleted_at IS NULL;
-      PRAGMA user_version = 10;
+      PRAGMA user_version = 11;
     `);
   });
   run();
@@ -638,7 +655,7 @@ export function initializeDatabase(
     db.pragma("busy_timeout = 5000");
     const fromVersion = Number(db.pragma("user_version", { simple: true }));
     const before = snapshot(db);
-    migrateToV10(db, fromVersion);
+    migrateToV11(db, fromVersion);
     verifySnapshot(before, db);
     const integrity = String(db.pragma("integrity_check", { simple: true }));
     if (integrity !== "ok")

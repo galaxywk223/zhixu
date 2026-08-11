@@ -201,7 +201,7 @@ else {
         const focusSessions = store.listFocusSessions();
         process.stdout.write(
           `${JSON.stringify({
-            schemaVersion: 10,
+            schemaVersion: 11,
             integrity: store.integrityCheck(),
             migration: context.report,
             counts: store.entityCounts(),

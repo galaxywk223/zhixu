@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.2";
 import {
   buildDailyQuoteMessages,
+  isDailyQuoteDuplicate,
   normalizePromptInput,
   parseDailyQuoteResponse,
 } from "./prompt.ts";
@@ -55,8 +56,8 @@ Deno.serve(async (request) => {
           body: JSON.stringify({
             model: "deepseek-chat",
             messages,
-            temperature: attempt === 0 ? 1 : 0.8,
-            max_tokens: 120,
+            temperature: attempt === 0 ? 0.75 : 0.6,
+            max_tokens: 100,
             response_format: { type: "json_object" },
           }),
           signal: AbortSignal.timeout(20_000),
@@ -70,6 +71,8 @@ Deno.serve(async (request) => {
       const text = parseDailyQuoteResponse(
         result.choices?.[0]?.message?.content,
       );
+      if (isDailyQuoteDuplicate(text, input.recent))
+        throw new Error("Daily quote duplicates recent content");
       return response(200, { text });
     } catch {
       if (attempt === 1)

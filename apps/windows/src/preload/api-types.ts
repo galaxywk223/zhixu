@@ -380,7 +380,7 @@ export interface MigrationReport {
   sourceHash: string | null;
   backupPath: string | null;
   fromVersion: number;
-  toVersion: 10;
+  toVersion: 11;
   integrity: string;
   entityCounts: Record<string, number>;
 }
@@ -422,12 +422,16 @@ export interface SyncState {
 }
 
 export type DailyQuoteReaction = "none" | "favorite" | "disliked";
+export type DailyQuoteSourceKind = "ai" | "corpus";
 
 export interface DailyQuoteRecord {
   id: string;
   text: string;
   localDate: string;
   reaction: DailyQuoteReaction;
+  sourceKind: DailyQuoteSourceKind;
+  sourceId: string | null;
+  generationVersion: number;
   generatedAt: string;
   updatedAt: string;
 }

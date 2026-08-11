@@ -86,6 +86,10 @@
       {
         "from": "../../native/tomatodo_importer/target/release/zhixu_tomatodo_importer.exe",
         "to": "native/zhixu_tomatodo_importer.exe"
+      },
+      {
+        "from": "resources/third-party",
+        "to": "third-party"
       }
     ],
     "win": {

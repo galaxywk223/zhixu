@@ -133,7 +133,7 @@ function createLegacyDatabase(path: string, version: 1 | 2 | 3 | 4 | 5): void {
   db.close();
 }
 
-describe("schema 10 migration", () => {
+describe("schema 11 migration", () => {
   it.each([1, 2, 3, 4, 5] as const)(
     "copies and migrates v%i without changing the source file",
     (version) => {
@@ -171,14 +171,14 @@ describe("schema 10 migration", () => {
     },
   );
 
-  it("is idempotent when schema 10 is opened again", () => {
+  it("is idempotent when schema 11 is opened again", () => {
     const paths = temporaryPaths();
     createLegacyDatabase(paths.source, 5);
     const first = initializeDatabase(paths);
     first.db.close();
     const second = initializeDatabase(paths);
     expect(second.report.status).toBe("current");
-    expect(second.report.fromVersion).toBe(10);
+    expect(second.report.fromVersion).toBe(11);
     expect(second.report.entityCounts.tasks).toBe(2);
     expect(second.db.pragma("integrity_check", { simple: true })).toBe("ok");
     second.db.close();
@@ -196,7 +196,7 @@ describe("schema 10 migration", () => {
 
     const upgraded = initializeDatabase(paths);
     expect(upgraded.report.fromVersion).toBe(6);
-    expect(upgraded.report.toVersion).toBe(10);
+    expect(upgraded.report.toVersion).toBe(11);
     expect(
       upgraded.db
         .prepare(
@@ -240,7 +240,7 @@ describe("schema 10 migration", () => {
     expect(
       store.listTasks().find((item) => item.id === id)?.estimatedMinutes,
     ).toBe(30);
-    expect(context.db.pragma("user_version", { simple: true })).toBe(10);
+    expect(context.db.pragma("user_version", { simple: true })).toBe(11);
     expect(
       context.db
         .prepare(
@@ -248,6 +248,18 @@ describe("schema 10 migration", () => {
         )
         .get(),
     ).toEqual({ name: "daily_quotes" });
+    expect(
+      context.db
+        .prepare("PRAGMA table_info(daily_quotes)")
+        .all()
+        .map((column: unknown) => (column as { name: string }).name),
+    ).toEqual(
+      expect.arrayContaining([
+        "source_kind",
+        "source_id",
+        "generation_version",
+      ]),
+    );
     expect(store.integrityCheck()).toBe("ok");
     context.db.close();
   });

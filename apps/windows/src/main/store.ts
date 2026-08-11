@@ -22,6 +22,7 @@ import type {
   CountdownRecord,
   DailyQuoteReaction,
   DailyQuoteRecord,
+  DailyQuoteSourceKind,
   DashboardSummary,
   FocusSessionRecord,
   FinanceImportBatchRecord,
@@ -202,6 +203,11 @@ function asDailyQuote(row: SqlRow): DailyQuoteRecord {
     text: String(row.text),
     localDate: String(row.local_date),
     reaction: String(row.reaction) as DailyQuoteReaction,
+    sourceKind: (row.source_kind === "corpus"
+      ? "corpus"
+      : "ai") as DailyQuoteSourceKind,
+    sourceId: row.source_id == null ? null : String(row.source_id),
+    generationVersion: Math.max(1, Number(row.generation_version ?? 1)),
     generatedAt: toIso(row.generated_at) ?? new Date(0).toISOString(),
     updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
   };
@@ -729,7 +735,15 @@ export class ZhixuStore {
     ).map(asDailyQuote);
   }
 
-  saveGeneratedQuote(text: string, localDate: string): DailyQuoteRecord {
+  saveGeneratedQuote(
+    text: string,
+    localDate: string,
+    source: {
+      kind?: DailyQuoteSourceKind;
+      id?: string | null;
+      generationVersion?: number;
+    } = {},
+  ): DailyQuoteRecord {
     const id = randomUUID();
     const latest = this.db
       .prepare("SELECT MAX(generated_at) AS value FROM daily_quotes")
@@ -740,6 +754,9 @@ export class ZhixuStore {
       text,
       local_date: localDate,
       reaction: "none",
+      source_kind: source.kind ?? "ai",
+      source_id: source.id ?? null,
+      generation_version: Math.max(1, source.generationVersion ?? 1),
       generated_at: now,
       created_at: now,
       updated_at: now,

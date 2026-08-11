@@ -231,7 +231,7 @@ describe("backup compatibility", () => {
     const manifest = JSON.parse(
       await zip.file("manifest.json")!.async("string"),
     ) as { schemaVersion: number; entityCounts: Record<string, number> };
-    expect(manifest.schemaVersion).toBe(9);
+    expect(manifest.schemaVersion).toBe(10);
     expect(manifest.entityCounts.finance_transactions).toBe(1);
     expect(manifest.entityCounts.daily_quotes).toBe(1);
 
@@ -246,6 +246,8 @@ describe("backup compatibility", () => {
       expect.objectContaining({
         text: "把今天走稳，远方自然会近。",
         reaction: "favorite",
+        sourceKind: "ai",
+        generationVersion: 1,
       }),
     ]);
     source.close();

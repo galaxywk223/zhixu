@@ -162,6 +162,15 @@ export const backupManifestV9Schema = z.object({
   entityCounts: z.record(z.string(), z.number().int().nonnegative()),
 });
 
+export const backupManifestV10Schema = z.object({
+  schemaVersion: z.literal(10),
+  appVersion: z.string(),
+  exportedAt: z.string().datetime(),
+  payloadFile: z.literal("data.json"),
+  payloadSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  entityCounts: z.record(z.string(), z.number().int().nonnegative()),
+});
+
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 export type TaskBatchDraft = z.infer<typeof taskBatchDraftSchema>;
 export type MemoDraft = Omit<z.infer<typeof memoDraftSchema>, "priority"> & {
@@ -176,5 +185,6 @@ export type BackupManifestV6 = z.infer<typeof backupManifestV6Schema>;
 export type BackupManifestV7 = z.infer<typeof backupManifestV7Schema>;
 export type BackupManifestV8 = z.infer<typeof backupManifestV8Schema>;
 export type BackupManifestV9 = z.infer<typeof backupManifestV9Schema>;
+export type BackupManifestV10 = z.infer<typeof backupManifestV10Schema>;
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 export type UiScale = z.infer<typeof uiScaleSchema>;

@@ -82,7 +82,7 @@ function renderSettings(options?: {
           sourceHash: null,
           backupPath: null,
           fromVersion: 7,
-          toVersion: 10,
+          toVersion: 11,
           integrity: "ok",
           entityCounts: {},
         },

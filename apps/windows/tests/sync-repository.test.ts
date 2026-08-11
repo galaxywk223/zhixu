@@ -232,12 +232,18 @@ describe("sync repository", () => {
     const quote = store.saveGeneratedQuote(
       "把今天走稳，远方自然会近。",
       "2026-08-11",
+      { kind: "corpus", id: "saying-test", generationVersion: 2 },
     );
     store.setDailyQuoteReaction(quote.id, "favorite");
     expect(repository.listPending()[0]).toMatchObject({
       entityType: "daily_quote",
       entityId: quote.id,
-      payload: expect.objectContaining({ reaction: "favorite" }),
+      payload: expect.objectContaining({
+        reaction: "favorite",
+        source_kind: "corpus",
+        source_id: "saying-test",
+        generation_version: 2,
+      }),
     });
 
     repository.applyChanges([
@@ -251,6 +257,9 @@ describe("sync repository", () => {
           text: "慢一点，才能听见真正重要的声音。",
           local_date: "2026-08-10",
           reaction: "disliked",
+          source_kind: "corpus",
+          source_id: "saying-remote",
+          generation_version: 2,
           generated_at: "2026-08-10T00:00:00.000Z",
           created_at: "2026-08-10T00:00:00.000Z",
           updated_at: "2026-08-10T01:00:00.000Z",
@@ -263,6 +272,9 @@ describe("sync repository", () => {
     expect(store.listDislikedQuotes()[0]).toMatchObject({
       id: "remote-quote",
       reaction: "disliked",
+      sourceKind: "corpus",
+      sourceId: "saying-remote",
+      generationVersion: 2,
     });
     expect(repository.cursor()).toBe(21);
     close();
