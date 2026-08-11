@@ -3,7 +3,10 @@ import type { MemoView } from "./pages/memo-workspace-model";
 import type { SleepFilters, SleepView } from "./pages/sleep-workspace-model";
 import type { TaskView } from "./pages/task-workspace-model";
 import type { FinanceFilters } from "./pages/finance-workspace-model";
-import type { FinanceView } from "../../preload/api-types";
+import type {
+  FinanceTrendGranularity,
+  FinanceView,
+} from "../../preload/api-types";
 import { parseLocalDateKey } from "../../shared/local-date";
 
 export const WORKSPACE_VIEW_PREFERENCES_KEY = "zhixu-workspace-views-v1";
@@ -35,6 +38,11 @@ const financeViews: FinanceView[] = [
   "year",
   "all",
   "custom",
+];
+const financeTrendGranularities: FinanceTrendGranularity[] = [
+  "day",
+  "week",
+  "month",
 ];
 
 function readPreferences(): WorkspaceViewPreferences {
@@ -130,7 +138,21 @@ export function saveSleepFilters(value: SleepFilters): void {
 }
 
 export function loadFinanceFilters(fallback: FinanceFilters): FinanceFilters {
-  return validRange(readPreferences().finance, financeViews, fallback);
+  const stored = readPreferences().finance;
+  const range = validRange(stored, financeViews, fallback);
+  if (!stored || typeof stored !== "object") return range;
+  const candidate = stored as Partial<FinanceFilters>;
+  const trendGranularityByView = Object.fromEntries(
+    financeViews.flatMap((view) => {
+      const granularity = candidate.trendGranularityByView?.[view];
+      return financeTrendGranularities.includes(
+        granularity as FinanceTrendGranularity,
+      )
+        ? [[view, granularity]]
+        : [];
+    }),
+  ) as Partial<Record<FinanceView, FinanceTrendGranularity>>;
+  return { ...range, trendGranularityByView };
 }
 
 export function saveFinanceFilters(value: FinanceFilters): void {

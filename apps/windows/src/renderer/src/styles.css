@@ -4947,18 +4947,50 @@ button {
 }
 .finance-chart-section > header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+.finance-chart-heading {
+  min-width: 0;
 }
 .finance-chart-section h3 {
   margin: 0;
   font-size: var(--font-panel-title);
 }
 .finance-chart-section header span {
+  display: block;
+  margin-top: 4px;
   color: var(--muted);
   font-size: var(--font-caption);
+}
+.finance-trend-granularity {
+  display: inline-flex;
+  flex: none;
+  min-height: 32px;
+  padding: 2px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.finance-trend-granularity button {
+  min-width: 40px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: var(--font-caption);
+}
+.finance-trend-granularity button:hover {
+  color: var(--text);
+}
+.finance-trend-granularity button.active {
+  color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  font-weight: 600;
 }
 .finance-trend-chart {
   grid-column: 1 / -1;

@@ -6,7 +6,9 @@ import {
 } from "../src/shared/finance";
 import {
   defaultFinanceFilters,
+  defaultFinanceTrendGranularity,
   financeQueryForFilters,
+  financeTrendGranularityForFilters,
   formatFinanceCents,
 } from "../src/renderer/src/pages/finance-workspace-model";
 
@@ -180,9 +182,37 @@ describe("finance business rules", () => {
     expect(filters.view).toBe("month");
     expect(financeQueryForFilters(filters, { search: "餐厅" })).toMatchObject({
       view: "month",
+      trendGranularity: "day",
       search: "餐厅",
       inclusion: "all",
       sort: "time_desc",
     });
+  });
+
+  it("chooses smart trend defaults and honors a per-view override", () => {
+    const filters = defaultFinanceFilters(new Date(2026, 7, 11));
+    expect(defaultFinanceTrendGranularity(filters)).toBe("day");
+    expect(
+      defaultFinanceTrendGranularity({
+        ...filters,
+        view: "custom",
+        customStart: "2026-01-01",
+        customEnd: "2026-06-01",
+      }),
+    ).toBe("week");
+    expect(
+      defaultFinanceTrendGranularity({
+        ...filters,
+        view: "custom",
+        customStart: "2024-01-01",
+        customEnd: "2026-08-11",
+      }),
+    ).toBe("month");
+    expect(
+      financeTrendGranularityForFilters({
+        ...filters,
+        trendGranularityByView: { month: "week" },
+      }),
+    ).toBe("week");
   });
 });

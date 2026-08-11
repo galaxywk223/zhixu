@@ -118,6 +118,7 @@ export interface LifeEventRecord {
 
 export type FinanceView =
   "today" | "week" | "month" | "year" | "all" | "custom";
+export type FinanceTrendGranularity = "day" | "week" | "month";
 
 export interface FinanceTransactionRecord {
   id: string;
@@ -149,6 +150,7 @@ export interface FinanceTransactionRecord {
 
 export interface FinanceQuery {
   view: FinanceView;
+  trendGranularity?: FinanceTrendGranularity;
   customStart?: string;
   customEnd?: string;
   search?: string;

@@ -33,6 +33,7 @@ describe("workspace view preferences", () => {
       view: "year",
       customStart: "2026-01-01",
       customEnd: "2026-08-10",
+      trendGranularityByView: { year: "month", custom: "week" },
     });
 
     expect(loadTaskView("active")).toBe("overdue");
@@ -52,11 +53,17 @@ describe("workspace view preferences", () => {
       customEnd: "2026-07-07",
     });
     expect(
-      loadFinanceFilters({ view: "month", customStart: "", customEnd: "" }),
+      loadFinanceFilters({
+        view: "month",
+        customStart: "",
+        customEnd: "",
+        trendGranularityByView: {},
+      }),
     ).toEqual({
       view: "year",
       customStart: "2026-01-01",
       customEnd: "2026-08-10",
+      trendGranularityByView: { year: "month", custom: "week" },
     });
   });
 
@@ -83,6 +90,11 @@ describe("workspace view preferences", () => {
           view: "custom",
           customStart: "bad-date",
           customEnd: "2026-08-10",
+          trendGranularityByView: {
+            today: "day",
+            week: "invalid",
+            month: "week",
+          },
         },
       }),
     );
@@ -108,11 +120,13 @@ describe("workspace view preferences", () => {
         view: "month",
         customStart: "2026-08-01",
         customEnd: "2026-08-31",
+        trendGranularityByView: {},
       }),
     ).toEqual({
       view: "month",
       customStart: "2026-08-01",
       customEnd: "2026-08-31",
+      trendGranularityByView: { today: "day", month: "week" },
     });
   });
 });

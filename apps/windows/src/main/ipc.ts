@@ -62,8 +62,10 @@ const financeViewSchema = z.enum([
   "all",
   "custom",
 ]);
+const financeTrendGranularitySchema = z.enum(["day", "week", "month"]);
 const financeQuerySchema = z.object({
   view: financeViewSchema,
+  trendGranularity: financeTrendGranularitySchema.optional(),
   customStart: z.string().optional(),
   customEnd: z.string().optional(),
   search: z.string().max(300).optional(),

@@ -1,14 +1,20 @@
-import type { FinanceQuery, FinanceView } from "../../../preload/api-types";
+import type {
+  FinanceQuery,
+  FinanceTrendGranularity,
+  FinanceView,
+} from "../../../preload/api-types";
 import {
   addLocalDays,
   localDateKey,
   localDayStart,
+  parseLocalDateKey,
 } from "../../../shared/local-date";
 
 export interface FinanceFilters {
   view: FinanceView;
   customStart: string;
   customEnd: string;
+  trendGranularityByView: Partial<Record<FinanceView, FinanceTrendGranularity>>;
 }
 
 export const FINANCE_VIEW_LABELS: Record<FinanceView, string> = {
@@ -25,7 +31,44 @@ export function defaultFinanceFilters(now = new Date()): FinanceFilters {
     view: "month",
     customStart: localDateKey(addLocalDays(localDayStart(now), -29)),
     customEnd: localDateKey(now),
+    trendGranularityByView: {},
   };
+}
+
+function customRangeDays(filters: FinanceFilters): number | null {
+  try {
+    const start = parseLocalDateKey(filters.customStart);
+    const end = parseLocalDateKey(filters.customEnd);
+    if (start > end) return null;
+    return (
+      Math.round(
+        (Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) -
+          Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) /
+          86_400_000,
+      ) + 1
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function defaultFinanceTrendGranularity(
+  filters: FinanceFilters,
+): FinanceTrendGranularity {
+  if (["today", "week", "month"].includes(filters.view)) return "day";
+  if (filters.view === "year" || filters.view === "all") return "month";
+  const days = customRangeDays(filters);
+  if (days === null || days <= 62) return "day";
+  return days <= 730 ? "week" : "month";
+}
+
+export function financeTrendGranularityForFilters(
+  filters: FinanceFilters,
+): FinanceTrendGranularity {
+  return (
+    filters.trendGranularityByView[filters.view] ??
+    defaultFinanceTrendGranularity(filters)
+  );
 }
 
 export function financeQueryForFilters(
@@ -36,6 +79,7 @@ export function financeQueryForFilters(
     view: filters.view,
     customStart: filters.customStart,
     customEnd: filters.customEnd,
+    trendGranularity: financeTrendGranularityForFilters(filters),
     inclusion: "all",
     sort: "time_desc",
     limit: 100,

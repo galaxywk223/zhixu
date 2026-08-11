@@ -107,8 +107,11 @@ const preview: FinanceImportPreview = {
   canCommit: true,
 };
 
-function renderPage(value: FinanceImportPreview | null = null) {
-  const financeList = vi.fn().mockResolvedValue(listResult);
+function renderPage(
+  value: FinanceImportPreview | null = null,
+  result: FinanceListResult = listResult,
+) {
+  const financeList = vi.fn().mockResolvedValue(result);
   const api = {
     finance: {
       list: financeList,
@@ -189,5 +192,45 @@ describe("finance workspace", () => {
     expect(screen.getByPlaceholderText("搜索对方、商品或备注")).toBe(input);
     expect((input as HTMLInputElement).value).toBe("中文");
     expect(screen.queryByText("正在加载")).toBeNull();
+  });
+
+  it("switches trend granularity and remembers it for each shortcut view", async () => {
+    const chartResult: FinanceListResult = {
+      ...listResult,
+      totalCount: 1,
+      range: { start: "2026-08-01", end: "2026-08-11" },
+      overview: {
+        ...listResult.overview,
+        trend: [{ key: "2026-08-01", label: "8/1", impactCents: 1000 }],
+      },
+    };
+    const { financeList } = renderPage(null, chartResult);
+    await screen.findByRole("heading", { name: "消费", level: 1 });
+    expect(financeList.mock.calls[0]?.[0]).toMatchObject({
+      view: "month",
+      trendGranularity: "day",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "按周汇总" }));
+    await waitFor(() =>
+      expect(financeList.mock.calls.at(-1)?.[0]).toMatchObject({
+        view: "month",
+        trendGranularity: "week",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /全部/ }));
+    await waitFor(() =>
+      expect(financeList.mock.calls.at(-1)?.[0]).toMatchObject({
+        view: "all",
+        trendGranularity: "month",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /本月/ }));
+    await waitFor(() =>
+      expect(financeList.mock.calls.at(-1)?.[0]).toMatchObject({
+        view: "month",
+        trendGranularity: "week",
+      }),
+    );
   });
 });

@@ -29,6 +29,7 @@ import type {
   FinanceImportResult,
   FinanceListResult,
   FinanceQuery,
+  FinanceTrendGranularity,
   FinanceTransactionRecord,
   ImportBatchRecord,
   ImportResult,
@@ -253,18 +254,26 @@ function financeRangeBounds(
   now = new Date(),
 ): { start: Date | null; end: Date | null; error: string | null } {
   const today = localDayStart(now);
+  const tomorrow = addLocalDays(today, 1);
+  const capped = (
+    start: Date,
+    requestedEnd: Date,
+  ): { start: Date | null; end: Date | null; error: null } => {
+    const end = requestedEnd < tomorrow ? requestedEnd : tomorrow;
+    return { start, end, error: null };
+  };
   if (view === "all") {
     const sorted = records
       .map((item) => new Date(item.transactedAt))
-      .filter((date) => Number.isFinite(date.getTime()))
+      .filter(
+        (date) =>
+          Number.isFinite(date.getTime()) &&
+          date.getTime() < tomorrow.getTime(),
+      )
       .sort((left, right) => left.getTime() - right.getTime());
     return sorted.length
-      ? {
-          start: localDayStart(sorted[0]!),
-          end: addLocalDays(localDayStart(sorted[sorted.length - 1]!), 1),
-          error: null,
-        }
-      : { start: null, end: null, error: null };
+      ? capped(localDayStart(sorted[0]!), tomorrow)
+      : { start: tomorrow, end: tomorrow, error: null };
   }
   if (view === "custom") {
     try {
@@ -274,31 +283,25 @@ function financeRangeBounds(
       const endDate = parseLocalDateKey(customEnd);
       if (start > endDate)
         return { start: null, end: null, error: "结束日期不能早于开始日期" };
-      return { start, end: addLocalDays(endDate, 1), error: null };
+      return capped(start, addLocalDays(endDate, 1));
     } catch {
       return { start: null, end: null, error: "日期范围无效" };
     }
   }
-  if (view === "today")
-    return { start: today, end: addLocalDays(today, 1), error: null };
+  if (view === "today") return capped(today, tomorrow);
   if (view === "week") {
     const start = addLocalDays(today, -((today.getDay() + 6) % 7));
-    return { start, end: addLocalDays(start, 7), error: null };
+    return capped(start, addLocalDays(start, 7));
   }
   if (view === "month") {
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
-    return {
+    return capped(
       start,
-      end: new Date(today.getFullYear(), today.getMonth() + 1, 1),
-      error: null,
-    };
+      new Date(today.getFullYear(), today.getMonth() + 1, 1),
+    );
   }
   const start = new Date(today.getFullYear(), 0, 1);
-  return {
-    start,
-    end: new Date(today.getFullYear() + 1, 0, 1),
-    error: null,
-  };
+  return capped(start, new Date(today.getFullYear() + 1, 0, 1));
 }
 
 function inFinanceRange(
@@ -313,11 +316,55 @@ function inFinanceRange(
   );
 }
 
-function formatFinanceTrendLabel(key: string, weekly: boolean): string {
+function financeDayCount(bounds: {
+  start: Date | null;
+  end: Date | null;
+}): number {
+  if (!bounds.start || !bounds.end) return 0;
+  const start = Date.UTC(
+    bounds.start.getFullYear(),
+    bounds.start.getMonth(),
+    bounds.start.getDate(),
+  );
+  const end = Date.UTC(
+    bounds.end.getFullYear(),
+    bounds.end.getMonth(),
+    bounds.end.getDate(),
+  );
+  return Math.max(0, Math.round((end - start) / 86_400_000));
+}
+
+function financeTrendBucketStart(
+  value: Date,
+  granularity: FinanceTrendGranularity,
+): Date {
+  const date = localDayStart(value);
+  if (granularity === "week")
+    return addLocalDays(date, -((date.getDay() + 6) % 7));
+  if (granularity === "month")
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  return date;
+}
+
+function nextFinanceTrendBucket(
+  value: Date,
+  granularity: FinanceTrendGranularity,
+): Date {
+  if (granularity === "month")
+    return new Date(value.getFullYear(), value.getMonth() + 1, 1);
+  return addLocalDays(value, granularity === "week" ? 7 : 1);
+}
+
+function formatFinanceTrendLabel(
+  key: string,
+  granularity: FinanceTrendGranularity,
+): string {
   const date = parseLocalDateKey(key);
-  return weekly
-    ? `${date.getMonth() + 1}/${date.getDate()} 周`
-    : `${date.getMonth() + 1}/${date.getDate()}`;
+  if (granularity === "week")
+    return `${date.getMonth() + 1}/${date.getDate()} 周`;
+  if (granularity === "month")
+    return `${date.getFullYear()}/${date.getMonth() + 1}`;
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function bindable(value: unknown): string | number | bigint | Buffer | null {
@@ -619,9 +666,11 @@ export class ZhixuStore {
   }
 
   listFinance(input: FinanceQuery): FinanceListResult {
+    const now = new Date();
     const query: FinanceQuery = {
       ...input,
       view: input.view ?? "month",
+      trendGranularity: input.trendGranularity ?? "day",
       inclusion: input.inclusion ?? "all",
       sort: input.sort ?? "time_desc",
       cursor: Math.max(0, input.cursor ?? 0),
@@ -695,6 +744,7 @@ export class ZhixuStore {
         query.customStart,
         query.customEnd,
         base,
+        now,
       );
       return bounds.error
         ? 0
@@ -705,6 +755,7 @@ export class ZhixuStore {
       query.customStart,
       query.customEnd,
       base,
+      now,
     );
     const filtered = bounds.error
       ? []
@@ -715,17 +766,21 @@ export class ZhixuStore {
         .filter((item) => item.impactCents > 0)
         .map((item) => localDateKey(new Date(item.transactedAt))),
     ).size;
-    const dayCount =
-      bounds.start && bounds.end
-        ? Math.max(
-            1,
-            Math.round(
-              (bounds.end.getTime() - bounds.start.getTime()) / 86_400_000,
-            ),
-          )
-        : 0;
-    const todayBounds = financeRangeBounds("today", undefined, undefined, base);
-    const monthBounds = financeRangeBounds("month", undefined, undefined, base);
+    const dayCount = financeDayCount(bounds);
+    const todayBounds = financeRangeBounds(
+      "today",
+      undefined,
+      undefined,
+      base,
+      now,
+    );
+    const monthBounds = financeRangeBounds(
+      "month",
+      undefined,
+      undefined,
+      base,
+      now,
+    );
     const netForBounds = (range: {
       start: Date | null;
       end: Date | null;
@@ -734,31 +789,27 @@ export class ZhixuStore {
         .filter((item) => inFinanceRange(item, range))
         .reduce((sum, item) => sum + item.impactCents, 0);
 
-    const spanDays = dayCount;
-    const weekly = spanDays > 120;
+    const trendGranularity = query.trendGranularity ?? "day";
     const trendGroups = new Map<string, number>();
     for (const item of filtered) {
-      const date = localDayStart(new Date(item.transactedAt));
-      const groupedDate = weekly
-        ? addLocalDays(date, -((date.getDay() + 6) % 7))
-        : date;
+      const groupedDate = financeTrendBucketStart(
+        new Date(item.transactedAt),
+        trendGranularity,
+      );
       const key = localDateKey(groupedDate);
       trendGroups.set(key, (trendGroups.get(key) ?? 0) + item.impactCents);
     }
     const trend = [] as FinanceListResult["overview"]["trend"];
-    if (bounds.start && bounds.end) {
-      const step = weekly ? 7 : 1;
-      let cursor = weekly
-        ? addLocalDays(bounds.start, -((bounds.start.getDay() + 6) % 7))
-        : bounds.start;
+    if (bounds.start && bounds.end && dayCount > 0) {
+      let cursor = financeTrendBucketStart(bounds.start, trendGranularity);
       while (cursor < bounds.end) {
         const key = localDateKey(cursor);
         trend.push({
           key,
-          label: formatFinanceTrendLabel(key, weekly),
+          label: formatFinanceTrendLabel(key, trendGranularity),
           impactCents: trendGroups.get(key) ?? 0,
         });
-        cursor = addLocalDays(cursor, step);
+        cursor = nextFinanceTrendBucket(cursor, trendGranularity);
       }
     }
     const categoryMap = new Map<FinanceCategory, number>();
@@ -793,8 +844,11 @@ export class ZhixuStore {
           : null,
       totalCount: sorted.length,
       range: {
-        start: bounds.start ? localDateKey(bounds.start) : null,
-        end: bounds.end ? localDateKey(addLocalDays(bounds.end, -1)) : null,
+        start: dayCount > 0 && bounds.start ? localDateKey(bounds.start) : null,
+        end:
+          dayCount > 0 && bounds.end
+            ? localDateKey(addLocalDays(bounds.end, -1))
+            : null,
       },
       rangeError: bounds.error,
       viewCounts: {

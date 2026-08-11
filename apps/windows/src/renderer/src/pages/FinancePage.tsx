@@ -50,6 +50,7 @@ import {
 import type {
   FinanceImportPreview,
   FinanceQuery,
+  FinanceTrendGranularity,
   FinanceTransactionRecord,
 } from "../../../preload/api-types";
 import { LocalDateField } from "../components/DateTimeFields";
@@ -64,6 +65,7 @@ import {
   defaultFinanceFilters,
   financeImpactTone,
   financeQueryForFilters,
+  financeTrendGranularityForFilters,
   FINANCE_VIEW_LABELS,
   formatFinanceCents,
   type FinanceFilters,
@@ -89,6 +91,16 @@ const financeViews: FinanceFilters["view"][] = [
   "all",
   "custom",
 ];
+const financeTrendGranularities: FinanceTrendGranularity[] = [
+  "day",
+  "week",
+  "month",
+];
+const financeTrendGranularityLabels: Record<FinanceTrendGranularity, string> = {
+  day: "日",
+  week: "周",
+  month: "月",
+};
 
 function yuanInput(value: string): number | undefined {
   if (!value.trim()) return undefined;
@@ -135,6 +147,7 @@ export function FinancePage({
   const [detail, setDetail] = useState<DetailEditorState | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const trendGranularity = financeTrendGranularityForFilters(filters);
 
   useEffect(() => saveFinanceFilters(filters), [filters]);
 
@@ -599,8 +612,46 @@ export function FinancePage({
                 <div className="finance-analytics-grid">
                   <section className="finance-chart-section finance-trend-chart">
                     <header>
-                      <h3>净消费趋势</h3>
-                      <span>支出为正，退款和收入为负</span>
+                      <div className="finance-chart-heading">
+                        <h3>
+                          净消费趋势（按
+                          {financeTrendGranularityLabels[trendGranularity]}）
+                        </h3>
+                        <span>
+                          {data.range.start && data.range.end
+                            ? `${data.range.start} 至 ${data.range.end} · `
+                            : ""}
+                          支出为正，退款和收入为负
+                        </span>
+                      </div>
+                      <div
+                        className="finance-trend-granularity"
+                        role="group"
+                        aria-label="趋势汇总方式"
+                      >
+                        {financeTrendGranularities.map((granularity) => (
+                          <button
+                            key={granularity}
+                            type="button"
+                            className={
+                              trendGranularity === granularity ? "active" : ""
+                            }
+                            aria-pressed={trendGranularity === granularity}
+                            aria-label={`按${financeTrendGranularityLabels[granularity]}汇总`}
+                            onClick={() =>
+                              setFilters((current) => ({
+                                ...current,
+                                trendGranularityByView: {
+                                  ...current.trendGranularityByView,
+                                  [current.view]: granularity,
+                                },
+                              }))
+                            }
+                          >
+                            {financeTrendGranularityLabels[granularity]}
+                          </button>
+                        ))}
+                      </div>
                     </header>
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart
