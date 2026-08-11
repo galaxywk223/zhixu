@@ -11,7 +11,7 @@ import { TodayPage } from "../src/renderer/src/pages/TodayPage";
 import { localDateKey } from "../src/shared/countdown";
 
 describe("today page", () => {
-  it("renders task, focus, and recent-note data and opens a selected note", async () => {
+  it("renders task, focus, memo, and countdown data", async () => {
     const now = new Date();
     const task: TaskRecord = {
       id: "today-task",
@@ -59,7 +59,6 @@ describe("today page", () => {
       ).toISOString(),
     };
     const openMemos = vi.fn();
-    const openNotes = vi.fn();
     const openCountdowns = vi.fn();
     const examDate = new Date(now);
     examDate.setDate(examDate.getDate() + 6);
@@ -95,18 +94,6 @@ describe("today page", () => {
           },
         ]),
       },
-      notes: {
-        list: vi.fn().mockResolvedValue([
-          {
-            id: "note-1",
-            title: "测试笔记",
-            contentMd: "最近整理的内容",
-            isPinned: false,
-            createdAt: now.toISOString(),
-            updatedAt: now.toISOString(),
-          },
-        ]),
-      },
       countdowns: {
         list: vi.fn().mockResolvedValue([
           {
@@ -137,7 +124,6 @@ describe("today page", () => {
             onEdit={() => undefined}
             onSearch={() => undefined}
             onOpenMemos={openMemos}
-            onOpenNotes={openNotes}
             onOpenCountdowns={openCountdowns}
           />
         </FluentProvider>
@@ -161,21 +147,12 @@ describe("today page", () => {
     expect(screen.getByText("还有 6 天")).toBeTruthy();
     expect(document.querySelector(".today-countdown-strip")).toBeTruthy();
     const countdownPanel = document.querySelector(".today-countdown-strip");
-    const notesPanel = document.querySelector(".recent-notes-panel");
-    expect(
-      Boolean(
-        countdownPanel &&
-        notesPanel &&
-        countdownPanel.compareDocumentPosition(notesPanel) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ).toBe(true);
+    expect(countdownPanel?.nextElementSibling).toBeNull();
+    expect(document.querySelector(".recent-notes-panel")).toBeNull();
     expect(screen.getByRole("heading", { name: /^今天 \/ / })).toBeTruthy();
     expect(
       screen.queryByText("聚焦今天最重要的事，稳步推进当前计划。"),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /测试笔记/ }));
-    expect(openNotes).toHaveBeenCalledWith("note-1");
     fireEvent.click(screen.getByRole("button", { name: /高优先级备忘/ }));
     expect(openMemos).toHaveBeenCalledWith("memo-high");
     fireEvent.click(screen.getByRole("button", { name: /英语六级考试/ }));

@@ -4,7 +4,6 @@ import {
   countdownDraftSchema,
   lifeEventDraftSchema,
   memoDraftSchema,
-  noteDraftSchema,
   taskBatchDraftSchema,
   taskDraftSchema,
   taskStatusSchema,
@@ -53,7 +52,6 @@ const credentialsSchema = z.object({
   password: z.string().min(8).max(72),
 });
 const emailSchema = z.string().trim().email().max(320);
-const conflictResolutionSchema = z.enum(["local", "remote", "both"]);
 const financeViewSchema = z.enum([
   "today",
   "week",
@@ -186,16 +184,6 @@ export function registerIpc(dependencies: IpcDependencies): void {
     mutation("countdowns", (id) => store.removeCountdown(idSchema.parse(id))),
   );
 
-  ipcMain.handle("notes:list", () => store.listNotes());
-  ipcMain.handle(
-    "notes:save",
-    mutation("notes", (value) => store.saveNote(noteDraftSchema.parse(value))),
-  );
-  ipcMain.handle(
-    "notes:remove",
-    mutation("notes", (id) => store.removeNote(idSchema.parse(id))),
-  );
-
   ipcMain.handle("focus:list", () => store.listFocusSessions());
   ipcMain.handle("focus:batches", () => store.listImportBatches());
   ipcMain.handle("focus:preview", () => dependencies.importer.preview());
@@ -299,13 +287,4 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle("account:sign-out", () => dependencies.sync.signOut());
   ipcMain.handle("sync:get-state", () => dependencies.sync.getState());
   ipcMain.handle("sync:run", () => dependencies.sync.run("manual"));
-  ipcMain.handle("sync:list-note-conflicts", () =>
-    dependencies.sync.listNoteConflicts(),
-  );
-  ipcMain.handle("sync:resolve-note-conflict", (_event, value) => {
-    const parsed = z
-      .object({ id: idSchema, resolution: conflictResolutionSchema })
-      .parse(value);
-    return dependencies.sync.resolveNoteConflict(parsed.id, parsed.resolution);
-  });
 }

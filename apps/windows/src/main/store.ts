@@ -4,7 +4,6 @@ import {
   countdownDraftSchema,
   lifeEventDraftSchema,
   memoDraftSchema,
-  noteDraftSchema,
   scheduleDraftSchema,
   taskBatchDraftSchema,
   taskDraftSchema,
@@ -13,7 +12,6 @@ import {
   type LifeEventDraft,
   type CountdownDraft,
   type MemoDraft,
-  type NoteDraft,
   type ScheduleDraft,
   type TaskBatchDraft,
   type TaskDraft,
@@ -35,7 +33,6 @@ import type {
   ImportResult,
   LifeEventRecord,
   MemoRecord,
-  NoteRecord,
   ScheduleBlockRecord,
   SearchHit,
   TagRecord,
@@ -1236,84 +1233,6 @@ export class ZhixuStore {
     }
   }
 
-  listNotes(): NoteRecord[] {
-    return (
-      this.db
-        .prepare(
-          "SELECT * FROM notes WHERE deleted_at IS NULL ORDER BY is_pinned DESC, updated_at DESC",
-        )
-        .all() as SqlRow[]
-    ).map((row) => ({
-      id: String(row.id),
-      title: String(row.title),
-      contentMd: String(row.content_md ?? ""),
-      isPinned: bool(row.is_pinned),
-      createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
-      updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
-    }));
-  }
-
-  saveNote(input: NoteDraft): string {
-    const draft = noteDraftSchema.parse(input);
-    const id = draft.id ?? randomUUID();
-    const now = nowSeconds();
-    const existing = this.db
-      .prepare("SELECT * FROM notes WHERE id = ?")
-      .get(id) as SqlRow | undefined;
-    const run = this.db.transaction(() => {
-      if (existing) {
-        this.db
-          .prepare(
-            `INSERT INTO note_versions (id, note_id, title, content_md, created_at, source)
-             VALUES (?, ?, ?, ?, ?, 'edit')`,
-          )
-          .run(randomUUID(), id, existing.title, existing.content_md, now);
-        this.db
-          .prepare(
-            `UPDATE notes SET title = ?, content_md = ?, is_pinned = ?, updated_at = ?, deleted_at = NULL WHERE id = ?`,
-          )
-          .run(draft.title, draft.contentMd, draft.isPinned ? 1 : 0, now, id);
-      } else {
-        this.db
-          .prepare(
-            `INSERT INTO notes
-             (id, title, content_md, is_pinned, created_at, updated_at, device_id, server_revision)
-             VALUES (?, ?, ?, ?, ?, ?, 'electron-windows', 0)`,
-          )
-          .run(
-            id,
-            draft.title,
-            draft.contentMd,
-            draft.isPinned ? 1 : 0,
-            now,
-            now,
-          );
-        this.db
-          .prepare(
-            `INSERT INTO note_versions (id, note_id, title, content_md, created_at, source)
-             VALUES (?, ?, ?, ?, ?, 'create')`,
-          )
-          .run(randomUUID(), id, draft.title, draft.contentMd, now);
-      }
-      this.enqueue(
-        "note",
-        id,
-        "upsert",
-        this.db.prepare("SELECT * FROM notes WHERE id = ?").get(id) as SqlRow,
-      );
-    });
-    run();
-    return id;
-  }
-
-  removeNote(id: string): void {
-    const now = nowSeconds();
-    this.db
-      .prepare("UPDATE notes SET deleted_at = ?, updated_at = ? WHERE id = ?")
-      .run(now, now, id);
-    this.enqueue("note", id, "delete", { id, deleted_at: now });
-  }
-
   listScheduleBlocks(startAt: string, endAt: string): ScheduleBlockRecord[] {
     return (
       this.db
@@ -2053,12 +1972,6 @@ export class ZhixuStore {
            AND (title LIKE ? ESCAPE '\\' OR description_md LIKE ? ESCAPE '\\') LIMIT 20`,
       )
       .all(pattern, pattern) as SqlRow[];
-    const noteRows = this.db
-      .prepare(
-        `SELECT id, title, substr(content_md, 1, 160) AS subtitle FROM notes
-         WHERE deleted_at IS NULL AND (title LIKE ? ESCAPE '\\' OR content_md LIKE ? ESCAPE '\\') LIMIT 20`,
-      )
-      .all(pattern, pattern) as SqlRow[];
     const focusRows = this.db
       .prepare(
         `SELECT id, task_name AS title, COALESCE(reflection, '') AS subtitle FROM focus_sessions
@@ -2075,12 +1988,6 @@ export class ZhixuStore {
       ...taskRows.map((row) => ({
         id: String(row.id),
         entityType: (row.due_at == null ? "memo" : "task") as "memo" | "task",
-        title: String(row.title),
-        subtitle: String(row.subtitle),
-      })),
-      ...noteRows.map((row) => ({
-        id: String(row.id),
-        entityType: "note" as const,
         title: String(row.title),
         subtitle: String(row.subtitle),
       })),
@@ -2189,7 +2096,6 @@ export class ZhixuStore {
       tags: "tag",
       tasks: "task",
       tag_links: "tag_link",
-      notes: "note",
       schedule_blocks: "schedule_block",
       focus_sessions: "focus_session",
       life_events: "life_event",
@@ -2318,7 +2224,6 @@ export class ZhixuStore {
       tag: "tags",
       task: "tasks",
       tag_link: "tag_links",
-      note: "notes",
       schedule_block: "schedule_blocks",
       focus_session: "focus_sessions",
       life_event: "life_events",

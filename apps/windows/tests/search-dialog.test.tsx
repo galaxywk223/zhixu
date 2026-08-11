@@ -37,8 +37,7 @@ describe("global search input", () => {
         </FluentProvider>
       </QueryClientProvider>,
     );
-    const input =
-      screen.getByPlaceholderText("搜索任务、备忘、倒数、笔记或专注事项");
+    const input = screen.getByPlaceholderText("搜索任务、备忘、倒数或专注事项");
     vi.useFakeTimers();
 
     fireEvent.compositionStart(input);

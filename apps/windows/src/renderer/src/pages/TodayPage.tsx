@@ -5,7 +5,6 @@ import {
   Add20Regular,
   CalendarClock20Regular,
   ChevronRight20Regular,
-  Note24Regular,
   NotePin20Regular,
   Search20Regular,
 } from "@fluentui/react-icons";
@@ -66,35 +65,24 @@ function daysUntil(value: string, now: Date): number {
   return Math.max(0, Math.round((dueDay - currentDay) / 86_400_000));
 }
 
-function formatNoteTime(value: string, now: Date): string {
+function formatUpdatedTime(value: string, now: Date): string {
   const date = new Date(value);
-  if (date.toDateString() === now.toDateString()) {
+  if (date.toDateString() === now.toDateString())
     return `今天 ${date.toLocaleTimeString("zh-CN", {
       hour: "2-digit",
       minute: "2-digit",
     })}`;
-  }
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
+  if (date.toDateString() === yesterday.toDateString())
     return `昨天 ${date.toLocaleTimeString("zh-CN", {
       hour: "2-digit",
       minute: "2-digit",
     })}`;
-  }
   return date.toLocaleDateString("zh-CN", {
     month: "numeric",
     day: "numeric",
   });
-}
-
-function notePreview(value: string): string {
-  return value
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/[#>*_`~|-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function memoPriorityLabel(value: number): string {
@@ -108,7 +96,6 @@ export function TodayPage(props: {
   onEdit(task: TaskRecord): void;
   onSearch(): void;
   onOpenMemos(memoId: string | null): void;
-  onOpenNotes(noteId: string | null): void;
   onOpenCountdowns(countdownId: string | null): void;
 }): React.JSX.Element {
   const client = useQueryClient();
@@ -123,10 +110,6 @@ export function TodayPage(props: {
   const tags = useQuery({
     queryKey: queryKeys.tags,
     queryFn: window.zhixu.tasks.tags,
-  });
-  const notes = useQuery({
-    queryKey: queryKeys.notes,
-    queryFn: window.zhixu.notes.list,
   });
   const memos = useQuery({
     queryKey: queryKeys.memos,
@@ -153,7 +136,6 @@ export function TodayPage(props: {
     tasks.isLoading ||
     summary.isLoading ||
     memos.isLoading ||
-    notes.isLoading ||
     countdowns.isLoading
   )
     return <Loading />;
@@ -161,11 +143,6 @@ export function TodayPage(props: {
   const now = new Date();
   const dashboard = buildTodayDashboard(tasks.data ?? [], now);
   const upcoming = dashboard.upcomingTasks.slice(0, 4);
-  const recentNotes = [...(notes.data ?? [])]
-    .sort(
-      (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
-    )
-    .slice(0, 4);
   const priorityMemos = [...(memos.data ?? [])]
     .sort(
       (left, right) =>
@@ -197,7 +174,7 @@ export function TodayPage(props: {
             icon={<Search20Regular />}
             onClick={props.onSearch}
           >
-            搜索任务、备忘、笔记…
+            搜索任务、备忘…
           </Button>
           <Button
             appearance="primary"
@@ -387,7 +364,7 @@ export function TodayPage(props: {
                     <i aria-hidden="true" />
                     <strong>{memo.title}</strong>
                     <span>{memoPriorityLabel(memo.priority)}优先级</span>
-                    <time>{formatNoteTime(memo.updatedAt, now)}</time>
+                    <time>{formatUpdatedTime(memo.updatedAt, now)}</time>
                   </button>
                 ))}
               </div>
@@ -451,49 +428,6 @@ export function TodayPage(props: {
                 暂无倒数，添加重要日期
                 <Add20Regular />
               </button>
-            )}
-          </section>
-
-          <section className="today-panel recent-notes-panel">
-            <div className="today-panel-heading">
-              <h2>最近笔记</h2>
-              <button
-                type="button"
-                className="panel-link"
-                onClick={() => props.onOpenNotes(null)}
-              >
-                查看全部
-                <ChevronRight20Regular />
-              </button>
-            </div>
-            {recentNotes.length ? (
-              <div className="recent-notes-grid">
-                {recentNotes.map((note) => (
-                  <button
-                    type="button"
-                    className="recent-note-card"
-                    key={note.id}
-                    onClick={() => props.onOpenNotes(note.id)}
-                  >
-                    <span className="note-card-icon">
-                      <Note24Regular />
-                    </span>
-                    <span className="note-card-main">
-                      <strong>{note.title}</strong>
-                      <small>{formatNoteTime(note.updatedAt, now)}</small>
-                      <span>
-                        {notePreview(note.contentMd) || "暂无正文内容"}
-                      </span>
-                    </span>
-                    {note.isPinned ? <em>置顶</em> : null}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="暂无笔记"
-                detail="最近编辑的笔记会显示在这里。"
-              />
             )}
           </section>
         </div>

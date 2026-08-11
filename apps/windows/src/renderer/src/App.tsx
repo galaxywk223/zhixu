@@ -14,7 +14,6 @@ import { CalendarPage } from "./pages/CalendarPage";
 import { CountdownsPage } from "./pages/CountdownsPage";
 import { FocusPage } from "./pages/FocusPage";
 import { FinancePage } from "./pages/FinancePage";
-import { NotesPage } from "./pages/NotesPage";
 import { MemosPage } from "./pages/MemosPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SleepPage } from "./pages/SleepPage";
@@ -45,7 +44,6 @@ export function App(): React.JSX.Element {
     initialDueDate: string | null;
   }>({ open: false, task: null, initialDueDate: null });
   const [search, setSearch] = useState(false);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
   const [selectedCountdownId, setSelectedCountdownId] = useState<string | null>(
     null,
@@ -101,7 +99,6 @@ export function App(): React.JSX.Element {
             "calendar",
             "focus",
             "sleep",
-            "notes",
             "finance",
             "settings",
           ].includes(target)
@@ -160,10 +157,6 @@ export function App(): React.JSX.Element {
           setSelectedMemoId(memoId);
           setRoute("memos");
         }}
-        onOpenNotes={(noteId) => {
-          setSelectedNoteId(noteId);
-          setRoute("notes");
-        }}
         onOpenCountdowns={(countdownId) => {
           setSelectedCountdownId(countdownId);
           setRoute("countdowns");
@@ -184,7 +177,6 @@ export function App(): React.JSX.Element {
         onPreviewChange={setFinancePreview}
       />
     ),
-    notes: <NotesPage initialSelectedId={selectedNoteId} />,
     settings: <SettingsPage initialSection={settingsInitialSection} />,
   }[route];
   return (
@@ -217,7 +209,6 @@ export function App(): React.JSX.Element {
             <Shell
               route={route}
               onRouteChange={(nextRoute) => {
-                if (nextRoute === "notes") setSelectedNoteId(null);
                 if (nextRoute === "memos") setSelectedMemoId(null);
                 if (nextRoute === "countdowns") setSelectedCountdownId(null);
                 if (nextRoute === "settings")

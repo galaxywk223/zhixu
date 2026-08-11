@@ -31,7 +31,6 @@ export function SearchDialog(props: {
     task: "tasks",
     memo: "memos",
     countdown: "countdowns",
-    note: "notes",
     focus: "focus",
   } as const;
   return (
@@ -49,7 +48,7 @@ export function SearchDialog(props: {
               autoFocus
               size="large"
               contentBefore={<Search24Regular />}
-              placeholder="搜索任务、备忘、倒数、笔记或专注事项"
+              placeholder="搜索任务、备忘、倒数或专注事项"
               value={search.value}
               onChange={(_, data) => search.change(data.value)}
               onCompositionStart={search.compositionStart}
@@ -75,9 +74,7 @@ export function SearchDialog(props: {
                         ? "备忘"
                         : result.entityType === "countdown"
                           ? "倒数"
-                          : result.entityType === "note"
-                            ? "笔记"
-                            : "专注"}
+                          : "专注"}
                   </span>
                   <strong>{result.title}</strong>
                   <small>{result.subtitle}</small>

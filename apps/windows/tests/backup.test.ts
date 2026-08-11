@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type Database from "better-sqlite3";
 import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { initializeDatabase } from "../src/main/database";
@@ -26,6 +27,7 @@ function setup(): {
   root: string;
   service: BackupService;
   store: ZhixuStore;
+  db: Database.Database;
   close(): void;
 } {
   const root = mkdtempSync(join(tmpdir(), "zhixu-backup-test-"));
@@ -40,6 +42,7 @@ function setup(): {
     root,
     service: new BackupService(store, "0.2.0"),
     store,
+    db: context.db,
     close: () => context.db.close(),
   };
 }
@@ -233,6 +236,54 @@ describe("backup compatibility", () => {
       note: "保留人工备注",
       impactCents: 1880,
     });
+    source.close();
+    target.close();
+  });
+
+  it("preserves legacy notes and versions without rebuilding note outbox", async () => {
+    const source = setup();
+    source.db
+      .prepare(
+        `INSERT INTO notes
+         (id, title, content_md, notebook_id, is_pinned, created_at, updated_at,
+          deleted_at, device_id, server_revision)
+         VALUES ('legacy-note', '历史笔记', '保留正文', NULL, 0, 1, 2, 3,
+          'legacy-device', 4)`,
+      )
+      .run();
+    source.db
+      .prepare(
+        `INSERT INTO note_versions
+         (id, note_id, title, content_md, created_at, source)
+         VALUES ('legacy-version', 'legacy-note', '历史版本', '版本正文', 1, 'edit')`,
+      )
+      .run();
+
+    const backupPath = await source.service.createAutomaticBackup(
+      join(source.root, "automatic-notes"),
+    );
+    const target = setup();
+    await target.service.restoreFromPath(backupPath);
+
+    expect(
+      target.db.prepare("SELECT * FROM notes WHERE id = 'legacy-note'").get(),
+    ).toMatchObject({
+      title: "历史笔记",
+      content_md: "保留正文",
+      deleted_at: 3,
+    });
+    expect(
+      target.db
+        .prepare("SELECT * FROM note_versions WHERE id = 'legacy-version'")
+        .get(),
+    ).toMatchObject({ title: "历史版本", content_md: "版本正文" });
+    expect(
+      target.db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM sync_outbox WHERE entity_type = 'note'",
+        )
+        .get(),
+    ).toEqual({ count: 0 });
     source.close();
     target.close();
   });

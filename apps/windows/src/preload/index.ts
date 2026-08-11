@@ -44,11 +44,6 @@ const api: ZhixuApi = {
     save: (draft) => ipcRenderer.invoke("countdowns:save", draft),
     remove: (id) => ipcRenderer.invoke("countdowns:remove", id),
   },
-  notes: {
-    list: () => ipcRenderer.invoke("notes:list"),
-    save: (draft) => ipcRenderer.invoke("notes:save", draft),
-    remove: (id) => ipcRenderer.invoke("notes:remove", id),
-  },
   focus: {
     list: () => ipcRenderer.invoke("focus:list"),
     batches: () => ipcRenderer.invoke("focus:batches"),
@@ -102,9 +97,6 @@ const api: ZhixuApi = {
   sync: {
     getState: () => ipcRenderer.invoke("sync:get-state"),
     run: () => ipcRenderer.invoke("sync:run"),
-    listNoteConflicts: () => ipcRenderer.invoke("sync:list-note-conflicts"),
-    resolveNoteConflict: (id, resolution) =>
-      ipcRenderer.invoke("sync:resolve-note-conflict", { id, resolution }),
     onState: (listener) => subscription("sync:state", listener),
   },
 };

@@ -7,11 +7,7 @@ import {
   type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
-import type {
-  NoteConflictRecord,
-  NoteConflictResolution,
-  SyncState,
-} from "../../preload/api-types";
+import type { SyncState } from "../../preload/api-types";
 import type { BackupService } from "./backup";
 import { canUseBoundWorkspace } from "../../shared/account-access";
 import { EncryptedSessionStorage } from "./secure-storage";
@@ -89,7 +85,6 @@ export class SyncService {
       boundEmail: options.repository.getBinding()?.email ?? null,
       lastSyncedAt: options.repository.getBinding()?.lastSyncedAt ?? null,
       pendingCount: options.repository.pendingCount(),
-      conflictCount: options.repository.conflictCount(),
       message: configured
         ? "登录后可在设备之间同步数据。"
         : "未配置 Supabase，当前继续使用本地数据。",
@@ -128,7 +123,6 @@ export class SyncService {
       boundEmail: binding?.email ?? null,
       lastSyncedAt: binding?.lastSyncedAt ?? null,
       pendingCount: this.options.repository.pendingCount(),
-      conflictCount: this.options.repository.conflictCount(),
     };
   }
 
@@ -269,29 +263,6 @@ export class SyncService {
     return this.runPromise;
   }
 
-  listNoteConflicts(): NoteConflictRecord[] {
-    return this.options.repository.listConflicts();
-  }
-
-  async resolveNoteConflict(
-    id: string,
-    resolution: NoteConflictResolution,
-  ): Promise<void> {
-    const client = this.requireClient();
-    const serverConflictId = this.options.repository.serverConflictId(id);
-    if (serverConflictId) {
-      const { error } = await client.rpc("resolve_note_conflict", {
-        conflict_id: serverConflictId,
-        resolution,
-      });
-      if (error) throw new Error(error.message);
-    }
-    this.options.repository.resolveConflict(id, resolution);
-    this.options.notifyDataChanged();
-    this.requestSync(0);
-    this.emit();
-  }
-
   private async performSync(): Promise<SyncState> {
     const client = this.requireClient();
     if (!this.user) throw new Error("请先登录账号");
@@ -374,14 +345,8 @@ export class SyncService {
       for (const operation of operations) {
         const result = byId.get(operation.operationId);
         if (!result) throw new Error("云端未返回完整的同步确认");
-        if (result.conflict) {
-          this.options.repository.recordServerConflict(operation, {
-            id: String(result.conflict_id),
-            remoteRevision: Number(result.remote_revision ?? 0),
-            remotePayload: result.remote_payload ?? {},
-          });
-          continue;
-        }
+        if (result.conflict)
+          throw new Error("云端返回了当前客户端不支持的同步冲突");
         if (!result.applied && result.remote_payload) {
           this.options.repository.applyChanges([
             {

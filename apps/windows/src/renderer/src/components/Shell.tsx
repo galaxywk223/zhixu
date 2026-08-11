@@ -5,7 +5,6 @@ import {
   CalendarClock24Regular,
   CheckmarkSquare24Regular,
   Home24Regular,
-  Note24Regular,
   NotePinRegular,
   Money24Regular,
   PanelLeftContract24Regular,
@@ -26,7 +25,6 @@ export type Route =
   | "focus"
   | "sleep"
   | "finance"
-  | "notes"
   | "settings";
 
 const navigation = [
@@ -59,11 +57,6 @@ const navigation = [
     route: "countdowns" as const,
     label: "倒数",
     icon: <CalendarClock24Regular />,
-  },
-  {
-    route: "notes" as const,
-    label: "笔记",
-    icon: <Note24Regular />,
   },
   {
     route: "sleep" as const,

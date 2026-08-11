@@ -8,7 +8,6 @@ export const queryKeys = {
   countdowns: ["countdowns"] as const,
   categories: ["task-categories"] as const,
   tags: ["tags"] as const,
-  notes: ["notes"] as const,
   focus: ["focus"] as const,
   batches: ["import-batches"] as const,
   finance: ["finance"] as const,
@@ -18,7 +17,6 @@ export const queryKeys = {
   settings: ["settings"] as const,
   updates: ["updates"] as const,
   sync: ["sync"] as const,
-  noteConflicts: ["note-conflicts"] as const,
 };
 
 export function useDataInvalidation(): void {
@@ -35,7 +33,6 @@ export function useDataInvalidation(): void {
           ],
           memos: [queryKeys.memos, queryKeys.summary],
           countdowns: [queryKeys.countdowns],
-          notes: [queryKeys.notes],
           focus: [
             queryKeys.focus,
             queryKeys.batches,

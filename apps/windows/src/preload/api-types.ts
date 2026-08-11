@@ -2,7 +2,6 @@ import type {
   CountdownDraft,
   LifeEventDraft,
   MemoDraft,
-  NoteDraft,
   TaskBatchDraft,
   TaskDraft,
   ThemeMode,
@@ -72,15 +71,6 @@ export interface TagRecord {
   name: string;
   colorHex: string;
   isArchived: boolean;
-}
-
-export interface NoteRecord {
-  id: string;
-  title: string;
-  contentMd: string;
-  isPinned: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface ScheduleBlockRecord {
@@ -372,7 +362,7 @@ export interface DashboardSummary {
 
 export interface SearchHit {
   id: string;
-  entityType: "task" | "memo" | "countdown" | "note" | "focus";
+  entityType: "task" | "memo" | "countdown" | "focus";
   title: string;
   subtitle: string;
 }
@@ -428,23 +418,8 @@ export interface SyncState {
   boundEmail: string | null;
   lastSyncedAt: string | null;
   pendingCount: number;
-  conflictCount: number;
   message: string | null;
 }
-
-export interface NoteConflictRecord {
-  id: string;
-  noteId: string;
-  localTitle: string;
-  localContentMd: string;
-  localUpdatedAt: string | null;
-  remoteTitle: string;
-  remoteContentMd: string;
-  remoteUpdatedAt: string | null;
-  createdAt: string;
-}
-
-export type NoteConflictResolution = "local" | "remote" | "both";
 
 export interface ZhixuApi {
   app: {
@@ -480,11 +455,6 @@ export interface ZhixuApi {
   countdowns: {
     list(): Promise<CountdownRecord[]>;
     save(draft: CountdownDraft): Promise<string>;
-    remove(id: string): Promise<void>;
-  };
-  notes: {
-    list(): Promise<NoteRecord[]>;
-    save(draft: NoteDraft): Promise<string>;
     remove(id: string): Promise<void>;
   };
   focus: {
@@ -541,11 +511,6 @@ export interface ZhixuApi {
   sync: {
     getState(): Promise<SyncState>;
     run(): Promise<SyncState>;
-    listNoteConflicts(): Promise<NoteConflictRecord[]>;
-    resolveNoteConflict(
-      id: string,
-      resolution: NoteConflictResolution,
-    ): Promise<void>;
     onState(listener: (state: SyncState) => void): () => void;
   };
 }

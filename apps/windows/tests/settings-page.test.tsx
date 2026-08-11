@@ -69,7 +69,6 @@ function renderSettings(options?: {
     boundEmail: "user@example.com",
     lastSyncedAt: "2026-08-10T04:00:00.000Z",
     pendingCount: 0,
-    conflictCount: 0,
     message: "同步完成",
   });
   const api = {
@@ -116,12 +115,9 @@ function renderSettings(options?: {
         boundEmail: "user@example.com",
         lastSyncedAt: "2026-08-10T04:00:00.000Z",
         pendingCount: 0,
-        conflictCount: 0,
         message: "本地与云端数据已同步。",
       }),
       run: runSync,
-      listNoteConflicts: vi.fn().mockResolvedValue([]),
-      resolveNoteConflict: vi.fn(),
       onState: vi.fn().mockReturnValue(() => undefined),
     },
     updates: {

@@ -90,13 +90,6 @@ export const countdownDraftSchema = z.object({
   note: z.string().max(10_000).nullable().default(null),
 });
 
-export const noteDraftSchema = z.object({
-  id: z.string().min(1).optional(),
-  title: z.string().trim().min(1).max(300),
-  contentMd: z.string().max(2_000_000),
-  isPinned: z.boolean().default(false),
-});
-
 export const scheduleDraftSchema = z
   .object({
     id: z.string().min(1).optional(),
@@ -166,7 +159,6 @@ export type MemoDraft = Omit<z.infer<typeof memoDraftSchema>, "priority"> & {
 };
 export type CountdownDraft = z.infer<typeof countdownDraftSchema>;
 export type RecurrenceFrequency = z.infer<typeof recurrenceFrequencySchema>;
-export type NoteDraft = z.infer<typeof noteDraftSchema>;
 export type ScheduleDraft = z.infer<typeof scheduleDraftSchema>;
 export type LifeEventDraft = z.infer<typeof lifeEventDraftSchema>;
 export type SyncOperation = z.infer<typeof syncOperationSchema>;

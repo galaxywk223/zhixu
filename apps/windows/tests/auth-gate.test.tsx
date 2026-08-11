@@ -26,7 +26,6 @@ function state(patch: Partial<SyncState> = {}): SyncState {
     boundEmail: null,
     lastSyncedAt: null,
     pendingCount: 0,
-    conflictCount: 0,
     message: null,
     ...patch,
   };

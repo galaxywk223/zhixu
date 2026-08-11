@@ -1476,93 +1476,6 @@ button {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.notes-workspace {
-  display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  flex: 1;
-  min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
-.note-list {
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  overflow: auto;
-}
-.note-list button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-height: 58px;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 10px 12px;
-  color: var(--text);
-  background: transparent;
-  text-align: left;
-}
-.note-list button:hover,
-.note-list button.active {
-  background: var(--accentSoft);
-}
-.note-list small {
-  color: var(--muted);
-  font-size: var(--font-caption);
-}
-.note-editor {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-.note-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px;
-  border-bottom: 1px solid var(--border);
-}
-.note-toolbar .fui-Input {
-  flex: 1;
-}
-.pin-control {
-  display: flex;
-  gap: 4px;
-  font-size: var(--font-caption);
-}
-.markdown-editor {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  border: 0 !important;
-  border-radius: 0 !important;
-}
-.markdown-editor textarea {
-  height: 100%;
-  font-family: "Cascadia Code", "Consolas", monospace;
-  line-height: 1.7;
-  padding: 18px;
-}
-.markdown-preview {
-  overflow: auto;
-  padding: 18px 28px;
-  line-height: 1.75;
-}
-.markdown-preview img {
-  max-width: 100%;
-}
-.markdown-preview pre {
-  overflow: auto;
-  background: var(--surface2);
-  padding: 12px;
-  border-radius: 4px;
-}
 .import-preview-dialog {
   width: min(820px, calc(100vw - 40px));
   max-width: none;
@@ -2125,83 +2038,6 @@ button {
 .account-dialog {
   width: min(500px, calc(100vw - 32px));
 }
-.conflict-dialog {
-  width: min(1040px, calc(100vw - 32px));
-  max-width: 1040px;
-}
-.conflict-dialog-content {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 14px;
-  min-height: 420px;
-  max-height: min(68vh, 680px);
-  overflow: hidden;
-}
-.conflict-list {
-  display: flex;
-  min-width: 0;
-  padding-right: 10px;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-  border-right: 1px solid var(--border);
-}
-.conflict-list button {
-  min-height: 38px;
-  padding: 8px 10px;
-  overflow: hidden;
-  color: var(--text);
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.conflict-list button:hover,
-.conflict-list button.active {
-  background: var(--accentSoft);
-}
-.conflict-comparison {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  min-width: 0;
-  overflow: hidden;
-}
-.conflict-version {
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-  padding: 14px;
-  flex-direction: column;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-.conflict-version header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--muted);
-}
-.conflict-version h3 {
-  margin: 14px 0 8px;
-  font-size: var(--font-prominent);
-}
-.conflict-version pre {
-  min-height: 0;
-  margin: 0;
-  flex: 1;
-  overflow: auto;
-  color: var(--text);
-  font: inherit;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
 @container settings-panel (max-width: 620px) {
   .setting-row {
     grid-template-columns: minmax(0, 1fr);
@@ -2213,26 +2049,6 @@ button {
   }
   .settings-details > div {
     grid-template-columns: 110px minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 760px) {
-  .conflict-dialog-content {
-    grid-template-columns: minmax(0, 1fr);
-    overflow-y: auto;
-  }
-  .conflict-list {
-    max-height: 120px;
-    padding: 0 0 10px;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .conflict-comparison {
-    grid-template-columns: minmax(0, 1fr);
-    overflow: visible;
-  }
-  .conflict-version {
-    min-height: 260px;
   }
 }
 
@@ -2285,8 +2101,7 @@ button {
   grid-template-areas:
     "tasks upcoming"
     "progress memos"
-    "countdown countdown"
-    "notes notes";
+    "countdown countdown";
   gap: 16px;
   align-items: stretch;
 }
@@ -2314,9 +2129,6 @@ button {
 }
 .today-countdown-strip {
   grid-area: countdown;
-}
-.recent-notes-panel {
-  grid-area: notes;
 }
 .today-panel-heading {
   display: flex;
@@ -2630,17 +2442,6 @@ button {
   font-size: var(--font-caption);
   white-space: nowrap;
 }
-.recent-notes-panel {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  padding-bottom: 14px;
-}
-.recent-notes-panel .today-panel-heading {
-  min-height: 45px;
-  padding-inline: 2px;
-  border-bottom: 0;
-}
 .panel-link {
   display: flex;
   align-items: center;
@@ -2651,73 +2452,6 @@ button {
   background: transparent;
   border: 0;
   font-size: var(--font-caption);
-}
-.recent-notes-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  padding: 0;
-}
-.recent-note-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 10px;
-  min-width: 0;
-  min-height: 112px;
-  padding: 13px;
-  color: var(--text);
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  text-align: left;
-}
-.recent-note-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: var(--accentSoft);
-}
-.note-card-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  color: var(--accent);
-  background: var(--accentSoft);
-  border-radius: 4px;
-}
-.note-card-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.note-card-main strong {
-  overflow: hidden;
-  padding-right: 26px;
-  font-size: var(--font-body);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.note-card-main small {
-  margin: 2px 0 7px;
-  color: var(--muted);
-  font-size: var(--font-caption);
-}
-.note-card-main > span {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: var(--font-caption);
-  line-height: 1.5;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-.recent-note-card em {
-  position: absolute;
-  top: 12px;
-  right: 10px;
-  color: var(--accent);
-  font-size: var(--font-caption);
-  font-style: normal;
 }
 
 .focus-page,
@@ -4582,8 +4316,6 @@ button {
 .countdown-workspace-scroll,
 .settings-workspace-scroll,
 .today-workspace-scroll,
-.note-list,
-.markdown-preview,
 .sleep-records,
 .event-list {
   scrollbar-width: thin;
@@ -4603,8 +4335,6 @@ button {
 .countdown-workspace-scroll::-webkit-scrollbar,
 .settings-workspace-scroll::-webkit-scrollbar,
 .today-workspace-scroll::-webkit-scrollbar,
-.note-list::-webkit-scrollbar,
-.markdown-preview::-webkit-scrollbar,
 .sleep-records::-webkit-scrollbar,
 .event-list::-webkit-scrollbar {
   width: 8px;
@@ -4623,8 +4353,6 @@ button {
 .countdown-workspace-scroll::-webkit-scrollbar-thumb,
 .settings-workspace-scroll::-webkit-scrollbar-thumb,
 .today-workspace-scroll::-webkit-scrollbar-thumb,
-.note-list::-webkit-scrollbar-thumb,
-.markdown-preview::-webkit-scrollbar-thumb,
 .sleep-records::-webkit-scrollbar-thumb,
 .event-list::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--muted) 45%, transparent);
@@ -5497,8 +5225,7 @@ button {
       "upcoming"
       "progress"
       "memos"
-      "countdown"
-      "notes";
+      "countdown";
   }
   .today-memo-panel {
     min-height: 205px;
@@ -5538,9 +5265,6 @@ button {
   }
   .today-task-panel .task-row-today .task-today-estimate {
     display: none;
-  }
-  .notes-workspace {
-    grid-template-columns: 210px minmax(0, 1fr);
   }
   .calendar-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5611,9 +5335,6 @@ button {
   }
   .today-progress-grid > div:last-child {
     border-bottom: 0;
-  }
-  .recent-notes-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .focus-workspace-header,
   .sleep-workspace-header,
