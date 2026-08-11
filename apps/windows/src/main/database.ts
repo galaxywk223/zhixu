@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { MigrationReport } from "../preload/api-types";
 
-export const SCHEMA_VERSION = 9 as const;
+export const SCHEMA_VERSION = 10 as const;
 
 const preservedTables = [
   "tasks",
@@ -22,6 +22,7 @@ const preservedTables = [
   "countdowns",
   "finance_transactions",
   "finance_import_batches",
+  "daily_quotes",
   "import_batches",
   "import_batch_changes",
 ] as const;
@@ -382,6 +383,19 @@ function createSchema(db: Database.Database): void {
       error_count INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS daily_quotes (
+      id TEXT PRIMARY KEY NOT NULL,
+      text TEXT NOT NULL,
+      local_date TEXT NOT NULL,
+      reaction TEXT NOT NULL DEFAULT 'none'
+        CHECK(reaction IN ('none', 'favorite', 'disliked')),
+      generated_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      device_id TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0
+    );
     CREATE TABLE IF NOT EXISTS import_batches (
       id TEXT PRIMARY KEY NOT NULL,
       source TEXT NOT NULL,
@@ -474,7 +488,7 @@ function createSchema(db: Database.Database): void {
   `);
 }
 
-function migrateToV9(db: Database.Database, fromVersion: number): void {
+function migrateToV10(db: Database.Database, fromVersion: number): void {
   if (fromVersion > SCHEMA_VERSION)
     throw new Error(`数据库版本 ${fromVersion} 高于客户端支持版本`);
   const run = db.transaction(() => {
@@ -574,7 +588,11 @@ function migrateToV9(db: Database.Database, fromVersion: number): void {
         ON finance_transactions(transacted_at) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS finance_transactions_category_idx
         ON finance_transactions(category) WHERE deleted_at IS NULL;
-      PRAGMA user_version = 9;
+      CREATE INDEX IF NOT EXISTS daily_quotes_date_idx
+        ON daily_quotes(local_date, generated_at DESC) WHERE deleted_at IS NULL;
+      CREATE INDEX IF NOT EXISTS daily_quotes_reaction_idx
+        ON daily_quotes(reaction, updated_at DESC) WHERE deleted_at IS NULL;
+      PRAGMA user_version = 10;
     `);
   });
   run();
@@ -620,7 +638,7 @@ export function initializeDatabase(
     db.pragma("busy_timeout = 5000");
     const fromVersion = Number(db.pragma("user_version", { simple: true }));
     const before = snapshot(db);
-    migrateToV9(db, fromVersion);
+    migrateToV10(db, fromVersion);
     verifySnapshot(before, db);
     const integrity = String(db.pragma("integrity_check", { simple: true }));
     if (integrity !== "ok")

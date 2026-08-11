@@ -24,7 +24,8 @@
         "focus_session",
         "life_event",
         "countdown",
-        "finance_transaction"
+        "finance_transaction",
+        "daily_quote"
       ]
     },
     "entityId": { "type": "string", "minLength": 1 },

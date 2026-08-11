@@ -44,6 +44,13 @@ const api: ZhixuApi = {
     save: (draft) => ipcRenderer.invoke("countdowns:save", draft),
     remove: (id) => ipcRenderer.invoke("countdowns:remove", id),
   },
+  quotes: {
+    today: () => ipcRenderer.invoke("quotes:today"),
+    dislike: (id) => ipcRenderer.invoke("quotes:dislike", id),
+    setFavorite: (input) => ipcRenderer.invoke("quotes:set-favorite", input),
+    favorites: () => ipcRenderer.invoke("quotes:favorites"),
+    retry: () => ipcRenderer.invoke("quotes:retry"),
+  },
   focus: {
     list: () => ipcRenderer.invoke("focus:list"),
     batches: () => ipcRenderer.invoke("focus:batches"),

@@ -20,6 +20,7 @@ import {
   loadDeviceId,
 } from "./services/secure-storage";
 import { SyncService } from "./services/sync";
+import { DailyQuoteService } from "./services/daily-quotes";
 import { SyncRepository } from "./services/sync-repository";
 import { FinanceImportService } from "./services/finance-import";
 import { TomatoImportService } from "./services/tomato-import";
@@ -200,7 +201,7 @@ else {
         const focusSessions = store.listFocusSessions();
         process.stdout.write(
           `${JSON.stringify({
-            schemaVersion: 9,
+            schemaVersion: 10,
             integrity: store.integrityCheck(),
             migration: context.report,
             counts: store.entityCounts(),
@@ -232,6 +233,7 @@ else {
         notifyDataChanged: () =>
           mainWindow?.webContents.send("app:data-changed", "all"),
       });
+      const dailyQuotes = new DailyQuoteService(store, syncService);
       store.setOutboxChangedListener(() => syncService?.requestSync());
       const projectRoot = resolve(__dirname, "../../../..");
       const importer = new TomatoImportService(
@@ -250,6 +252,7 @@ else {
         financeImporter,
         updates,
         sync: syncService,
+        dailyQuotes,
         packaged: app.isPackaged,
         applyUiScale: (uiScale) => {
           currentUiScale = uiScale;

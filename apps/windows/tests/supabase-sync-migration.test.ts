@@ -24,6 +24,17 @@ const financeMigration = readFileSync(
   ),
   "utf8",
 );
+const quoteMigration = readFileSync(
+  resolve(
+    __dirname,
+    "../../../supabase/migrations/202608110010_daily_quotes.sql",
+  ),
+  "utf8",
+);
+const quoteFunction = readFileSync(
+  resolve(__dirname, "../../../supabase/functions/daily-quote/index.ts"),
+  "utf8",
+);
 const syncService = readFileSync(
   resolve(__dirname, "../src/main/services/sync.ts"),
   "utf8",
@@ -96,6 +107,22 @@ describe("Supabase sync migration", () => {
     );
     expect(financeMigration).toContain("'finance_transaction', coalesce");
     expect(contract).toContain('"finance_transaction"');
+  });
+
+  it("adds protected daily quotes without exposing the model key", () => {
+    expect(quoteMigration).toContain(
+      "create table if not exists public.daily_quotes",
+    );
+    expect(quoteMigration).toContain("create policy daily_quotes_owner_policy");
+    expect(quoteMigration).toContain("'daily_quote'");
+    expect(quoteMigration).toContain(
+      "public.zhixu_apply_operation_v9(operation)",
+    );
+    expect(quoteMigration).toContain("public.sync_snapshot_v9()");
+    expect(contract).toContain('"daily_quote"');
+    expect(quoteFunction).toContain('Deno.env.get("DEEPSEEK_API_KEY")');
+    expect(quoteFunction).toContain("supabase.auth.getUser(token)");
+    expect(quoteFunction).not.toContain("sb_publishable_");
   });
 
   it("catches background failures while preserving manual sync errors", () => {

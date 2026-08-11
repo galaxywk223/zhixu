@@ -20,6 +20,8 @@ import type {
   AppSettings,
   CategoryRecord,
   CountdownRecord,
+  DailyQuoteReaction,
+  DailyQuoteRecord,
   DashboardSummary,
   FocusSessionRecord,
   FinanceImportBatchRecord,
@@ -76,6 +78,7 @@ const dataTables = [
   "countdowns",
   "finance_transactions",
   "finance_import_batches",
+  "daily_quotes",
   "import_batches",
   "import_batch_changes",
 ] as const;
@@ -189,6 +192,17 @@ function asCountdown(row: SqlRow): CountdownRecord {
     targetDate: String(row.target_date),
     note: row.note == null ? null : String(row.note),
     createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+    updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
+  };
+}
+
+function asDailyQuote(row: SqlRow): DailyQuoteRecord {
+  return {
+    id: String(row.id),
+    text: String(row.text),
+    localDate: String(row.local_date),
+    reaction: String(row.reaction) as DailyQuoteReaction,
+    generatedAt: toIso(row.generated_at) ?? new Date(0).toISOString(),
     updatedAt: toIso(row.updated_at) ?? new Date(0).toISOString(),
   };
 }
@@ -660,6 +674,105 @@ export class ZhixuStore {
       )
       .run(now, now, id);
     this.enqueue("countdown", id, "delete", { id, deleted_at: now });
+  }
+
+  getDailyQuote(localDate: string): DailyQuoteRecord | null {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM daily_quotes
+         WHERE local_date = ? AND reaction <> 'disliked' AND deleted_at IS NULL
+         ORDER BY generated_at DESC, id DESC LIMIT 1`,
+      )
+      .get(localDate) as SqlRow | undefined;
+    return row ? asDailyQuote(row) : null;
+  }
+
+  getDailyQuoteById(id: string): DailyQuoteRecord | null {
+    const row = this.db
+      .prepare("SELECT * FROM daily_quotes WHERE id = ? AND deleted_at IS NULL")
+      .get(id) as SqlRow | undefined;
+    return row ? asDailyQuote(row) : null;
+  }
+
+  listFavoriteQuotes(limit = 500): DailyQuoteRecord[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM daily_quotes
+           WHERE reaction = 'favorite' AND deleted_at IS NULL
+           ORDER BY updated_at DESC, generated_at DESC LIMIT ?`,
+        )
+        .all(Math.max(1, Math.min(2_000, limit))) as SqlRow[]
+    ).map(asDailyQuote);
+  }
+
+  listDislikedQuotes(limit = 40): DailyQuoteRecord[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM daily_quotes
+           WHERE reaction = 'disliked' AND deleted_at IS NULL
+           ORDER BY updated_at DESC LIMIT ?`,
+        )
+        .all(Math.max(1, Math.min(200, limit))) as SqlRow[]
+    ).map(asDailyQuote);
+  }
+
+  listRecentQuotes(limit = 60): DailyQuoteRecord[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM daily_quotes WHERE deleted_at IS NULL
+           ORDER BY generated_at DESC LIMIT ?`,
+        )
+        .all(Math.max(1, Math.min(500, limit))) as SqlRow[]
+    ).map(asDailyQuote);
+  }
+
+  saveGeneratedQuote(text: string, localDate: string): DailyQuoteRecord {
+    const id = randomUUID();
+    const latest = this.db
+      .prepare("SELECT MAX(generated_at) AS value FROM daily_quotes")
+      .get() as { value: number | null };
+    const now = Math.max(nowSeconds(), Number(latest.value ?? 0) + 1);
+    const row: SqlRow = {
+      id,
+      text,
+      local_date: localDate,
+      reaction: "none",
+      generated_at: now,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      device_id: this.deviceId,
+      server_revision: 0,
+    };
+    this.db.transaction(() => {
+      this.insertObject("daily_quotes", row);
+      this.enqueue("daily_quote", id, "upsert", row);
+    })();
+    return asDailyQuote(row);
+  }
+
+  setDailyQuoteReaction(id: string, reaction: DailyQuoteReaction): void {
+    const current = this.getDailyQuoteById(id);
+    if (!current) throw new Error("格言不存在");
+    if (current.reaction === "disliked" && reaction !== "disliked")
+      throw new Error("不喜欢的格言不能重新收藏");
+    if (current.reaction === reaction) return;
+    const currentUpdated = Math.floor(Date.parse(current.updatedAt) / 1000);
+    const now = Math.max(nowSeconds(), currentUpdated + 1);
+    this.db.transaction(() => {
+      this.db
+        .prepare(
+          "UPDATE daily_quotes SET reaction = ?, updated_at = ? WHERE id = ?",
+        )
+        .run(reaction, now, id);
+      const row = this.db
+        .prepare("SELECT * FROM daily_quotes WHERE id = ?")
+        .get(id) as SqlRow;
+      this.enqueue("daily_quote", id, "upsert", row);
+    })();
   }
 
   listFinance(input: FinanceQuery): FinanceListResult {
@@ -2101,6 +2214,7 @@ export class ZhixuStore {
       life_events: "life_event",
       countdowns: "countdown",
       finance_transactions: "finance_transaction",
+      daily_quotes: "daily_quote",
     } as const;
     const now = nowSeconds();
     const run = this.db.transaction(() => {
@@ -2229,6 +2343,7 @@ export class ZhixuStore {
       life_event: "life_events",
       countdown: "countdowns",
       finance_transaction: "finance_transactions",
+      daily_quote: "daily_quotes",
     }[entityType];
     if (table)
       this.db

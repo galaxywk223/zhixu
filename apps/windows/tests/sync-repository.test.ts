@@ -227,6 +227,47 @@ describe("sync repository", () => {
     close();
   });
 
+  it("syncs daily quote feedback as an active entity", () => {
+    const { store, repository, close } = setup();
+    const quote = store.saveGeneratedQuote(
+      "把今天走稳，远方自然会近。",
+      "2026-08-11",
+    );
+    store.setDailyQuoteReaction(quote.id, "favorite");
+    expect(repository.listPending()[0]).toMatchObject({
+      entityType: "daily_quote",
+      entityId: quote.id,
+      payload: expect.objectContaining({ reaction: "favorite" }),
+    });
+
+    repository.applyChanges([
+      {
+        revision: 21,
+        entity_type: "daily_quote",
+        entity_id: "remote-quote",
+        operation: "upsert",
+        payload: {
+          id: "remote-quote",
+          text: "慢一点，才能听见真正重要的声音。",
+          local_date: "2026-08-10",
+          reaction: "disliked",
+          generated_at: "2026-08-10T00:00:00.000Z",
+          created_at: "2026-08-10T00:00:00.000Z",
+          updated_at: "2026-08-10T01:00:00.000Z",
+          deleted_at: null,
+          device_id: "remote",
+          server_revision: 21,
+        },
+      },
+    ]);
+    expect(store.listDislikedQuotes()[0]).toMatchObject({
+      id: "remote-quote",
+      reaction: "disliked",
+    });
+    expect(repository.cursor()).toBe(21);
+    close();
+  });
+
   it("ignores remote note changes while advancing the global cursor", () => {
     const { repository, db, close } = setup();
     insertLegacyNote(db, "legacy-note", "保留本地笔记");

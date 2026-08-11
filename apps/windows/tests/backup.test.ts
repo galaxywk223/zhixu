@@ -185,7 +185,7 @@ describe("backup compatibility", () => {
     target.close();
   });
 
-  it("writes schema 8 automatic backups with finance transactions", async () => {
+  it("writes schema 9 automatic backups with finance transactions and quotes", async () => {
     const source = setup();
     source.store.restoreData({
       finance_transactions: [
@@ -219,6 +219,11 @@ describe("backup compatibility", () => {
         },
       ],
     });
+    const quote = source.store.saveGeneratedQuote(
+      "把今天走稳，远方自然会近。",
+      "2026-08-11",
+    );
+    source.store.setDailyQuoteReaction(quote.id, "favorite");
     const backupPath = await source.service.createAutomaticBackup(
       join(source.root, "automatic"),
     );
@@ -226,8 +231,9 @@ describe("backup compatibility", () => {
     const manifest = JSON.parse(
       await zip.file("manifest.json")!.async("string"),
     ) as { schemaVersion: number; entityCounts: Record<string, number> };
-    expect(manifest.schemaVersion).toBe(8);
+    expect(manifest.schemaVersion).toBe(9);
     expect(manifest.entityCounts.finance_transactions).toBe(1);
+    expect(manifest.entityCounts.daily_quotes).toBe(1);
 
     const target = setup();
     await target.service.restoreFromPath(backupPath);
@@ -236,6 +242,12 @@ describe("backup compatibility", () => {
       note: "保留人工备注",
       impactCents: 1880,
     });
+    expect(target.store.listFavoriteQuotes()).toEqual([
+      expect.objectContaining({
+        text: "把今天走稳，远方自然会近。",
+        reaction: "favorite",
+      }),
+    ]);
     source.close();
     target.close();
   });

@@ -14,6 +14,7 @@ const entityTables = {
   life_event: "life_events",
   countdown: "countdowns",
   finance_transaction: "finance_transactions",
+  daily_quote: "daily_quotes",
 } as const;
 
 export type SyncEntityType = keyof typeof entityTables;

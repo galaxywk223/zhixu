@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
   DashboardSummary,
@@ -60,6 +60,7 @@ describe("today page", () => {
     };
     const openMemos = vi.fn();
     const openCountdowns = vi.fn();
+    const setFavorite = vi.fn().mockResolvedValue(undefined);
     const examDate = new Date(now);
     examDate.setDate(examDate.getDate() + 6);
     const api = {
@@ -106,6 +107,27 @@ describe("today page", () => {
           },
         ]),
       },
+      quotes: {
+        today: vi.fn().mockResolvedValue({
+          id: "quote-1",
+          text: "把今天走稳，远方自然会近。",
+          localDate: localDateKey(now),
+          reaction: "none",
+          generatedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        }),
+        dislike: vi.fn().mockResolvedValue({
+          id: "quote-2",
+          text: "耐心不是停留，而是清醒地前行。",
+          localDate: localDateKey(now),
+          reaction: "none",
+          generatedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        }),
+        setFavorite,
+        favorites: vi.fn().mockResolvedValue([]),
+        retry: vi.fn(),
+      },
       dashboard: { summary: vi.fn().mockResolvedValue(summary) },
     } as unknown as ZhixuApi;
     Object.defineProperty(window, "zhixu", {
@@ -131,6 +153,20 @@ describe("today page", () => {
     );
 
     expect(await screen.findByText("今日测试任务")).toBeTruthy();
+    expect(screen.getByText("把今天走稳，远方自然会近。")).toBeTruthy();
+    expect(document.querySelector(".daily-quote-band h2")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "喜欢并收藏" }));
+    await waitFor(() =>
+      expect(setFavorite.mock.calls[0]?.[0]).toEqual({
+        id: "quote-1",
+        favorite: true,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "查看收藏" }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(await screen.findByText("暂无收藏")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.querySelector(".task-row-today")).toBeTruthy();
     expect(
       document.querySelector(".task-row-today .task-today-due"),

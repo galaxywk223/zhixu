@@ -16,6 +16,7 @@ import { TomatoImportService } from "./services/tomato-import";
 import { FinanceImportService } from "./services/finance-import";
 import { UpdateService } from "./services/updates";
 import { SyncService } from "./services/sync";
+import { DailyQuoteService } from "./services/daily-quotes";
 import { ZhixuStore } from "./store";
 import { FINANCE_CATEGORIES, FINANCE_PLATFORMS } from "../shared/finance";
 
@@ -28,6 +29,7 @@ interface IpcDependencies {
   financeImporter: FinanceImportService;
   updates: UpdateService;
   sync: SyncService;
+  dailyQuotes: DailyQuoteService;
   packaged: boolean;
   applyUiScale(uiScale: UiScale): void;
   applyCloseToTray(value: boolean): void;
@@ -96,6 +98,10 @@ const financeUpdateSchema = z
       value.note !== undefined,
     "至少修改一项消费记录",
   );
+const quoteFavoriteSchema = z.object({
+  id: idSchema,
+  favorite: z.boolean(),
+});
 
 export function registerIpc(dependencies: IpcDependencies): void {
   const { store, getWindow } = dependencies;
@@ -182,6 +188,27 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle(
     "countdowns:remove",
     mutation("countdowns", (id) => store.removeCountdown(idSchema.parse(id))),
+  );
+  ipcMain.handle("quotes:today", () => dependencies.dailyQuotes.today());
+  ipcMain.handle(
+    "quotes:dislike",
+    mutation("quotes", (id) =>
+      dependencies.dailyQuotes.dislike(idSchema.parse(id)),
+    ),
+  );
+  ipcMain.handle(
+    "quotes:set-favorite",
+    mutation("quotes", (value) => {
+      const input = quoteFavoriteSchema.parse(value);
+      dependencies.dailyQuotes.setFavorite(input.id, input.favorite);
+    }),
+  );
+  ipcMain.handle("quotes:favorites", () =>
+    dependencies.dailyQuotes.favorites(),
+  );
+  ipcMain.handle(
+    "quotes:retry",
+    mutation("quotes", () => dependencies.dailyQuotes.retry()),
   );
 
   ipcMain.handle("focus:list", () => store.listFocusSessions());

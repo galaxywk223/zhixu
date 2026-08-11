@@ -2104,6 +2104,95 @@ button {
   overflow-y: auto;
   padding-right: 4px;
 }
+.daily-quote-band {
+  position: relative;
+  display: grid;
+  min-height: 142px;
+  margin-bottom: 16px;
+  padding: 30px 86px 30px 44px;
+  place-items: center;
+  overflow: hidden;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-block: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.daily-quote-band > p {
+  max-width: 920px;
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.62;
+  letter-spacing: 0;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.daily-quote-actions {
+  position: absolute;
+  right: 16px;
+  bottom: 13px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.daily-quote-actions .fui-Button,
+.quote-favorites-list .fui-Button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  color: var(--muted);
+}
+.daily-quote-actions .fui-Button[aria-pressed="true"] {
+  color: var(--danger);
+}
+.quote-favorites-dialog {
+  width: min(680px, calc(100vw - 40px));
+  max-width: none;
+}
+.quote-favorites-dialog .fui-DialogContent {
+  max-height: min(620px, calc(100vh - 190px));
+  overflow-y: auto;
+}
+.quote-favorites-list {
+  display: flex;
+  flex-direction: column;
+}
+.quote-favorites-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 16px;
+  min-height: 78px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.quote-favorites-list article:last-child {
+  border-bottom: 0;
+}
+.quote-favorites-list article > div {
+  min-width: 0;
+}
+.quote-favorites-list p {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-prominent);
+  font-weight: 600;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.quote-favorites-list time {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+.quote-favorites-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
 .today-header h1 {
   margin: 0;
   font-size: 30px;
@@ -5261,6 +5350,13 @@ button {
       "memos"
       "countdown";
   }
+  .daily-quote-band {
+    min-height: 126px;
+    padding: 26px 72px 26px 30px;
+  }
+  .daily-quote-band > p {
+    font-size: 23px;
+  }
   .today-memo-panel {
     min-height: 205px;
   }
@@ -5351,6 +5447,18 @@ button {
   }
   .today-header {
     flex-direction: column;
+  }
+  .daily-quote-band {
+    min-height: 116px;
+    padding: 24px 18px 52px;
+  }
+  .daily-quote-band > p {
+    font-size: 20px;
+    line-height: 1.55;
+  }
+  .daily-quote-actions {
+    right: 10px;
+    bottom: 8px;
   }
   .today-header-actions {
     width: 100%;

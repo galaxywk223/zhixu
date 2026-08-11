@@ -1,14 +1,27 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@fluentui/react-components";
+import {
+  Button,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Spinner,
+  Tooltip,
+} from "@fluentui/react-components";
 import {
   Add20Regular,
+  BookmarkMultiple20Regular,
   CalendarClock20Regular,
   ChevronRight20Regular,
+  Heart20Filled,
+  Heart20Regular,
   NotePin20Regular,
   Search20Regular,
+  ThumbDislike20Regular,
 } from "@fluentui/react-icons";
-import type { TaskRecord } from "../../../preload/api-types";
+import type { DailyQuoteRecord, TaskRecord } from "../../../preload/api-types";
 import { EmptyState, Loading } from "../components/Page";
 import { TaskList } from "../components/TaskList";
 import { queryKeys } from "../query";
@@ -91,6 +104,14 @@ function memoPriorityLabel(value: number): string {
   return "低";
 }
 
+function formatFavoriteDate(value: string): string {
+  return new Date(value).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export function TodayPage(props: {
   onNew(): void;
   onEdit(task: TaskRecord): void;
@@ -99,6 +120,8 @@ export function TodayPage(props: {
   onOpenCountdowns(countdownId: string | null): void;
 }): React.JSX.Element {
   const client = useQueryClient();
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const tasks = useQuery({
     queryKey: queryKeys.tasks,
     queryFn: window.zhixu.tasks.list,
@@ -122,6 +145,49 @@ export function TodayPage(props: {
   const summary = useQuery({
     queryKey: queryKeys.summary,
     queryFn: window.zhixu.dashboard.summary,
+  });
+  const quote = useQuery({
+    queryKey: queryKeys.quote,
+    queryFn: window.zhixu.quotes.today,
+    retry: false,
+  });
+  const favorites = useQuery({
+    queryKey: queryKeys.quoteFavorites,
+    queryFn: window.zhixu.quotes.favorites,
+    enabled: favoritesOpen,
+  });
+  const favoriteQuote = useMutation({
+    mutationFn: window.zhixu.quotes.setFavorite,
+    onSuccess: (_value, input) => {
+      client.setQueryData<DailyQuoteRecord | null>(
+        queryKeys.quote,
+        (current) =>
+          current?.id === input.id
+            ? {
+                ...current,
+                reaction: input.favorite ? "favorite" : "none",
+                updatedAt: new Date().toISOString(),
+              }
+            : current,
+      );
+      void client.invalidateQueries({ queryKey: queryKeys.quoteFavorites });
+    },
+    onError: (error) => setQuoteError(String(error)),
+  });
+  const dislikeQuote = useMutation({
+    mutationFn: window.zhixu.quotes.dislike,
+    onMutate: () => {
+      setQuoteError(null);
+      client.setQueryData(queryKeys.quote, null);
+    },
+    onSuccess: (record) => client.setQueryData(queryKeys.quote, record),
+    onError: () => setQuoteError("新的格言暂时无法生成，请稍后重试。"),
+  });
+  const retryQuote = useMutation({
+    mutationFn: window.zhixu.quotes.retry,
+    onMutate: () => setQuoteError(null),
+    onSuccess: (record) => client.setQueryData(queryKeys.quote, record),
+    onError: () => setQuoteError("新的格言暂时无法生成，请稍后重试。"),
   });
   const status = useMutation({
     mutationFn: ({ id, value }: { id: string; value: TaskRecord["status"] }) =>
@@ -187,6 +253,65 @@ export function TodayPage(props: {
       </header>
 
       <div className="today-workspace-scroll">
+        <section className="daily-quote-band" aria-label="每日格言">
+          {quote.data ? (
+            <>
+              <p>{quote.data.text}</p>
+              <div className="daily-quote-actions">
+                <Tooltip
+                  content={
+                    quote.data.reaction === "favorite"
+                      ? "取消收藏"
+                      : "喜欢并收藏"
+                  }
+                  relationship="label"
+                >
+                  <Button
+                    appearance="subtle"
+                    icon={
+                      quote.data.reaction === "favorite" ? (
+                        <Heart20Filled />
+                      ) : (
+                        <Heart20Regular />
+                      )
+                    }
+                    aria-pressed={quote.data.reaction === "favorite"}
+                    disabled={favoriteQuote.isPending || dislikeQuote.isPending}
+                    onClick={() =>
+                      favoriteQuote.mutate({
+                        id: quote.data!.id,
+                        favorite: quote.data!.reaction !== "favorite",
+                      })
+                    }
+                  />
+                </Tooltip>
+                <Tooltip content="不喜欢，换一条" relationship="label">
+                  <Button
+                    appearance="subtle"
+                    icon={<ThumbDislike20Regular />}
+                    disabled={dislikeQuote.isPending || favoriteQuote.isPending}
+                    onClick={() => dislikeQuote.mutate(quote.data!.id)}
+                  />
+                </Tooltip>
+                <Tooltip content="查看收藏" relationship="label">
+                  <Button
+                    appearance="subtle"
+                    icon={<BookmarkMultiple20Regular />}
+                    onClick={() => setFavoritesOpen(true)}
+                  />
+                </Tooltip>
+              </div>
+            </>
+          ) : quote.isLoading ||
+            dislikeQuote.isPending ||
+            retryQuote.isPending ? (
+            <Spinner size="small" label="正在生成今日格言" />
+          ) : (
+            <Button appearance="subtle" onClick={() => retryQuote.mutate()}>
+              {quoteError ?? "生成今日格言"}
+            </Button>
+          )}
+        </section>
         <div className="today-dashboard-grid">
           <section className="today-panel today-task-panel">
             <div className="today-panel-heading">
@@ -432,6 +557,50 @@ export function TodayPage(props: {
           </section>
         </div>
       </div>
+
+      <Dialog
+        open={favoritesOpen}
+        onOpenChange={(_event, data) => setFavoritesOpen(data.open)}
+      >
+        <DialogSurface className="quote-favorites-dialog">
+          <DialogBody>
+            <DialogTitle>格言收藏</DialogTitle>
+            <DialogContent>
+              {favorites.isLoading ? (
+                <Spinner size="small" label="正在读取收藏" />
+              ) : favorites.data?.length ? (
+                <div className="quote-favorites-list">
+                  {favorites.data.map((item) => (
+                    <article key={item.id}>
+                      <div>
+                        <p>{item.text}</p>
+                        <time dateTime={item.updatedAt}>
+                          {formatFavoriteDate(item.updatedAt)}
+                        </time>
+                      </div>
+                      <Tooltip content="取消收藏" relationship="label">
+                        <Button
+                          appearance="subtle"
+                          icon={<Heart20Filled />}
+                          disabled={favoriteQuote.isPending}
+                          onClick={() =>
+                            favoriteQuote.mutate({
+                              id: item.id,
+                              favorite: false,
+                            })
+                          }
+                        />
+                      </Tooltip>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="quote-favorites-empty">暂无收藏</div>
+              )}
+            </DialogContent>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </div>
   );
 }

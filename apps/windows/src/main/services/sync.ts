@@ -11,6 +11,7 @@ import type { SyncState } from "../../preload/api-types";
 import type { BackupService } from "./backup";
 import { canUseBoundWorkspace } from "../../shared/account-access";
 import { EncryptedSessionStorage } from "./secure-storage";
+import type { QuoteGenerationInput } from "./daily-quotes";
 import {
   SyncRepository,
   type PendingOperation,
@@ -124,6 +125,19 @@ export class SyncService {
       lastSyncedAt: binding?.lastSyncedAt ?? null,
       pendingCount: this.options.repository.pendingCount(),
     };
+  }
+
+  async generateDailyQuote(input: QuoteGenerationInput): Promise<string> {
+    const client = this.requireClient();
+    if (!this.user) throw new Error("请先登录后生成每日格言");
+    if (!net.isOnline()) throw new Error("当前离线，联网后可生成每日格言");
+    const { data, error } = await client.functions.invoke("daily-quote", {
+      body: input,
+    });
+    if (error) throw new Error("每日格言生成失败，请稍后重试");
+    if (!data || typeof data.text !== "string")
+      throw new Error("每日格言响应无效，请稍后重试");
+    return data.text;
   }
 
   requestSync(delay = 750): void {

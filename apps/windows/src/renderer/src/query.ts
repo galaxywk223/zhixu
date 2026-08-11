@@ -6,6 +6,8 @@ export const queryKeys = {
   tasks: ["tasks"] as const,
   memos: ["memos"] as const,
   countdowns: ["countdowns"] as const,
+  quote: ["daily-quote"] as const,
+  quoteFavorites: ["daily-quote-favorites"] as const,
   categories: ["task-categories"] as const,
   tags: ["tags"] as const,
   focus: ["focus"] as const,
@@ -33,6 +35,7 @@ export function useDataInvalidation(): void {
           ],
           memos: [queryKeys.memos, queryKeys.summary],
           countdowns: [queryKeys.countdowns],
+          quotes: [queryKeys.quote, queryKeys.quoteFavorites],
           focus: [
             queryKeys.focus,
             queryKeys.batches,

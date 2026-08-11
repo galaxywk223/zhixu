@@ -7,7 +7,8 @@ import {
   backupManifestV6Schema,
   backupManifestV7Schema,
   backupManifestV8Schema,
-  type BackupManifestV8,
+  backupManifestV9Schema,
+  type BackupManifestV9,
 } from "@zhixu/contracts";
 import { ZhixuStore } from "../store";
 
@@ -40,8 +41,8 @@ export class BackupService {
   private async writeBackup(path: string): Promise<void> {
     const payload = JSON.stringify(this.store.exportData());
     const payloadSha256 = createHash("sha256").update(payload).digest("hex");
-    const manifest: BackupManifestV8 = {
-      schemaVersion: 8,
+    const manifest: BackupManifestV9 = {
+      schemaVersion: 9,
       appVersion: this.appVersion,
       exportedAt: new Date().toISOString(),
       payloadFile: "data.json",
@@ -59,7 +60,7 @@ export class BackupService {
 
   private async verifyBackup(path: string): Promise<void> {
     const zip = await JSZip.loadAsync(await readFile(path));
-    const manifest = backupManifestV8Schema.parse(
+    const manifest = backupManifestV9Schema.parse(
       JSON.parse(await zip.file("manifest.json")!.async("string")),
     );
     const payload = await zip.file(manifest.payloadFile)!.async("string");
@@ -95,14 +96,17 @@ export class BackupService {
       if (
         rawManifest.schemaVersion === 6 ||
         rawManifest.schemaVersion === 7 ||
-        rawManifest.schemaVersion === 8
+        rawManifest.schemaVersion === 8 ||
+        rawManifest.schemaVersion === 9
       ) {
         const manifest =
-          rawManifest.schemaVersion === 8
-            ? backupManifestV8Schema.parse(rawManifest)
-            : rawManifest.schemaVersion === 7
-              ? backupManifestV7Schema.parse(rawManifest)
-              : backupManifestV6Schema.parse(rawManifest);
+          rawManifest.schemaVersion === 9
+            ? backupManifestV9Schema.parse(rawManifest)
+            : rawManifest.schemaVersion === 8
+              ? backupManifestV8Schema.parse(rawManifest)
+              : rawManifest.schemaVersion === 7
+                ? backupManifestV7Schema.parse(rawManifest)
+                : backupManifestV6Schema.parse(rawManifest);
         const payloadEntry = zip.file(manifest.payloadFile);
         if (!payloadEntry) throw new Error("备份缺少 data.json");
         const payloadText = await payloadEntry.async("string");
