@@ -19,6 +19,8 @@ import { queryKeys } from "../query";
 import {
   buildCalendarMonth,
   buildFocusWeek,
+  focusBlockContentLevel,
+  focusTaskColorTone,
   formatWorkspaceMinutes,
   type FocusTimelineSegment,
 } from "./calendar-workspace-model";
@@ -446,8 +448,7 @@ function FocusWeekTimeline(props: {
     (_, index) => firstHour + index,
   );
   const timelineHeight = props.timeline
-    ? (props.timeline.endMinutes - props.timeline.startMinutes) *
-      props.timeline.minuteScale
+    ? props.timeline.endMinutes - props.timeline.startMinutes
     : 0;
   return (
     <div className="week-timeline">
@@ -477,7 +478,7 @@ function FocusWeekTimeline(props: {
             style={
               {
                 height: timelineHeight,
-                "--hour-height": `${props.timeline.minuteScale * 60}px`,
+                "--hour-height": "60px",
               } as CSSProperties
             }
           >
@@ -486,9 +487,7 @@ function FocusWeekTimeline(props: {
                 <time
                   key={hour}
                   style={{
-                    top:
-                      (hour * 60 - props.timeline!.startMinutes) *
-                      props.timeline!.minuteScale,
+                    top: hour * 60 - props.timeline!.startMinutes,
                   }}
                 >
                   {String(hour).padStart(2, "0")}:00
@@ -508,7 +507,6 @@ function FocusWeekTimeline(props: {
                       key={segment.id}
                       segment={segment}
                       rangeStartMinutes={props.timeline!.startMinutes}
-                      minuteScale={props.timeline!.minuteScale}
                     />
                   ))}
                 </button>
@@ -524,14 +522,15 @@ function FocusWeekTimeline(props: {
 function FocusSegment(props: {
   segment: FocusTimelineSegment;
   rangeStartMinutes: number;
-  minuteScale: number;
 }): React.JSX.Element {
-  const top =
-    (props.segment.startMinutes - props.rangeStartMinutes) * props.minuteScale;
+  const top = props.segment.startMinutes - props.rangeStartMinutes;
   const height = Math.max(
-    64,
-    (props.segment.endMinutes - props.segment.startMinutes) * props.minuteScale,
+    4,
+    props.segment.endMinutes - props.segment.startMinutes,
   );
+  const contentLevel = focusBlockContentLevel(height);
+  const taskName = props.segment.session.taskName.trim() || "未命名事项";
+  const timeLabel = `${formatClockMinutes(props.segment.startMinutes)} - ${formatClockMinutes(props.segment.endMinutes)}`;
   const style = {
     top,
     height,
@@ -539,12 +538,16 @@ function FocusSegment(props: {
     "--segment-width": `${100 / props.segment.laneCount}%`,
   } as CSSProperties;
   return (
-    <span className="focus-calendar-block" style={style}>
-      <strong>{props.segment.session.taskName || "未命名事项"}</strong>
-      <small>
-        {formatClockMinutes(props.segment.startMinutes)} -{" "}
-        {formatClockMinutes(props.segment.endMinutes)}
-      </small>
+    <span
+      className={`focus-calendar-block tone-${focusTaskColorTone(taskName)} content-${contentLevel}`}
+      style={style}
+      title={`${taskName} ${timeLabel}`}
+      aria-label={`${taskName}，${timeLabel}`}
+    >
+      {contentLevel !== "none" ? <strong>{taskName}</strong> : null}
+      {contentLevel === "compact" || contentLevel === "expanded" ? (
+        <small>{timeLabel}</small>
+      ) : null}
     </span>
   );
 }

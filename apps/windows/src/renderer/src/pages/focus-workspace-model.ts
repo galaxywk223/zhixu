@@ -207,19 +207,30 @@ function buildSubjectDistribution(
 function buildHourDistribution(
   sessions: FocusSessionRecord[],
 ): Array<{ hour: number; label: string; minutes: number }> {
-  const minutes = Array.from({ length: 24 }, () => 0);
+  const minutes = new Map<number, number>();
+  let firstHour = 24;
+  let lastHour = -1;
   for (const item of sessions) {
     const value = validTimestamp(item);
     if (value !== null) {
       const hour = new Date(value).getHours();
-      minutes[hour] = (minutes[hour] ?? 0) + Math.max(0, item.durationMinutes);
+      firstHour = Math.min(firstHour, hour);
+      lastHour = Math.max(lastHour, hour);
+      minutes.set(
+        hour,
+        (minutes.get(hour) ?? 0) + Math.max(0, item.durationMinutes),
+      );
     }
   }
-  return minutes.map((value, hour) => ({
-    hour,
-    label: `${String(hour).padStart(2, "0")}:00`,
-    minutes: value,
-  }));
+  if (lastHour < firstHour) return [];
+  return Array.from({ length: lastHour - firstHour + 1 }, (_, index) => {
+    const hour = firstHour + index;
+    return {
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00`,
+      minutes: minutes.get(hour) ?? 0,
+    };
+  });
 }
 
 function mondayFor(value: Date): Date {

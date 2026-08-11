@@ -34,6 +34,7 @@ export function FocusAnalytics(props: {
 }): React.JSX.Element {
   const { model } = props;
   const hasRangeData = model.overview.count > 0;
+  const hasHourData = model.hours.length > 0;
   return (
     <div className="focus-analytics">
       <div className="focus-analytics-grid">
@@ -106,12 +107,12 @@ export function FocusAnalytics(props: {
               <span>按开始时间汇总</span>
             </div>
           </header>
-          {!hasRangeData ? (
+          {!hasHourData ? (
             <ChartEmpty text="当前范围暂无时段数据" />
           ) : (
             <div
               className="focus-chart-canvas"
-              aria-label="24 小时专注时段分布图"
+              aria-label="当前范围专注时段分布图"
             >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -121,7 +122,8 @@ export function FocusAnalytics(props: {
                   <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
                   <XAxis
                     dataKey="hour"
-                    interval={2}
+                    interval="preserveStartEnd"
+                    minTickGap={16}
                     tickFormatter={(value) =>
                       `${String(value).padStart(2, "0")}时`
                     }

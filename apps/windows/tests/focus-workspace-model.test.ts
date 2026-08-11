@@ -101,12 +101,37 @@ describe("focus workspace model", () => {
     expect(model.subjects).toHaveLength(7);
     expect(model.subjects.at(-1)?.name).toBe("其他");
     expect(model.subjects.at(-1)?.minutes).toBe(95);
-    expect(model.hours[14]?.minutes).toBe(205);
+    expect(model.hours.find((item) => item.hour === 14)?.minutes).toBe(205);
     expect(
       Math.round(
         model.subjects.reduce((sum, item) => sum + item.percentage, 0),
       ),
     ).toBe(100);
+  });
+
+  it("limits hour distribution to the first and last covered start hour", () => {
+    const ranged = buildFocusWorkspace(
+      [
+        session("morning", new Date(2026, 7, 9, 8, 15), 30),
+        session("late", new Date(2026, 7, 9, 11, 20), 45),
+      ],
+      filters("today"),
+      now,
+    );
+    expect(ranged.hours).toEqual([
+      { hour: 8, label: "08:00", minutes: 30 },
+      { hour: 9, label: "09:00", minutes: 0 },
+      { hour: 10, label: "10:00", minutes: 0 },
+      { hour: 11, label: "11:00", minutes: 45 },
+    ]);
+
+    const single = buildFocusWorkspace(
+      [session("single", new Date(2026, 7, 9, 14, 10), 25)],
+      filters("today"),
+      now,
+    );
+    expect(single.hours).toEqual([{ hour: 14, label: "14:00", minutes: 25 }]);
+    expect(buildFocusWorkspace([], filters("today"), now).hours).toEqual([]);
   });
 
   it("keeps the full history only for the all view and uses weekly buckets", () => {

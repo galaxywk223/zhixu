@@ -3,6 +3,8 @@ import type { FocusSessionRecord, TaskRecord } from "../src/preload/api-types";
 import {
   buildCalendarMonth,
   buildFocusWeek,
+  focusBlockContentLevel,
+  focusTaskColorTone,
   mondayForDate,
 } from "../src/renderer/src/pages/calendar-workspace-model";
 import { localDateKey } from "../src/shared/local-date";
@@ -125,7 +127,6 @@ describe("calendar workspace model", () => {
     expect(model.timeline).toEqual({
       startMinutes: 360,
       endMinutes: 1380,
-      minuteScale: 64 / 30,
     });
     expect(model.metrics).toEqual({
       count: 2,
@@ -188,7 +189,7 @@ describe("calendar workspace model", () => {
     expect(model.timeline).toBeNull();
   });
 
-  it("pads and scales a short focus range without drawing unused hours", () => {
+  it("pads a short focus range without dynamically scaling the timeline", () => {
     const model = buildFocusWeek(
       [
         session(
@@ -204,7 +205,21 @@ describe("calendar workspace model", () => {
     expect(model.timeline).toEqual({
       startMinutes: 720,
       endMinutes: 840,
-      minuteScale: 3.2,
     });
+  });
+
+  it("uses stable task colors and reveals content only when it fits", () => {
+    expect(focusTaskColorTone(" 算法 ")).toBe(focusTaskColorTone("算法"));
+    expect(focusTaskColorTone("Algorithm")).toBe(
+      focusTaskColorTone("algorithm"),
+    );
+    expect(focusTaskColorTone("算法")).not.toBe(focusTaskColorTone("英语"));
+    expect(focusBlockContentLevel(4)).toBe("none");
+    expect(focusBlockContentLevel(23)).toBe("none");
+    expect(focusBlockContentLevel(24)).toBe("title");
+    expect(focusBlockContentLevel(43)).toBe("title");
+    expect(focusBlockContentLevel(44)).toBe("compact");
+    expect(focusBlockContentLevel(63)).toBe("compact");
+    expect(focusBlockContentLevel(64)).toBe("expanded");
   });
 });

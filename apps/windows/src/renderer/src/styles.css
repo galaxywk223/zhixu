@@ -1400,25 +1400,59 @@ button {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 2px;
-  padding: 5px 6px;
+  gap: 1px;
+  padding: 3px 4px;
   overflow: hidden;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accentSoft) 80%, var(--surface));
-  border-left: 3px solid var(--accent);
+  color: var(--focus-block-color, var(--accent));
+  background: color-mix(
+    in srgb,
+    var(--focus-block-color, var(--accent)) 14%,
+    var(--surface)
+  );
+  border-left: 3px solid var(--focus-block-color, var(--accent));
   border-radius: 3px;
   pointer-events: none;
   text-align: left;
+}
+.focus-calendar-block.tone-0 {
+  --focus-block-color: var(--chart-blue);
+}
+.focus-calendar-block.tone-1 {
+  --focus-block-color: var(--chart-teal);
+}
+.focus-calendar-block.tone-2 {
+  --focus-block-color: var(--chart-green);
+}
+.focus-calendar-block.tone-3 {
+  --focus-block-color: var(--chart-amber);
+}
+.focus-calendar-block.tone-4 {
+  --focus-block-color: var(--chart-coral);
+}
+.focus-calendar-block.tone-5 {
+  --focus-block-color: var(--chart-rose);
+}
+.focus-calendar-block.tone-6 {
+  --focus-block-color: var(--chart-violet);
+}
+.focus-calendar-block.content-none {
+  padding: 0;
 }
 .focus-calendar-block strong,
 .focus-calendar-block small {
   overflow: hidden;
 }
 .focus-calendar-block strong {
-  display: -webkit-box;
+  display: block;
   font-size: var(--font-caption);
   line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.focus-calendar-block.content-expanded strong {
+  display: -webkit-box;
   overflow-wrap: anywhere;
+  white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }

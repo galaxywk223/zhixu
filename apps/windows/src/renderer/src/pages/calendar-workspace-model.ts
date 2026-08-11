@@ -58,7 +58,6 @@ export interface FocusWeekModel {
   timeline: {
     startMinutes: number;
     endMinutes: number;
-    minuteScale: number;
   } | null;
   metrics: {
     count: number;
@@ -71,10 +70,24 @@ export interface FocusWeekModel {
 const timelinePaddingMinutes = 30;
 const timelineStepMinutes = 30;
 const minimumTimelineMinutes = 120;
-const minimumBlockHeight = 64;
-const minimumScaleDuration = 10;
-const minimumMinuteScale = 1;
-const maximumMinuteScale = 6.4;
+const focusColorToneCount = 7;
+
+export type FocusBlockContentLevel = "none" | "title" | "compact" | "expanded";
+
+export function focusBlockContentLevel(height: number): FocusBlockContentLevel {
+  if (height < 24) return "none";
+  if (height < 44) return "title";
+  if (height < 64) return "compact";
+  return "expanded";
+}
+
+export function focusTaskColorTone(taskName: string): number {
+  const normalized = taskName.trim().toLocaleLowerCase("zh-CN") || "未命名事项";
+  let hash = 2166136261;
+  for (const character of normalized)
+    hash = Math.imul(hash ^ character.codePointAt(0)!, 16777619);
+  return (hash >>> 0) % focusColorToneCount;
+}
 
 function validDate(value: string): Date | null {
   const date = new Date(value);
@@ -321,17 +334,7 @@ export function buildFocusWeek(
         break;
       }
     }
-    const shortestDuration = Math.min(
-      ...rawSegments.map((item) => item.endMinutes - item.startMinutes),
-    );
-    const minuteScale = Math.min(
-      maximumMinuteScale,
-      Math.max(
-        minimumMinuteScale,
-        minimumBlockHeight / Math.max(shortestDuration, minimumScaleDuration),
-      ),
-    );
-    timeline = { startMinutes, endMinutes, minuteScale };
+    timeline = { startMinutes, endMinutes };
   }
   const totalMinutes = validSessions.reduce(
     (sum, session) => sum + Math.max(0, session.durationMinutes),
