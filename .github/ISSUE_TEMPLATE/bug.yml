@@ -1,0 +1,81 @@
+name: Bug 报告
+description: 报告可复现的知序 Windows 客户端问题
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        安全漏洞不得通过公开 Issue 披露。敏感问题应使用仓库的 Private vulnerability reporting。
+        邮箱、密码、令牌、数据库、账单和未脱敏日志不得提交到公开 Issue。
+  - type: input
+    id: version
+    attributes:
+      label: 知序版本
+      description: 版本号可在设置或安装包名称中确认。
+      placeholder: v0.3.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 版本
+      placeholder: Windows 11 24H2 x64
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 功能区域
+      options:
+        - 账户与同步
+        - 任务与日历
+        - 专注与统计
+        - 睡眠、备忘与倒计时
+        - 消费分析与账单导入
+        - 每日格言
+        - 备份、迁移与更新
+        - 安装、启动与窗口
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 提供能够稳定触发问题的最小步骤。
+      placeholder: |
+        1. 打开……
+        2. 执行……
+        3. 观察到……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 补充信息
+      description: 仅附加完成脱敏的日志、截图或最小测试数据。
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交确认
+      options:
+        - label: 已确认该问题不存在于现有 Issue。
+          required: true
+        - label: 内容不包含个人数据、访问凭据、账单或未脱敏日志。
+          required: true
+        - label: 该问题不属于需要私密报告的安全漏洞。
+          required: true

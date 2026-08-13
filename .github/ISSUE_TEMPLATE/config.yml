@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞报告
+    url: https://github.com/galaxywk223/zhixu/security/advisories/new
+    about: 使用 Private vulnerability reporting 私密提交安全问题。
+  - name: 最新稳定版
+    url: https://github.com/galaxywk223/zhixu/releases/latest
+    about: 下载当前支持的 Windows 安装包并查看发布说明。

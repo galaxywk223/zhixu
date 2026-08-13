@@ -1,0 +1,50 @@
+name: 功能建议
+description: 提议与知序当前产品边界一致的改进
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        当前正式支持平台为 Windows 10/11 x64。Android 属于后续规划，不代表已有实现承诺。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题场景
+      description: 描述当前工作流中的具体问题，不填写个人敏感数据。
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 期望结果
+      description: 描述完成后的用户行为和结果。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 可说明交互、数据或兼容性约束。
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 目标范围
+      options:
+        - Windows 客户端
+        - 账户与同步服务
+        - 导入、备份或更新
+        - 共享契约与工程工具
+        - 后续平台规划
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交确认
+      options:
+        - label: 已检索现有 Issue，未发现相同建议。
+          required: true
+        - label: 建议不包含个人数据、访问凭据或未脱敏材料。
+          required: true
