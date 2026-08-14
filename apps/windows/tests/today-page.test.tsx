@@ -60,7 +60,28 @@ describe("today page", () => {
     };
     const openMemos = vi.fn();
     const openCountdowns = vi.fn();
-    const setFavorite = vi.fn().mockResolvedValue(undefined);
+    const quoteRecord = {
+      id: "quote-1",
+      text: "把今天走稳，远方自然会近。",
+      localDate: localDateKey(now),
+      reaction: "none" as const,
+      sourceKind: "ai" as const,
+      sourceId: null,
+      generationVersion: 3,
+      generatedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+    const setFavorite = vi.fn().mockImplementation(async (input) => ({
+      ...quoteRecord,
+      reaction: input.favorite ? "favorite" : "none",
+    }));
+    const addFavorite = vi.fn().mockResolvedValue({
+      ...quoteRecord,
+      id: "manual-1",
+      sourceKind: "manual",
+      reaction: "favorite",
+    });
+    const refreshQuote = vi.fn().mockResolvedValue(quoteRecord);
     const examDate = new Date(now);
     examDate.setDate(examDate.getDate() + 6);
     const api = {
@@ -108,24 +129,18 @@ describe("today page", () => {
         ]),
       },
       quotes: {
-        today: vi.fn().mockResolvedValue({
-          id: "quote-1",
-          text: "把今天走稳，远方自然会近。",
-          localDate: localDateKey(now),
-          reaction: "none",
-          generatedAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-        }),
+        today: vi.fn().mockResolvedValue(quoteRecord),
         dislike: vi.fn().mockResolvedValue({
+          ...quoteRecord,
           id: "quote-2",
           text: "耐心不是停留，而是清醒地前行。",
-          localDate: localDateKey(now),
-          reaction: "none",
-          generatedAt: now.toISOString(),
-          updatedAt: now.toISOString(),
         }),
         setFavorite,
         favorites: vi.fn().mockResolvedValue([]),
+        addFavorite,
+        removeFavorite: vi.fn(),
+        useFavoriteToday: vi.fn(),
+        refresh: refreshQuote,
         retry: vi.fn(),
       },
       dashboard: { summary: vi.fn().mockResolvedValue(summary) },
@@ -162,8 +177,30 @@ describe("today page", () => {
         favorite: true,
       }),
     );
+    refreshQuote.mockRejectedValueOnce(
+      new Error(
+        "AI 服务暂时不可用，请稍后重试。 请求编号：00000000-0000-4000-8000-000000000001",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "换一条" }));
+    expect(
+      await screen.findByText(/请求编号：00000000-0000-4000-8000-000000000001/),
+    ).toBeTruthy();
+    expect(screen.getByText("把今天走稳，远方自然会近。")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "查看收藏" }));
-    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(await screen.findByText("格言收藏")).toBeTruthy();
+    const manualQuoteInput = await screen.findByPlaceholderText("输入格言正文");
+    const manualQuoteForm = manualQuoteInput.closest("form");
+    expect(manualQuoteForm).toBeTruthy();
+    fireEvent.change(manualQuoteInput, {
+      target: { value: "保持清醒，持续行动。" },
+    });
+    fireEvent.submit(manualQuoteForm!);
+    await waitFor(() =>
+      expect(addFavorite).toHaveBeenCalledWith({
+        text: "保持清醒，持续行动。",
+      }),
+    );
     expect(await screen.findByText("暂无收藏")).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

@@ -133,7 +133,7 @@ function createLegacyDatabase(path: string, version: 1 | 2 | 3 | 4 | 5): void {
   db.close();
 }
 
-describe("schema 11 migration", () => {
+describe("schema 12 migration", () => {
   it.each([1, 2, 3, 4, 5] as const)(
     "copies and migrates v%i without changing the source file",
     (version) => {
@@ -171,17 +171,70 @@ describe("schema 11 migration", () => {
     },
   );
 
-  it("is idempotent when schema 11 is opened again", () => {
+  it("is idempotent when schema 12 is opened again", () => {
     const paths = temporaryPaths();
     createLegacyDatabase(paths.source, 5);
     const first = initializeDatabase(paths);
     first.db.close();
     const second = initializeDatabase(paths);
     expect(second.report.status).toBe("current");
-    expect(second.report.fromVersion).toBe(11);
+    expect(second.report.fromVersion).toBe(12);
     expect(second.report.entityCounts.tasks).toBe(2);
     expect(second.db.pragma("integrity_check", { simple: true })).toBe("ok");
     second.db.close();
+  });
+
+  it("backs up schema 11 and removes only unapproved corpus records", () => {
+    const paths = temporaryPaths();
+    const initial = initializeDatabase(paths);
+    const store = new ZhixuStore(initial.db, "migration-device");
+    const kept = store.saveGeneratedQuote(
+      "清醒地选择，比匆忙地抵达更重要。",
+      "2026-08-10",
+      { kind: "corpus", id: "legacy-kept" },
+    );
+    store.setDailyQuoteReaction(kept.id, "favorite");
+    const removed = store.saveGeneratedQuote(
+      "旧外部语料不再继续参与展示。",
+      "2026-08-11",
+      { kind: "corpus", id: "legacy-removed" },
+    );
+    initial.db.pragma("user_version = 11");
+    initial.db.close();
+
+    const upgraded = initializeDatabase(paths);
+    expect(upgraded.report.fromVersion).toBe(11);
+    expect(upgraded.report.toVersion).toBe(12);
+    expect(upgraded.report.backupPath).not.toBeNull();
+    expect(existsSync(upgraded.report.backupPath!)).toBe(true);
+    expect(
+      new ZhixuStore(upgraded.db).getDailyQuoteById(kept.id),
+    ).toMatchObject({
+      reaction: "favorite",
+      sourceKind: "corpus",
+    });
+    expect(
+      new ZhixuStore(upgraded.db).getDailyQuoteById(removed.id),
+    ).toBeNull();
+    expect(
+      upgraded.db
+        .prepare(
+          "SELECT operation FROM sync_outbox WHERE entity_type = 'daily_quote' AND entity_id = ?",
+        )
+        .get(removed.id),
+    ).toEqual({ operation: "delete" });
+    expect(
+      String(
+        (
+          upgraded.db
+            .prepare(
+              "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'daily_quotes'",
+            )
+            .get() as { sql: string }
+        ).sql,
+      ),
+    ).toContain("'manual'");
+    upgraded.db.close();
   });
 
   it("adds countdown storage when upgrading an existing schema 6 database", () => {
@@ -196,7 +249,7 @@ describe("schema 11 migration", () => {
 
     const upgraded = initializeDatabase(paths);
     expect(upgraded.report.fromVersion).toBe(6);
-    expect(upgraded.report.toVersion).toBe(11);
+    expect(upgraded.report.toVersion).toBe(12);
     expect(
       upgraded.db
         .prepare(
@@ -240,7 +293,7 @@ describe("schema 11 migration", () => {
     expect(
       store.listTasks().find((item) => item.id === id)?.estimatedMinutes,
     ).toBe(30);
-    expect(context.db.pragma("user_version", { simple: true })).toBe(11);
+    expect(context.db.pragma("user_version", { simple: true })).toBe(12);
     expect(
       context.db
         .prepare(

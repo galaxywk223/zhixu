@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import type { MigrationReport } from "../preload/api-types";
 
-export const SCHEMA_VERSION = 11 as const;
+export const SCHEMA_VERSION = 12 as const;
 
 const preservedTables = [
   "tasks",
@@ -390,7 +390,7 @@ function createSchema(db: Database.Database): void {
       reaction TEXT NOT NULL DEFAULT 'none'
         CHECK(reaction IN ('none', 'favorite', 'disliked')),
       source_kind TEXT NOT NULL DEFAULT 'ai'
-        CHECK(source_kind IN ('ai', 'corpus')),
+        CHECK(source_kind IN ('ai', 'corpus', 'manual', 'favorite')),
       source_id TEXT,
       generation_version INTEGER NOT NULL DEFAULT 1,
       generated_at INTEGER NOT NULL,
@@ -492,7 +492,77 @@ function createSchema(db: Database.Database): void {
   `);
 }
 
-function migrateToV11(db: Database.Database, fromVersion: number): void {
+function rebuildDailyQuotesV12(db: Database.Database): void {
+  db.exec(`
+    DROP INDEX IF EXISTS daily_quotes_date_idx;
+    DROP INDEX IF EXISTS daily_quotes_reaction_idx;
+    CREATE TABLE daily_quotes_v12 (
+      id TEXT PRIMARY KEY NOT NULL,
+      text TEXT NOT NULL,
+      local_date TEXT NOT NULL,
+      reaction TEXT NOT NULL DEFAULT 'none'
+        CHECK(reaction IN ('none', 'favorite', 'disliked')),
+      source_kind TEXT NOT NULL DEFAULT 'ai'
+        CHECK(source_kind IN ('ai', 'corpus', 'manual', 'favorite')),
+      source_id TEXT,
+      generation_version INTEGER NOT NULL DEFAULT 1,
+      generated_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      device_id TEXT NOT NULL,
+      server_revision INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT INTO daily_quotes_v12
+      SELECT id, text, local_date, reaction, source_kind, source_id,
+        generation_version, generated_at, created_at, updated_at, deleted_at,
+        device_id, server_revision
+      FROM daily_quotes;
+    DROP TABLE daily_quotes;
+    ALTER TABLE daily_quotes_v12 RENAME TO daily_quotes;
+  `);
+}
+
+function cleanupLegacyCorpusQuotes(db: Database.Database): void {
+  const rows = db
+    .prepare(
+      `SELECT * FROM daily_quotes
+       WHERE source_kind = 'corpus' AND reaction <> 'favorite'
+         AND deleted_at IS NULL`,
+    )
+    .all() as Array<Record<string, unknown>>;
+  let updatedAt = Math.floor(Date.now() / 1000);
+  for (const current of rows) {
+    const id = String(current.id);
+    updatedAt = Math.max(updatedAt, Number(current.updated_at ?? 0) + 1);
+    db.prepare(
+      "UPDATE daily_quotes SET deleted_at = ?, updated_at = ? WHERE id = ?",
+    ).run(updatedAt, updatedAt, id);
+    const row = db
+      .prepare("SELECT * FROM daily_quotes WHERE id = ?")
+      .get(id) as Record<string, unknown>;
+    db.prepare(
+      `INSERT INTO sync_outbox
+       (entity_type, entity_id, operation, payload_json, created_at, retry_count,
+        last_error, operation_id, base_revision, status)
+       VALUES ('daily_quote', ?, 'delete', ?, ?, 0, NULL, ?, ?, 'pending')
+       ON CONFLICT(entity_type, entity_id) DO UPDATE SET
+         operation = excluded.operation, payload_json = excluded.payload_json,
+         created_at = excluded.created_at, retry_count = 0, last_error = NULL,
+         operation_id = excluded.operation_id,
+         base_revision = MAX(sync_outbox.base_revision, excluded.base_revision),
+         status = 'pending'`,
+    ).run(
+      id,
+      JSON.stringify(row),
+      updatedAt,
+      randomUUID(),
+      Number(row.server_revision ?? 0),
+    );
+  }
+}
+
+function migrateToV12(db: Database.Database, fromVersion: number): void {
   if (fromVersion > SCHEMA_VERSION)
     throw new Error(`数据库版本 ${fromVersion} 高于客户端支持版本`);
   const run = db.transaction(() => {
@@ -568,7 +638,7 @@ function migrateToV11(db: Database.Database, fromVersion: number): void {
       db,
       "daily_quotes",
       "source_kind",
-      "TEXT NOT NULL DEFAULT 'ai' CHECK(source_kind IN ('ai', 'corpus'))",
+      "TEXT NOT NULL DEFAULT 'ai' CHECK(source_kind IN ('ai', 'corpus', 'manual', 'favorite'))",
     );
     ensureColumn(db, "daily_quotes", "source_id", "TEXT");
     ensureColumn(
@@ -577,6 +647,7 @@ function migrateToV11(db: Database.Database, fromVersion: number): void {
       "generation_version",
       "INTEGER NOT NULL DEFAULT 1",
     );
+    if (fromVersion < 12) rebuildDailyQuotesV12(db);
     db.exec(`
       UPDATE tags SET normalized_name = lower(trim(name)) WHERE normalized_name = '';
       DELETE FROM sync_outbox
@@ -609,8 +680,9 @@ function migrateToV11(db: Database.Database, fromVersion: number): void {
         ON daily_quotes(local_date, generated_at DESC) WHERE deleted_at IS NULL;
       CREATE INDEX IF NOT EXISTS daily_quotes_reaction_idx
         ON daily_quotes(reaction, updated_at DESC) WHERE deleted_at IS NULL;
-      PRAGMA user_version = 11;
+      PRAGMA user_version = 12;
     `);
+    if (fromVersion < 12) cleanupLegacyCorpusQuotes(db);
   });
   run();
 }
@@ -654,8 +726,28 @@ export function initializeDatabase(
     db.pragma("journal_mode = WAL");
     db.pragma("busy_timeout = 5000");
     const fromVersion = Number(db.pragma("user_version", { simple: true }));
+    if (targetExists && fromVersion > 0 && fromVersion < SCHEMA_VERSION) {
+      const backupDirectory = join(paths.backups, timestampForPath());
+      mkdirSync(backupDirectory, { recursive: true });
+      const upgradeBackupPath = join(
+        backupDirectory,
+        `zhixu-v${fromVersion}-pre-v${SCHEMA_VERSION}.sqlite`,
+      );
+      db.prepare("VACUUM INTO ?").run(upgradeBackupPath);
+      const backup = new Database(upgradeBackupPath, { readonly: true });
+      try {
+        const backupIntegrity = String(
+          backup.pragma("integrity_check", { simple: true }),
+        );
+        if (backupIntegrity !== "ok")
+          throw new Error(`升级前备份完整性检查失败：${backupIntegrity}`);
+      } finally {
+        backup.close();
+      }
+      backupPath = upgradeBackupPath;
+    }
     const before = snapshot(db);
-    migrateToV11(db, fromVersion);
+    migrateToV12(db, fromVersion);
     verifySnapshot(before, db);
     const integrity = String(db.pragma("integrity_check", { simple: true }));
     if (integrity !== "ok")

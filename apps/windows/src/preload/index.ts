@@ -49,6 +49,11 @@ const api: ZhixuApi = {
     dislike: (id) => ipcRenderer.invoke("quotes:dislike", id),
     setFavorite: (input) => ipcRenderer.invoke("quotes:set-favorite", input),
     favorites: () => ipcRenderer.invoke("quotes:favorites"),
+    addFavorite: (input) => ipcRenderer.invoke("quotes:add-favorite", input),
+    removeFavorite: (id) => ipcRenderer.invoke("quotes:remove-favorite", id),
+    useFavoriteToday: (id) =>
+      ipcRenderer.invoke("quotes:use-favorite-today", id),
+    refresh: () => ipcRenderer.invoke("quotes:refresh"),
     retry: () => ipcRenderer.invoke("quotes:retry"),
   },
   focus: {

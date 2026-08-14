@@ -8,12 +8,10 @@ import { DailyQuoteService } from "../src/main/services/daily-quotes";
 import type { SyncService } from "../src/main/services/sync";
 import { ZhixuStore } from "../src/main/store";
 import {
-  DAILY_QUOTE_AI_SHARE,
-  DAILY_QUOTE_CORPUS,
+  DAILY_QUOTE_FAVORITE_SHARE,
   DAILY_QUOTE_GENERATION_VERSION,
   normalizeQuoteText,
-  selectCorpusQuote,
-} from "../src/shared/daily-quote-corpus";
+} from "../src/shared/daily-quotes";
 import {
   buildDailyQuoteMessages,
   isDailyQuoteDuplicate,
@@ -21,6 +19,13 @@ import {
   parseDailyQuoteResponse,
   validateDailyQuoteText,
 } from "../../../supabase/functions/daily-quote/prompt";
+import {
+  DailyQuoteGenerationFailure,
+  classifyUpstreamStatus,
+  failureBody,
+  isRetryableFailureReason,
+  safeUpstreamCode,
+} from "../../../supabase/functions/daily-quote/errors";
 
 const directories: string[] = [];
 
@@ -51,12 +56,7 @@ describe("daily quote service", () => {
     const generate = vi.fn().mockReturnValue(pending);
     const { store, sync, db } = setup(generate);
     const now = new Date(2026, 7, 11, 8, 30);
-    const service = new DailyQuoteService(
-      store,
-      sync,
-      () => now,
-      () => 0,
-    );
+    const service = new DailyQuoteService(store, sync, () => now);
 
     const first = service.today();
     const second = service.today();
@@ -73,13 +73,65 @@ describe("daily quote service", () => {
     db.close();
   });
 
-  it("keeps dislike feedback and falls back to the corpus when AI fails", async () => {
+  it("selects a favorite for the twenty percent branch and keeps its heart", async () => {
+    const generate = vi.fn();
+    const { store, sync, db } = setup(generate);
+    const favorite = store.addManualFavorite(
+      "清醒地选择，比匆忙地抵达更重要。",
+      "2026-08-10",
+    );
+    const values = [DAILY_QUOTE_FAVORITE_SHARE - 0.01, 0];
+    const service = new DailyQuoteService(
+      store,
+      sync,
+      () => new Date(2026, 7, 11, 10),
+      () => values.shift() ?? 0,
+    );
+
+    await expect(service.today()).resolves.toMatchObject({
+      text: favorite.text,
+      sourceKind: "favorite",
+      sourceId: favorite.id,
+      reaction: "favorite",
+    });
+    expect(store.listFavoriteQuotes()).toHaveLength(1);
+    expect(generate).not.toHaveBeenCalled();
+    db.close();
+  });
+
+  it("falls back to a favorite when AI generation fails", async () => {
     const generate = vi.fn().mockRejectedValue(new Error("offline"));
     const { store, sync, db } = setup(generate);
-    const original = store.saveGeneratedQuote(
-      "把今天走稳，远方自然会近。",
-      "2026-08-11",
+    const favorite = store.addManualFavorite(
+      "先完成重要的事，再处理其余声音。",
+      "2026-08-10",
     );
+    const service = new DailyQuoteService(
+      store,
+      sync,
+      () => new Date(2026, 7, 11, 10),
+      () => 0.9,
+    );
+
+    await expect(service.today()).resolves.toMatchObject({
+      sourceKind: "favorite",
+      sourceId: favorite.id,
+    });
+    expect(generate).toHaveBeenCalledTimes(1);
+    db.close();
+  });
+
+  it("keeps the current quote and writes nothing when no different fallback exists", async () => {
+    const generate = vi.fn().mockRejectedValue(new Error("upstream failed"));
+    const { store, sync, db } = setup(generate);
+    const favorite = store.addManualFavorite(
+      "燕雀安知鸿鹄之志。",
+      "2026-08-10",
+    );
+    const display = store.saveFavoriteForDate(favorite.id, "2026-08-11");
+    const before = db
+      .prepare("SELECT COUNT(*) AS count FROM daily_quotes")
+      .get() as { count: number };
     const service = new DailyQuoteService(
       store,
       sync,
@@ -87,21 +139,25 @@ describe("daily quote service", () => {
       () => 0,
     );
 
-    await expect(service.dislike(original.id)).resolves.toMatchObject({
-      sourceKind: "corpus",
-      generationVersion: DAILY_QUOTE_GENERATION_VERSION,
-    });
-    expect(store.listDislikedQuotes()[0]?.id).toBe(original.id);
-    expect(generate.mock.calls[0]?.[0]).toMatchObject({
-      dislikes: ["把今天走稳，远方自然会近。"],
-    });
+    await expect(service.refresh()).rejects.toThrow("upstream failed");
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(store.getDailyQuote("2026-08-11")?.id).toBe(display.id);
+    expect(
+      db.prepare("SELECT COUNT(*) AS count FROM daily_quotes").get(),
+    ).toEqual(before);
     db.close();
   });
 
-  it("uses the corpus directly for the thirty percent branch", async () => {
+  it("selects only a different favorite during neutral refresh", async () => {
     const generate = vi.fn();
     const { store, sync, db } = setup(generate);
-    const values = [DAILY_QUOTE_AI_SHARE, 0];
+    const current = store.addManualFavorite("燕雀安知鸿鹄之志。", "2026-08-10");
+    const alternative = store.addManualFavorite(
+      "把复杂的事情做简单。",
+      "2026-08-10",
+    );
+    store.saveFavoriteForDate(current.id, "2026-08-11");
+    const values = [DAILY_QUOTE_FAVORITE_SHARE - 0.01, 0];
     const service = new DailyQuoteService(
       store,
       sync,
@@ -109,32 +165,129 @@ describe("daily quote service", () => {
       () => values.shift() ?? 0,
     );
 
-    await expect(service.today()).resolves.toMatchObject({
-      text: DAILY_QUOTE_CORPUS[0]?.text,
-      sourceKind: "corpus",
-      sourceId: DAILY_QUOTE_CORPUS[0]?.id,
+    await expect(service.refresh()).resolves.toMatchObject({
+      text: alternative.text,
+      sourceKind: "favorite",
+      sourceId: alternative.id,
     });
     expect(generate).not.toHaveBeenCalled();
     db.close();
   });
 
-  it("replaces an unreacted first-generation quote but preserves a favorite", async () => {
-    const first = setup(vi.fn());
+  it("keeps a disliked quote rejected when replacement generation fails", async () => {
+    const generate = vi.fn().mockRejectedValue(new Error("upstream failed"));
+    const { store, sync, db } = setup(generate);
+    const favorite = store.addManualFavorite(
+      "燕雀安知鸿鹄之志。",
+      "2026-08-10",
+    );
+    const display = store.saveFavoriteForDate(favorite.id, "2026-08-11");
+    const service = new DailyQuoteService(
+      store,
+      sync,
+      () => new Date(2026, 7, 11, 10),
+      () => 0,
+    );
+
+    await expect(service.dislike(display.id)).rejects.toThrow(
+      "upstream failed",
+    );
+    expect(store.getDailyQuoteById(display.id)?.reaction).toBe("disliked");
+    expect(store.getDailyQuoteById(favorite.id)?.reaction).toBe("disliked");
+    db.close();
+  });
+
+  it("uses dislike as negative feedback but keeps neutral refresh neutral", async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce("把注意力放回能够改变的事情上。")
+      .mockResolvedValueOnce("行动会把模糊的方向变得清楚。");
+    const { store, sync, db } = setup(generate);
+    const source = store.addManualFavorite(
+      "耐心不是停留，而是清醒地前行。",
+      "2026-08-10",
+    );
+    const display = store.saveFavoriteForDate(source.id, "2026-08-11");
+    const service = new DailyQuoteService(
+      store,
+      sync,
+      () => new Date(2026, 7, 11, 10),
+      () => 0.9,
+    );
+
+    await service.refresh();
+    expect(store.getDailyQuoteById(source.id)?.reaction).toBe("favorite");
+    await service.dislike(display.id);
+    expect(store.getDailyQuoteById(source.id)?.reaction).toBe("disliked");
+    expect(store.getDailyQuoteById(display.id)?.reaction).toBe("disliked");
+    db.close();
+  });
+
+  it("sends every unique favorite and removes positive-negative conflicts", async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValue("把注意力放回能够改变的事情上。");
+    const { store, sync, db } = setup(generate);
+    for (let index = 0; index < 30; index += 1)
+      store.addManualFavorite(
+        `收藏内容第${index}条保持清醒行动。`,
+        "2026-08-10",
+      );
+    const conflict = store.saveGeneratedQuote(
+      "收藏内容第0条保持清醒行动！",
+      "2026-08-09",
+    );
+    store.setDailyQuoteReaction(conflict.id, "disliked");
+    const service = new DailyQuoteService(
+      store,
+      sync,
+      () => new Date(2026, 7, 11, 10),
+      () => 0.9,
+    );
+
+    await service.today();
+    const input = generate.mock.calls[0]?.[0];
+    expect(input.favorites).toHaveLength(30);
+    expect(input.dislikes).not.toContain("收藏内容第0条保持清醒行动！");
+    db.close();
+  });
+
+  it("adds unique manual favorites and deletes them with linked displays", () => {
+    const { store, sync, db } = setup();
+    const service = new DailyQuoteService(
+      store,
+      sync,
+      () => new Date(2026, 7, 11, 10),
+    );
+    const favorite = service.addFavorite("把今天走稳，远方自然会近。");
+    expect(favorite).toMatchObject({
+      reaction: "favorite",
+      sourceKind: "manual",
+    });
+    expect(() => service.addFavorite("把今天走稳，远方自然会近！")).toThrow(
+      "已在收藏中",
+    );
+    const display = service.useFavoriteToday(favorite.id);
+    service.removeFavorite(favorite.id);
+    expect(store.getDailyQuoteById(favorite.id)).toBeNull();
+    expect(store.getDailyQuoteById(display.id)?.reaction).toBe("none");
+    db.close();
+  });
+
+  it("replaces an unreacted legacy generation but preserves a favorite", async () => {
+    const first = setup(
+      vi.fn().mockResolvedValue("把今天走稳，远方自然会近。"),
+    );
     const legacy = first.store.saveGeneratedQuote(
-      "溪水不争自东流，青松无求向天立。",
+      "旧版本留下的今日格言仍需重新生成。",
       "2026-08-11",
     );
-    const values = [DAILY_QUOTE_AI_SHARE, 0];
     const service = new DailyQuoteService(
       first.store,
       first.sync,
       () => new Date(2026, 7, 11, 10),
-      () => values.shift() ?? 0,
     );
-    await expect(service.today()).resolves.toMatchObject({
-      sourceKind: "corpus",
-      generationVersion: DAILY_QUOTE_GENERATION_VERSION,
-    });
+    await service.today();
     expect(first.store.getDailyQuoteById(legacy.id)?.reaction).toBe("disliked");
     first.db.close();
 
@@ -148,116 +301,43 @@ describe("daily quote service", () => {
       second.store,
       second.sync,
       () => new Date(2026, 7, 11, 10),
-      () => 0,
     );
     await expect(favoriteService.today()).resolves.toMatchObject({
       id: favorite.id,
       reaction: "favorite",
-      generationVersion: 1,
     });
     expect(second.generateDailyQuote).not.toHaveBeenCalled();
     second.db.close();
   });
-
-  it("feeds reactions from both sources into a bounded AI request", async () => {
-    const generate = vi
-      .fn()
-      .mockResolvedValue("把注意力放回能够改变的事情上。 ");
-    const { store, sync, db } = setup(generate);
-    const favorite = store.saveGeneratedQuote(
-      DAILY_QUOTE_CORPUS[0]!.text,
-      "2026-08-09",
-      {
-        kind: "corpus",
-        id: DAILY_QUOTE_CORPUS[0]!.id,
-        generationVersion: DAILY_QUOTE_GENERATION_VERSION,
-      },
-    );
-    store.setDailyQuoteReaction(favorite.id, "favorite");
-    const disliked = store.saveGeneratedQuote(
-      "心若浮云聚散，意如磐石自安。",
-      "2026-08-10",
-      { kind: "ai", generationVersion: DAILY_QUOTE_GENERATION_VERSION },
-    );
-    store.setDailyQuoteReaction(disliked.id, "disliked");
-    const service = new DailyQuoteService(
-      store,
-      sync,
-      () => new Date(2026, 7, 11, 10),
-      () => 0,
-    );
-
-    await service.today();
-    expect(generate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        favorites: [DAILY_QUOTE_CORPUS[0]!.text],
-        dislikes: ["心若浮云聚散，意如磐石自安。"],
-      }),
-    );
-    db.close();
-  });
-
-  it("stores only favorites in the visible collection", () => {
-    const { store, db } = setup();
-    const favorite = store.saveGeneratedQuote(
-      "清醒地选择，比匆忙地抵达更重要。",
-      "2026-08-10",
-    );
-    const disliked = store.saveGeneratedQuote(
-      "慢一点，才能听见真正重要的声音。",
-      "2026-08-11",
-    );
-    store.setDailyQuoteReaction(favorite.id, "favorite");
-    store.setDailyQuoteReaction(disliked.id, "disliked");
-    expect(store.listFavoriteQuotes().map((item) => item.id)).toEqual([
-      favorite.id,
-    ]);
-    expect(store.listDislikedQuotes().map((item) => item.id)).toEqual([
-      disliked.id,
-    ]);
-    db.close();
-  });
-
-  it("keeps generation and feedback timestamps monotonic during rapid actions", () => {
-    const { store, db } = setup();
-    const first = store.saveGeneratedQuote(
-      "把今天走稳，远方自然会近。",
-      "2026-08-11",
-    );
-    const second = store.saveGeneratedQuote(
-      "耐心不是停留，而是清醒地前行。",
-      "2026-08-11",
-    );
-    expect(Date.parse(second.generatedAt)).toBeGreaterThan(
-      Date.parse(first.generatedAt),
-    );
-    store.setDailyQuoteReaction(second.id, "favorite");
-    expect(
-      Date.parse(store.getDailyQuoteById(second.id)!.updatedAt),
-    ).toBeGreaterThan(Date.parse(second.updatedAt));
-    db.close();
-  });
 });
 
 describe("daily quote prompt", () => {
-  it("bounds feedback examples and keeps positive and negative guidance", () => {
+  it("keeps all positive examples and bounds negative and recent guidance", () => {
     const input = normalizePromptInput({
       localDate: "2026-08-11",
       favorites: Array.from({ length: 30 }, (_, index) => `收藏内容${index}`),
-      dislikes: Array.from({ length: 50 }, (_, index) => `负面内容${index}`),
+      dislikes: [
+        "收藏内容0",
+        ...Array.from({ length: 50 }, (_, index) => `负面内容${index}`),
+      ],
       recent: Array.from({ length: 70 }, (_, index) => `近期内容${index}`),
     });
-    expect(input.favorites).toHaveLength(8);
-    expect(input.dislikes).toHaveLength(12);
+    expect(input.favorites).toHaveLength(30);
+    expect(input.dislikes).toHaveLength(11);
+    expect(input.dislikes).not.toContain("收藏内容0");
     expect(input.recent).toHaveLength(60);
     const prompt = buildDailyQuoteMessages(input)
       .map((item) => item.content)
       .join("\n");
-    expect(prompt).toContain("收藏：");
+    expect(prompt).toContain("收藏内容29");
+    expect(prompt).toContain("所有收藏都是正向偏好");
     expect(prompt).toContain("不喜欢：");
-    expect(prompt).toContain("不要写成诗歌、古风或刻意对仗");
-    expect(prompt).not.toContain("近期内容0");
-    expect(buildDailyQuoteMessages(input)[0]!.content.length).toBeLessThan(180);
+    expect(
+      buildDailyQuoteMessages(input, "duplicate").at(-1)?.content,
+    ).toContain("近期格言重复");
+    expect(
+      buildDailyQuoteMessages(input, "invalid_output").at(-1)?.content,
+    ).toContain("格式校验");
   });
 
   it("accepts strict JSON Chinese text and rejects decorated output", () => {
@@ -274,45 +354,38 @@ describe("daily quote prompt", () => {
         "把今天走稳，远方自然会近。",
       ]),
     ).toBe(true);
+    expect(normalizeQuoteText(" 稳稳地走。 ")).toBe("稳稳地走");
   });
-});
 
-describe("daily quote corpus", () => {
-  it("contains reviewed unique entries with valid display text", () => {
-    expect(DAILY_QUOTE_CORPUS).toHaveLength(153);
-    expect(new Set(DAILY_QUOTE_CORPUS.map((quote) => quote.id)).size).toBe(153);
+  it("classifies safe Edge Function failures without exposing messages", () => {
+    expect(classifyUpstreamStatus(401)).toBe("upstream_auth");
+    expect(classifyUpstreamStatus(402)).toBe("upstream_quota");
+    expect(classifyUpstreamStatus(429)).toBe("upstream_quota");
+    expect(classifyUpstreamStatus(400)).toBe("invalid_output");
+    expect(classifyUpstreamStatus(503)).toBe("upstream_5xx");
+    expect(isRetryableFailureReason("upstream_auth")).toBe(false);
+    expect(isRetryableFailureReason("upstream_quota")).toBe(false);
+    expect(isRetryableFailureReason("upstream_timeout")).toBe(true);
+    expect(isRetryableFailureReason("upstream_5xx")).toBe(true);
+    expect(isRetryableFailureReason("invalid_output")).toBe(true);
+    expect(isRetryableFailureReason("duplicate")).toBe(true);
+    expect(safeUpstreamCode("insufficient_balance")).toBe(
+      "insufficient_balance",
+    );
+    expect(safeUpstreamCode("secret message with spaces")).toBeNull();
     expect(
-      new Set(DAILY_QUOTE_CORPUS.map((quote) => normalizeQuoteText(quote.text)))
-        .size,
-    ).toBe(153);
-    for (const quote of DAILY_QUOTE_CORPUS) {
-      expect(validateDailyQuoteText(quote.text)).toBe(quote.text);
-      expect(quote.attribution.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("excludes recent and disliked entries and relaxes only recent history", () => {
-    const first = DAILY_QUOTE_CORPUS[0]!;
-    const second = DAILY_QUOTE_CORPUS[1]!;
-    const selected = selectCorpusQuote({
-      recent: [first.text],
-      dislikes: [second.text],
-      random: () => 0,
+      failureBody(
+        new DailyQuoteGenerationFailure(
+          "upstream_quota",
+          402,
+          "insufficient_balance",
+        ),
+        "00000000-0000-4000-8000-000000000001",
+      ),
+    ).toEqual({
+      error: "quote_generation_failed",
+      reason: "upstream_quota",
+      requestId: "00000000-0000-4000-8000-000000000001",
     });
-    expect(selected?.id).not.toBe(first.id);
-    expect(selected?.id).not.toBe(second.id);
-    expect(
-      selectCorpusQuote({
-        recent: DAILY_QUOTE_CORPUS.map((quote) => quote.text),
-        dislikes: [],
-        random: () => 0,
-      }),
-    ).toMatchObject({ id: first.id });
-    expect(
-      selectCorpusQuote({
-        recent: [],
-        dislikes: DAILY_QUOTE_CORPUS.map((quote) => quote.text),
-      }),
-    ).toBeNull();
   });
 });

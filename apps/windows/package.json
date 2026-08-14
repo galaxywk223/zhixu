@@ -1,6 +1,6 @@
 {
   "name": "@zhixu/windows",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "知序 Windows 桌面客户端",
   "author": "GalaxyWK",
@@ -86,10 +86,6 @@
       {
         "from": "../../native/tomatodo_importer/target/release/zhixu_tomatodo_importer.exe",
         "to": "native/zhixu_tomatodo_importer.exe"
-      },
-      {
-        "from": "resources/third-party",
-        "to": "third-party"
       }
     ],
     "win": {

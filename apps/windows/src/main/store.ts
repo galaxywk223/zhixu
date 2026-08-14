@@ -51,6 +51,7 @@ import { normalizeTagName, tagColorHex } from "../shared/tag-colors";
 import { buildFocusByLocalDay } from "../shared/focus-dates";
 import { addLocalDays, localDayStart } from "../shared/local-date";
 import { localDateKey, parseLocalDateKey } from "../shared/local-date";
+import { normalizeQuoteText } from "../shared/daily-quotes";
 import {
   FINANCE_CATEGORIES,
   classifyFinanceTransaction,
@@ -198,14 +199,17 @@ function asCountdown(row: SqlRow): CountdownRecord {
 }
 
 function asDailyQuote(row: SqlRow): DailyQuoteRecord {
+  const sourceKind = ["ai", "corpus", "manual", "favorite"].includes(
+    String(row.source_kind),
+  )
+    ? String(row.source_kind)
+    : "ai";
   return {
     id: String(row.id),
     text: String(row.text),
     localDate: String(row.local_date),
     reaction: String(row.reaction) as DailyQuoteReaction,
-    sourceKind: (row.source_kind === "corpus"
-      ? "corpus"
-      : "ai") as DailyQuoteSourceKind,
+    sourceKind: sourceKind as DailyQuoteSourceKind,
     sourceId: row.source_id == null ? null : String(row.source_id),
     generationVersion: Math.max(1, Number(row.generation_version ?? 1)),
     generatedAt: toIso(row.generated_at) ?? new Date(0).toISOString(),
@@ -686,7 +690,8 @@ export class ZhixuStore {
     const row = this.db
       .prepare(
         `SELECT * FROM daily_quotes
-         WHERE local_date = ? AND reaction <> 'disliked' AND deleted_at IS NULL
+         WHERE local_date = ? AND source_kind <> 'manual'
+           AND reaction <> 'disliked' AND deleted_at IS NULL
          ORDER BY generated_at DESC, id DESC LIMIT 1`,
       )
       .get(localDate) as SqlRow | undefined;
@@ -700,16 +705,18 @@ export class ZhixuStore {
     return row ? asDailyQuote(row) : null;
   }
 
-  listFavoriteQuotes(limit = 500): DailyQuoteRecord[] {
-    return (
-      this.db
-        .prepare(
-          `SELECT * FROM daily_quotes
-           WHERE reaction = 'favorite' AND deleted_at IS NULL
-           ORDER BY updated_at DESC, generated_at DESC LIMIT ?`,
-        )
-        .all(Math.max(1, Math.min(2_000, limit))) as SqlRow[]
-    ).map(asDailyQuote);
+  listFavoriteQuotes(limit?: number): DailyQuoteRecord[] {
+    const sql = `SELECT * FROM daily_quotes
+      WHERE reaction = 'favorite' AND source_kind <> 'favorite'
+        AND deleted_at IS NULL
+      ORDER BY updated_at DESC, generated_at DESC${limit == null ? "" : " LIMIT ?"}`;
+    const rows =
+      limit == null
+        ? (this.db.prepare(sql).all() as SqlRow[])
+        : (this.db
+            .prepare(sql)
+            .all(Math.max(1, Math.min(10_000, limit))) as SqlRow[]);
+    return rows.map(asDailyQuote);
   }
 
   listDislikedQuotes(limit = 40): DailyQuoteRecord[] {
@@ -742,6 +749,7 @@ export class ZhixuStore {
       kind?: DailyQuoteSourceKind;
       id?: string | null;
       generationVersion?: number;
+      reaction?: DailyQuoteReaction;
     } = {},
   ): DailyQuoteRecord {
     const id = randomUUID();
@@ -753,7 +761,7 @@ export class ZhixuStore {
       id,
       text,
       local_date: localDate,
-      reaction: "none",
+      reaction: source.reaction ?? "none",
       source_kind: source.kind ?? "ai",
       source_id: source.id ?? null,
       generation_version: Math.max(1, source.generationVersion ?? 1),
@@ -771,12 +779,81 @@ export class ZhixuStore {
     return asDailyQuote(row);
   }
 
-  setDailyQuoteReaction(id: string, reaction: DailyQuoteReaction): void {
+  addManualFavorite(text: string, localDate: string): DailyQuoteRecord {
+    const normalized = normalizeQuoteText(text);
+    const existing = (
+      this.db
+        .prepare(
+          `SELECT * FROM daily_quotes
+           WHERE reaction = 'favorite' AND source_kind <> 'favorite'
+             AND deleted_at IS NULL`,
+        )
+        .all() as SqlRow[]
+    ).find((row) => normalizeQuoteText(String(row.text)) === normalized);
+    if (existing) throw new Error("该格言已在收藏中");
+    return this.saveGeneratedQuote(text.trim(), localDate, {
+      kind: "manual",
+      reaction: "favorite",
+    });
+  }
+
+  saveFavoriteForDate(id: string, localDate: string): DailyQuoteRecord {
+    const favorite = this.getDailyQuoteById(id);
+    if (!favorite || favorite.reaction !== "favorite")
+      throw new Error("收藏格言不存在");
+    const sourceId =
+      favorite.sourceKind === "favorite" && favorite.sourceId
+        ? favorite.sourceId
+        : favorite.id;
+    const source = this.getDailyQuoteById(sourceId);
+    if (!source || source.reaction !== "favorite")
+      throw new Error("收藏格言不存在");
+    return this.saveGeneratedQuote(source.text, localDate, {
+      kind: "favorite",
+      id: source.id,
+      reaction: "favorite",
+    });
+  }
+
+  removeDailyQuote(id: string): void {
+    const current = this.getDailyQuoteById(id);
+    if (!current) throw new Error("格言不存在");
+    const currentUpdated = Math.floor(Date.parse(current.updatedAt) / 1000);
+    const now = Math.max(nowSeconds(), currentUpdated + 1);
+    this.db.transaction(() => {
+      this.db
+        .prepare(
+          "UPDATE daily_quotes SET deleted_at = ?, updated_at = ? WHERE id = ?",
+        )
+        .run(now, now, id);
+      const row = this.db
+        .prepare("SELECT * FROM daily_quotes WHERE id = ?")
+        .get(id) as SqlRow;
+      this.enqueue("daily_quote", id, "delete", row);
+    })();
+  }
+
+  listFavoriteDisplays(sourceId: string): DailyQuoteRecord[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM daily_quotes
+           WHERE source_kind = 'favorite' AND source_id = ?
+             AND deleted_at IS NULL`,
+        )
+        .all(sourceId) as SqlRow[]
+    ).map(asDailyQuote);
+  }
+
+  setDailyQuoteReaction(
+    id: string,
+    reaction: DailyQuoteReaction,
+  ): DailyQuoteRecord {
     const current = this.getDailyQuoteById(id);
     if (!current) throw new Error("格言不存在");
     if (current.reaction === "disliked" && reaction !== "disliked")
       throw new Error("不喜欢的格言不能重新收藏");
-    if (current.reaction === reaction) return;
+    if (current.reaction === reaction) return current;
     const currentUpdated = Math.floor(Date.parse(current.updatedAt) / 1000);
     const now = Math.max(nowSeconds(), currentUpdated + 1);
     this.db.transaction(() => {
@@ -790,6 +867,7 @@ export class ZhixuStore {
         .get(id) as SqlRow;
       this.enqueue("daily_quote", id, "upsert", row);
     })();
+    return this.getDailyQuoteById(id)!;
   }
 
   listFinance(input: FinanceQuery): FinanceListResult {

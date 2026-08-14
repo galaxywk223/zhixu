@@ -201,7 +201,7 @@ else {
         const focusSessions = store.listFocusSessions();
         process.stdout.write(
           `${JSON.stringify({
-            schemaVersion: 11,
+            schemaVersion: 12,
             integrity: store.integrityCheck(),
             migration: context.report,
             counts: store.entityCounts(),
@@ -229,6 +229,7 @@ else {
         backup,
         storage: new EncryptedSessionStorage(app.getPath("userData")),
         userDataPath: app.getPath("userData"),
+        automaticSync: app.isPackaged || process.env.ZHIXU_REVIEW_MODE !== "1",
         getWindow: () => mainWindow,
         notifyDataChanged: () =>
           mainWindow?.webContents.send("app:data-changed", "all"),

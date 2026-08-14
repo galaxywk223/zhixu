@@ -102,6 +102,14 @@ const quoteFavoriteSchema = z.object({
   id: idSchema,
   favorite: z.boolean(),
 });
+const quoteTextSchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(1, "请输入格言正文")
+    .refine((value) => !/[\r\n]/.test(value), "格言只能输入一行")
+    .refine((value) => Array.from(value).length <= 80, "格言最多 80 个字符"),
+});
 
 export function registerIpc(dependencies: IpcDependencies): void {
   const { store, getWindow } = dependencies;
@@ -200,11 +208,33 @@ export function registerIpc(dependencies: IpcDependencies): void {
     "quotes:set-favorite",
     mutation("quotes", (value) => {
       const input = quoteFavoriteSchema.parse(value);
-      dependencies.dailyQuotes.setFavorite(input.id, input.favorite);
+      return dependencies.dailyQuotes.setFavorite(input.id, input.favorite);
     }),
   );
   ipcMain.handle("quotes:favorites", () =>
     dependencies.dailyQuotes.favorites(),
+  );
+  ipcMain.handle(
+    "quotes:add-favorite",
+    mutation("quotes", (value) =>
+      dependencies.dailyQuotes.addFavorite(quoteTextSchema.parse(value).text),
+    ),
+  );
+  ipcMain.handle(
+    "quotes:remove-favorite",
+    mutation("quotes", (id) =>
+      dependencies.dailyQuotes.removeFavorite(idSchema.parse(id)),
+    ),
+  );
+  ipcMain.handle(
+    "quotes:use-favorite-today",
+    mutation("quotes", (id) =>
+      dependencies.dailyQuotes.useFavoriteToday(idSchema.parse(id)),
+    ),
+  );
+  ipcMain.handle(
+    "quotes:refresh",
+    mutation("quotes", () => dependencies.dailyQuotes.refresh()),
   );
   ipcMain.handle(
     "quotes:retry",

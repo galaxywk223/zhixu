@@ -2116,7 +2116,14 @@ button {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
   border-block: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
 }
-.daily-quote-band > p {
+.daily-quote-copy {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 920px;
+}
+.daily-quote-copy > p {
   max-width: 920px;
   margin: 0;
   font-size: 26px;
@@ -2126,6 +2133,29 @@ button {
   text-align: center;
   text-wrap: balance;
   overflow-wrap: anywhere;
+}
+.daily-quote-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  color: var(--danger);
+  font-size: var(--font-caption);
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.daily-quote-error .fui-Button {
+  flex: none;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  color: var(--danger);
+}
+.daily-quote-error-empty {
+  flex-direction: column;
 }
 .daily-quote-actions {
   position: absolute;
@@ -2154,13 +2184,31 @@ button {
   max-height: min(620px, calc(100vh - 190px));
   overflow-y: auto;
 }
+.quote-favorite-add {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+  padding: 2px 0 12px;
+  background: var(--surface);
+}
+.quote-favorite-add .fui-Input {
+  width: 100%;
+}
+.quote-favorite-error {
+  padding-bottom: 8px;
+  color: var(--danger);
+  font-size: var(--font-caption);
+}
 .quote-favorites-list {
   display: flex;
   flex-direction: column;
 }
 .quote-favorites-list article {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
   min-height: 78px;
@@ -2170,7 +2218,7 @@ button {
 .quote-favorites-list article:last-child {
   border-bottom: 0;
 }
-.quote-favorites-list article > div {
+.quote-favorites-list article > div:first-child {
   min-width: 0;
 }
 .quote-favorites-list p {
@@ -2181,11 +2229,27 @@ button {
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.quote-favorites-list time {
-  display: block;
+.quote-favorite-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 5px;
   color: var(--muted);
   font-size: var(--font-caption);
+}
+.quote-favorite-meta time {
+  display: block;
+}
+.quote-favorite-meta span {
+  padding: 1px 5px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 4px;
+}
+.quote-favorite-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .quote-favorites-empty {
   min-height: 180px;
@@ -5354,7 +5418,7 @@ button {
     min-height: 126px;
     padding: 26px 72px 26px 30px;
   }
-  .daily-quote-band > p {
+  .daily-quote-copy > p {
     font-size: 23px;
   }
   .today-memo-panel {
@@ -5452,7 +5516,7 @@ button {
     min-height: 116px;
     padding: 24px 18px 52px;
   }
-  .daily-quote-band > p {
+  .daily-quote-copy > p {
     font-size: 20px;
     line-height: 1.55;
   }

@@ -67,7 +67,7 @@ try {
     throw "Packaged self-test exited with $($process.ExitCode): $(Get-Content -Raw -LiteralPath $stderr)"
   }
   $result = $output | ConvertFrom-Json
-  if ($result.schemaVersion -ne 11 -or $result.integrity -ne 'ok') {
+  if ($result.schemaVersion -ne 12 -or $result.integrity -ne 'ok') {
     throw "Packaged self-test failed: $output"
   }
   if ($LegacyDatabasePath -and

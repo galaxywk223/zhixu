@@ -280,6 +280,90 @@ describe("sync repository", () => {
     close();
   });
 
+  it("round-trips manual favorites and linked favorite displays", () => {
+    const { store, repository, close } = setup();
+    const manual = store.addManualFavorite(
+      "保持清醒，持续行动。",
+      "2026-08-11",
+    );
+    const display = store.saveFavoriteForDate(manual.id, "2026-08-12");
+    const pending = repository.listPending();
+
+    expect(pending.find((item) => item.entityId === manual.id)).toMatchObject({
+      entityType: "daily_quote",
+      payload: expect.objectContaining({
+        reaction: "favorite",
+        source_kind: "manual",
+        source_id: null,
+      }),
+    });
+    expect(pending.find((item) => item.entityId === display.id)).toMatchObject({
+      entityType: "daily_quote",
+      payload: expect.objectContaining({
+        reaction: "favorite",
+        source_kind: "favorite",
+        source_id: manual.id,
+      }),
+    });
+
+    repository.applyChanges([
+      {
+        revision: 31,
+        entity_type: "daily_quote",
+        entity_id: "remote-manual",
+        operation: "upsert",
+        payload: {
+          id: "remote-manual",
+          text: "把复杂的事情做简单。",
+          local_date: "2026-08-13",
+          reaction: "favorite",
+          source_kind: "manual",
+          source_id: null,
+          generation_version: 3,
+          generated_at: "2026-08-13T00:00:00.000Z",
+          created_at: "2026-08-13T00:00:00.000Z",
+          updated_at: "2026-08-13T00:00:00.000Z",
+          deleted_at: null,
+          device_id: "remote",
+          server_revision: 31,
+        },
+      },
+      {
+        revision: 32,
+        entity_type: "daily_quote",
+        entity_id: "remote-display",
+        operation: "upsert",
+        payload: {
+          id: "remote-display",
+          text: "把复杂的事情做简单。",
+          local_date: "2026-08-14",
+          reaction: "favorite",
+          source_kind: "favorite",
+          source_id: "remote-manual",
+          generation_version: 3,
+          generated_at: "2026-08-14T00:00:00.000Z",
+          created_at: "2026-08-14T00:00:00.000Z",
+          updated_at: "2026-08-14T00:00:00.000Z",
+          deleted_at: null,
+          device_id: "remote",
+          server_revision: 32,
+        },
+      },
+    ]);
+
+    expect(
+      store.listFavoriteQuotes().find((item) => item.id === "remote-manual"),
+    ).toMatchObject({ sourceKind: "manual", reaction: "favorite" });
+    expect(store.getDailyQuote("2026-08-14")).toMatchObject({
+      id: "remote-display",
+      sourceKind: "favorite",
+      sourceId: "remote-manual",
+      reaction: "favorite",
+    });
+    expect(repository.cursor()).toBe(32);
+    close();
+  });
+
   it("ignores remote note changes while advancing the global cursor", () => {
     const { repository, db, close } = setup();
     insertLegacyNote(db, "legacy-note", "保留本地笔记");

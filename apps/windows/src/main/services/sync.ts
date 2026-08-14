@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { net, type BrowserWindow } from "electron";
 import {
   createClient,
+  FunctionsHttpError,
   type AuthChangeEvent,
   type Session,
   type SupabaseClient,
@@ -26,6 +27,7 @@ interface SyncServiceOptions {
   backup: BackupService;
   storage: EncryptedSessionStorage;
   userDataPath: string;
+  automaticSync?: boolean;
   getWindow(): BrowserWindow | null;
   notifyDataChanged(): void;
 }
@@ -51,6 +53,62 @@ function errorMessage(value: unknown): string {
   if (value && typeof value === "object" && "message" in value)
     return String(value.message);
   return String(value);
+}
+
+type DailyQuoteFailureReason =
+  | "upstream_auth"
+  | "upstream_quota"
+  | "upstream_timeout"
+  | "upstream_5xx"
+  | "invalid_output"
+  | "duplicate";
+
+interface DailyQuoteFailurePayload {
+  error?: unknown;
+  reason?: unknown;
+  requestId?: unknown;
+}
+
+function dailyQuoteFailureMessage(
+  reason: DailyQuoteFailureReason | null,
+  requestId: string | null,
+): string {
+  const message =
+    reason === "upstream_auth"
+      ? "AI 服务认证配置异常，请联系维护者。"
+      : reason === "upstream_quota"
+        ? "AI 服务额度不足，请联系维护者。"
+        : reason === "invalid_output" || reason === "duplicate"
+          ? "AI 未生成有效的新格言，请重试。"
+          : "AI 服务暂时不可用，请稍后重试。";
+  return requestId ? `${message} 请求编号：${requestId}` : message;
+}
+
+async function dailyQuoteInvocationError(error: unknown): Promise<Error> {
+  if (!(error instanceof FunctionsHttpError))
+    return new Error("AI 服务暂时不可用，请稍后重试。");
+  try {
+    const payload = (await error.context.json()) as DailyQuoteFailurePayload;
+    const reasons: DailyQuoteFailureReason[] = [
+      "upstream_auth",
+      "upstream_quota",
+      "upstream_timeout",
+      "upstream_5xx",
+      "invalid_output",
+      "duplicate",
+    ];
+    const reason = reasons.includes(payload.reason as DailyQuoteFailureReason)
+      ? (payload.reason as DailyQuoteFailureReason)
+      : null;
+    const requestId =
+      typeof payload.requestId === "string" &&
+      /^[0-9a-f-]{36}$/i.test(payload.requestId)
+        ? payload.requestId
+        : null;
+    return new Error(dailyQuoteFailureMessage(reason, requestId));
+  } catch {
+    return new Error("AI 服务暂时不可用，请稍后重试。");
+  }
 }
 
 export class SyncService {
@@ -103,11 +161,12 @@ export class SyncService {
       return;
     }
     if (data.session) await this.establishSession(data.session.user);
-    this.periodicTimer = setInterval(() => {
-      if (this.user && net.isOnline()) this.runInBackground("periodic");
-      else if (this.user && this.state.status === "offline" && net.isOnline())
-        this.runInBackground("online");
-    }, 60_000);
+    if (this.options.automaticSync !== false)
+      this.periodicTimer = setInterval(() => {
+        if (this.user && net.isOnline()) this.runInBackground("periodic");
+        else if (this.user && this.state.status === "offline" && net.isOnline())
+          this.runInBackground("online");
+      }, 60_000);
   }
 
   dispose(): void {
@@ -134,14 +193,15 @@ export class SyncService {
     const { data, error } = await client.functions.invoke("daily-quote", {
       body: input,
     });
-    if (error) throw new Error("每日格言生成失败，请稍后重试");
+    if (error) throw await dailyQuoteInvocationError(error);
     if (!data || typeof data.text !== "string")
       throw new Error("每日格言响应无效，请稍后重试");
     return data.text;
   }
 
   requestSync(delay = 750): void {
-    if (!this.user || !this.client) return;
+    if (this.options.automaticSync === false || !this.user || !this.client)
+      return;
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(
       () => this.runInBackground("local-change"),
@@ -270,6 +330,7 @@ export class SyncService {
   }
 
   async run(_reason = "manual"): Promise<SyncState> {
+    if (this.options.automaticSync === false) return this.getState();
     if (this.runPromise) return this.runPromise;
     this.runPromise = this.performSync().finally(() => {
       this.runPromise = null;
@@ -417,7 +478,7 @@ export class SyncService {
       email: user.email ?? null,
       message: bindingComplete ? "账号已登录。" : "正在准备首次同步。",
     });
-    this.runInBackground("login");
+    if (this.options.automaticSync !== false) this.runInBackground("login");
   }
 
   private async handleAuthChange(

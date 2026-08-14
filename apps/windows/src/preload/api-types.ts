@@ -380,7 +380,7 @@ export interface MigrationReport {
   sourceHash: string | null;
   backupPath: string | null;
   fromVersion: number;
-  toVersion: 11;
+  toVersion: 12;
   integrity: string;
   entityCounts: Record<string, number>;
 }
@@ -422,7 +422,7 @@ export interface SyncState {
 }
 
 export type DailyQuoteReaction = "none" | "favorite" | "disliked";
-export type DailyQuoteSourceKind = "ai" | "corpus";
+export type DailyQuoteSourceKind = "ai" | "corpus" | "manual" | "favorite";
 
 export interface DailyQuoteRecord {
   id: string;
@@ -475,8 +475,15 @@ export interface ZhixuApi {
   quotes: {
     today(): Promise<DailyQuoteRecord | null>;
     dislike(id: string): Promise<DailyQuoteRecord>;
-    setFavorite(input: { id: string; favorite: boolean }): Promise<void>;
+    setFavorite(input: {
+      id: string;
+      favorite: boolean;
+    }): Promise<DailyQuoteRecord>;
     favorites(): Promise<DailyQuoteRecord[]>;
+    addFavorite(input: { text: string }): Promise<DailyQuoteRecord>;
+    removeFavorite(id: string): Promise<void>;
+    useFavoriteToday(id: string): Promise<DailyQuoteRecord>;
+    refresh(): Promise<DailyQuoteRecord>;
     retry(): Promise<DailyQuoteRecord>;
   };
   focus: {

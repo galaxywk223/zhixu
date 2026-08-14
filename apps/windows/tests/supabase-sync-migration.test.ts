@@ -38,6 +38,13 @@ const quoteSourcesMigration = readFileSync(
   ),
   "utf8",
 );
+const quoteManualMigration = readFileSync(
+  resolve(
+    __dirname,
+    "../../../supabase/migrations/202608140012_daily_quote_manual_favorites.sql",
+  ),
+  "utf8",
+);
 const quoteFunction = readFileSync(
   resolve(__dirname, "../../../supabase/functions/daily-quote/index.ts"),
   "utf8",
@@ -146,8 +153,22 @@ describe("Supabase sync migration", () => {
       "when incoming_payload ? 'source_kind' then excluded.source_kind",
     );
     expect(quoteSourcesMigration).toContain("else daily_quotes.source_kind");
-    expect(quoteFunction).toContain("temperature: attempt === 0 ? 0.75 : 0.6");
-    expect(quoteFunction).not.toContain("temperature: attempt === 0 ? 1");
+    expect(quoteFunction).toContain("for (let attempt = 0; attempt < 3");
+    expect(quoteFunction).toContain("temperature: [0.75, 0.65, 0.55][attempt]");
+    expect(quoteFunction).toContain("requestId");
+    expect(quoteFunction).toContain("upstreamStatus");
+    expect(quoteFunction).not.toContain("apiKey,");
+  });
+
+  it("supports manual favorites and removes unapproved legacy corpus rows", () => {
+    expect(quoteManualMigration).toContain(
+      "source_kind in ('ai', 'corpus', 'manual', 'favorite')",
+    );
+    expect(quoteManualMigration).toContain(
+      "char_length(text) between 1 and 80",
+    );
+    expect(quoteManualMigration).toContain("source_kind = 'corpus'");
+    expect(quoteManualMigration).toContain("reaction <> 'favorite'");
   });
 
   it("catches background failures while preserving manual sync errors", () => {
