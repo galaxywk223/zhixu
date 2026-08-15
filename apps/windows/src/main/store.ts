@@ -7,6 +7,8 @@ import {
   scheduleDraftSchema,
   taskBatchDraftSchema,
   taskDraftSchema,
+  taskRecurrenceSchema,
+  taskSeriesDraftSchema,
   themeModeSchema,
   uiScaleSchema,
   type LifeEventDraft,
@@ -15,6 +17,7 @@ import {
   type ScheduleDraft,
   type TaskBatchDraft,
   type TaskDraft,
+  type TaskSeriesDraft,
 } from "@zhixu/contracts";
 import type {
   AppSettings,
@@ -41,6 +44,7 @@ import type {
   TagRecord,
   TaskRecord,
   TaskBatchResult,
+  TaskSeriesResult,
   TomatoImportRow,
   TomatoPreview,
   TomatoPreviewCounts,
@@ -135,6 +139,23 @@ function normalizedName(value: string): string {
 }
 
 function asTask(row: SqlRow): TaskRecord {
+  let series: TaskRecord["series"] = null;
+  if (row.repeat_rule != null) {
+    try {
+      const recurrence = taskRecurrenceSchema.parse(
+        JSON.parse(String(row.repeat_rule)),
+      );
+      series = {
+        id:
+          row.parent_task_id == null
+            ? String(row.id)
+            : String(row.parent_task_id),
+        ...recurrence,
+      };
+    } catch {
+      series = null;
+    }
+  }
   return {
     id: String(row.id),
     title: String(row.title),
@@ -146,6 +167,7 @@ function asTask(row: SqlRow): TaskRecord {
     estimatedMinutes: Number(row.estimated_minutes ?? 0),
     categoryId: row.category_id == null ? null : String(row.category_id),
     repeatRule: row.repeat_rule == null ? null : String(row.repeat_rule),
+    series,
     completedAt: toIso(row.completed_at),
     isArchived: bool(row.is_archived),
     createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
@@ -545,6 +567,146 @@ export class ZhixuStore {
     });
     run();
     return { primaryId, createdCount: ids.length, ids };
+  }
+
+  updateTaskSeries(input: TaskSeriesDraft): TaskSeriesResult {
+    const draft = taskSeriesDraftSchema.parse(input);
+    const selected = this.db
+      .prepare(
+        "SELECT id, parent_task_id, repeat_rule FROM tasks WHERE id = ? AND deleted_at IS NULL",
+      )
+      .get(draft.taskId) as SqlRow | undefined;
+    if (!selected) throw new Error("任务不存在");
+    try {
+      taskRecurrenceSchema.parse(JSON.parse(String(selected.repeat_rule)));
+    } catch {
+      throw new Error("该任务不属于可编辑的任务系列");
+    }
+    const seriesId =
+      selected.parent_task_id == null
+        ? String(selected.id)
+        : String(selected.parent_task_id);
+    const existing = this.db
+      .prepare(
+        `SELECT * FROM tasks
+         WHERE (id = ? OR parent_task_id = ?) AND repeat_rule IS NOT NULL AND deleted_at IS NULL
+         ORDER BY due_at, created_at, id`,
+      )
+      .all(seriesId, seriesId) as SqlRow[];
+    if (existing.length === 0) throw new Error("任务系列不存在");
+
+    const dates = buildOccurrenceDates(
+      draft.startDate,
+      draft.endDate,
+      draft.frequency,
+    );
+    const repeatRule = JSON.stringify({
+      frequency: draft.frequency,
+      startDate: draft.startDate,
+      endDate: draft.endDate,
+      time: draft.time,
+    });
+    const existingByDate = new Map<string, SqlRow>();
+    for (const row of existing) {
+      const dueAt = toIso(row.due_at);
+      if (!dueAt) continue;
+      const date = localDateKey(new Date(dueAt));
+      if (!existingByDate.has(date)) existingByDate.set(date, row);
+    }
+    const retainedIds = new Set<string>();
+    let updatedCount = 0;
+    let createdCount = 0;
+    let removedCount = 0;
+    const now = nowSeconds();
+    const run = this.db.transaction(() => {
+      for (const date of dates) {
+        const row = existingByDate.get(date);
+        const dueAt = toEpoch(combineLocalDueAt(date, draft.time));
+        if (row) {
+          const id = String(row.id);
+          retainedIds.add(id);
+          this.db
+            .prepare(
+              `UPDATE tasks SET title = ?, description_md = ?, priority = ?, due_at = ?,
+               estimated_minutes = ?, category_id = ?, repeat_rule = ?, updated_at = ?,
+               deleted_at = NULL, is_archived = 0 WHERE id = ?`,
+            )
+            .run(
+              draft.title,
+              draft.descriptionMd,
+              draft.priority,
+              dueAt,
+              draft.estimatedMinutes,
+              draft.categoryId,
+              repeatRule,
+              now,
+              id,
+            );
+          this.replaceTaskTags(id, draft.tagIds, now);
+          this.enqueue(
+            "task",
+            id,
+            "upsert",
+            this.db
+              .prepare("SELECT * FROM tasks WHERE id = ?")
+              .get(id) as SqlRow,
+          );
+          updatedCount += 1;
+          continue;
+        }
+
+        const id = randomUUID();
+        this.db
+          .prepare(
+            `INSERT INTO tasks
+             (id, title, description_md, status, priority, due_at, estimated_minutes, category_id,
+              repeat_rule, parent_task_id, completed_at, is_archived, created_at, updated_at,
+              device_id, server_revision)
+             VALUES (?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, 'electron-windows', 0)`,
+          )
+          .run(
+            id,
+            draft.title,
+            draft.descriptionMd,
+            draft.priority,
+            dueAt,
+            draft.estimatedMinutes,
+            draft.categoryId,
+            repeatRule,
+            seriesId,
+            now,
+            now,
+          );
+        retainedIds.add(id);
+        this.replaceTaskTags(id, draft.tagIds, now);
+        this.enqueue(
+          "task",
+          id,
+          "upsert",
+          this.db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as SqlRow,
+        );
+        createdCount += 1;
+      }
+
+      for (const row of existing) {
+        const id = String(row.id);
+        if (retainedIds.has(id)) continue;
+        this.db
+          .prepare(
+            "UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?",
+          )
+          .run(now, now, id);
+        this.enqueue(
+          "task",
+          id,
+          "delete",
+          this.db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as SqlRow,
+        );
+        removedCount += 1;
+      }
+    });
+    run();
+    return { seriesId, updatedCount, createdCount, removedCount };
   }
 
   listMemos(): MemoRecord[] {
@@ -1316,6 +1478,50 @@ export class ZhixuStore {
       .prepare("UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?")
       .run(now, now, id);
     this.enqueue("task", id, "delete", { id, deleted_at: now });
+  }
+
+  removeTaskSeries(taskId: string): number {
+    const selected = this.db
+      .prepare(
+        "SELECT id, parent_task_id, repeat_rule FROM tasks WHERE id = ? AND deleted_at IS NULL",
+      )
+      .get(taskId) as SqlRow | undefined;
+    if (!selected) throw new Error("任务不存在");
+    try {
+      taskRecurrenceSchema.parse(JSON.parse(String(selected.repeat_rule)));
+    } catch {
+      throw new Error("该任务不属于可删除的任务系列");
+    }
+    const seriesId =
+      selected.parent_task_id == null
+        ? String(selected.id)
+        : String(selected.parent_task_id);
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM tasks
+         WHERE (id = ? OR parent_task_id = ?) AND repeat_rule IS NOT NULL AND deleted_at IS NULL`,
+      )
+      .all(seriesId, seriesId) as SqlRow[];
+    if (rows.length === 0) throw new Error("任务系列不存在");
+    const now = nowSeconds();
+    const run = this.db.transaction(() => {
+      for (const row of rows) {
+        const id = String(row.id);
+        this.db
+          .prepare(
+            "UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?",
+          )
+          .run(now, now, id);
+        this.enqueue(
+          "task",
+          id,
+          "delete",
+          this.db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as SqlRow,
+        );
+      }
+    });
+    run();
+    return rows.length;
   }
 
   listCategories(): CategoryRecord[] {

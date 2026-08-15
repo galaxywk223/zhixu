@@ -159,6 +159,7 @@ describe("today page", () => {
           <TodayPage
             onNew={() => undefined}
             onEdit={() => undefined}
+            onDelete={() => undefined}
             onSearch={() => undefined}
             onOpenMemos={openMemos}
             onOpenCountdowns={openCountdowns}

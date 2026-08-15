@@ -26,9 +26,11 @@ const api: ZhixuApi = {
     list: () => ipcRenderer.invoke("tasks:list"),
     save: (draft) => ipcRenderer.invoke("tasks:save", draft),
     createBatch: (draft) => ipcRenderer.invoke("tasks:create-batch", draft),
+    updateSeries: (draft) => ipcRenderer.invoke("tasks:update-series", draft),
     setStatus: (id, status) =>
       ipcRenderer.invoke("tasks:set-status", { id, status }),
     remove: (id) => ipcRenderer.invoke("tasks:remove", id),
+    removeSeries: (id) => ipcRenderer.invoke("tasks:remove-series", id),
     categories: () => ipcRenderer.invoke("tasks:categories"),
     tags: () => ipcRenderer.invoke("tasks:tags"),
     saveTag: (input) => ipcRenderer.invoke("tasks:save-tag", input),

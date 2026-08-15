@@ -20,7 +20,11 @@ import {
   TagPickerOption,
   Textarea,
 } from "@fluentui/react-components";
-import type { TaskBatchDraft, TaskDraft } from "@zhixu/contracts";
+import type {
+  TaskBatchDraft,
+  TaskDraft,
+  TaskSeriesDraft,
+} from "@zhixu/contracts";
 import type { TagRecord, TaskRecord } from "../../../preload/api-types";
 import {
   normalizeTagName,
@@ -50,11 +54,13 @@ function dueParts(value: string | null): { date: string; time: string } {
 
 type SaveRequest =
   | { kind: "single"; draft: TaskDraft }
-  | { kind: "batch"; draft: TaskBatchDraft };
+  | { kind: "batch"; draft: TaskBatchDraft }
+  | { kind: "series"; draft: TaskSeriesDraft };
 
 interface TaskEditorProps {
   open: boolean;
   task: TaskRecord | null;
+  editScope?: "single" | "series";
   initialDueDate?: string | null;
   onClose(): void;
 }
@@ -62,6 +68,7 @@ interface TaskEditorProps {
 export function TaskEditor({
   open,
   task,
+  editScope = "single",
   initialDueDate = null,
   onClose,
 }: TaskEditorProps): React.JSX.Element {
@@ -96,26 +103,32 @@ export function TaskEditor({
     setTitle(task?.title ?? "");
     setDescription(task?.descriptionMd ?? "");
     setPriority(task?.priority ?? 1);
-    const due = task
-      ? dueParts(task.dueAt)
-      : { date: initialDueDate ?? localDateKey(new Date()), time: "" };
+    const editingSeries =
+      editScope === "series" ? (task?.series ?? null) : null;
+    const due = editingSeries
+      ? { date: editingSeries.startDate, time: editingSeries.time ?? "" }
+      : task
+        ? dueParts(task.dueAt)
+        : { date: initialDueDate ?? localDateKey(new Date()), time: "" };
     setDueDate(due.date);
     setDueTime(due.time);
-    setCreationMode("single");
-    setRangeEnd(due.date);
-    setFrequency("daily");
+    setCreationMode(editingSeries ? "range" : "single");
+    setRangeEnd(editingSeries?.endDate ?? due.date);
+    setFrequency(editingSeries?.frequency ?? "daily");
     setEstimatedMinutes(task?.estimatedMinutes ?? 0);
     setCategoryId(task?.categoryId ?? "");
     setTagIds(task?.tagIds ?? []);
     setTagQuery("");
     setError(null);
-  }, [open, task, initialDueDate]);
+  }, [open, task, initialDueDate, editScope]);
 
   const save = useMutation<unknown, Error, SaveRequest>({
     mutationFn: (request: SaveRequest) =>
       request.kind === "single"
         ? window.zhixu.tasks.save(request.draft)
-        : window.zhixu.tasks.createBatch(request.draft),
+        : request.kind === "batch"
+          ? window.zhixu.tasks.createBatch(request.draft)
+          : window.zhixu.tasks.updateSeries(request.draft),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: queryKeys.tasks });
       onClose();
@@ -184,6 +197,22 @@ export function TaskEditor({
       tagIds,
     };
     try {
+      if (task && editScope === "series") {
+        if (!task.series) return setError("该任务不属于可编辑的任务系列");
+        if (!rangeEnd) return setError("请选择结束日期");
+        save.mutate({
+          kind: "series",
+          draft: {
+            ...common,
+            taskId: task.id,
+            startDate: dueDate,
+            endDate: rangeEnd,
+            time: dueTime || null,
+            frequency,
+          },
+        });
+        return;
+      }
       if (!task && creationMode === "range") {
         if (!rangeEnd) return setError("请选择结束日期");
         save.mutate({
@@ -222,7 +251,13 @@ export function TaskEditor({
     >
       <DialogSurface className="editor-dialog">
         <DialogBody>
-          <DialogTitle>{task ? "编辑任务" : "新建任务"}</DialogTitle>
+          <DialogTitle>
+            {task
+              ? editScope === "series"
+                ? "编辑任务系列"
+                : "编辑任务"
+              : "新建任务"}
+          </DialogTitle>
           <DialogContent className="form-grid">
             <section className="form-section">
               <h3>任务内容</h3>
@@ -265,15 +300,11 @@ export function TaskEditor({
               ) : null}
               <div className="form-row two paired-row">
                 <Field
-                  label={
-                    creationMode === "range" && !task ? "开始日期" : "日期"
-                  }
+                  label={creationMode === "range" ? "开始日期" : "日期"}
                   required
                 >
                   <LocalDateField
-                    ariaLabel={
-                      creationMode === "range" && !task ? "开始日期" : "日期"
-                    }
+                    ariaLabel={creationMode === "range" ? "开始日期" : "日期"}
                     required
                     value={dueDate}
                     onChange={(value) => {
@@ -293,7 +324,7 @@ export function TaskEditor({
                   />
                 </Field>
               </div>
-              {creationMode === "range" && !task ? (
+              {creationMode === "range" ? (
                 <div className="form-row two">
                   <Field label="结束日期" required>
                     <LocalDateField

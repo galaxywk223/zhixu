@@ -48,4 +48,19 @@ describe("Windows application identity", () => {
     expect(main).toContain("mainWindow.setIcon(icon)");
     expect(main).toContain("tray = new Tray(icon)");
   });
+
+  it("uses document-relative renderer brand assets for packaged file URLs", () => {
+    const shell = readFileSync(
+      new URL("../src/renderer/src/components/Shell.tsx", import.meta.url),
+      "utf8",
+    );
+    const authGate = readFileSync(
+      new URL("../src/renderer/src/components/AuthGate.tsx", import.meta.url),
+      "utf8",
+    );
+    for (const source of [shell, authGate]) {
+      expect(source).toContain('src="./zhixu-mark-1024.png"');
+      expect(source).not.toContain('src="/zhixu-mark-1024.png"');
+    }
+  });
 });

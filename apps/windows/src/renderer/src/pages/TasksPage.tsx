@@ -53,6 +53,7 @@ const quickViews: Array<{
 export function TasksPage(props: {
   onNew(): void;
   onEdit(task: TaskRecord): void;
+  onDelete(task: TaskRecord): void;
 }): React.JSX.Element {
   const client = useQueryClient();
   const tasks = useQuery({
@@ -77,10 +78,6 @@ export function TasksPage(props: {
   const status = useMutation({
     mutationFn: ({ id, value }: { id: string; value: TaskRecord["status"] }) =>
       window.zhixu.tasks.setStatus(id, value),
-    onSuccess: () => client.invalidateQueries(),
-  });
-  const remove = useMutation({
-    mutationFn: window.zhixu.tasks.remove,
     onSuccess: () => client.invalidateQueries(),
   });
   const workspace = useMemo(
@@ -348,9 +345,7 @@ export function TasksPage(props: {
               tags={tags.data ?? []}
               onEdit={props.onEdit}
               onStatus={(task, value) => status.mutate({ id: task.id, value })}
-              onDelete={(task) => {
-                if (confirm(`删除“${task.title}”？`)) remove.mutate(task.id);
-              }}
+              onDelete={props.onDelete}
             />
           )}
         </section>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FluentProvider, Spinner } from "@fluentui/react-components";
 import type {
   FinanceImportPreview,
@@ -10,6 +10,10 @@ import { SearchDialog } from "./components/SearchDialog";
 import { AuthGate } from "./components/AuthGate";
 import { Shell, type Route } from "./components/Shell";
 import { TaskEditor } from "./components/TaskEditor";
+import {
+  TaskScopeDialog,
+  type TaskScopeAction,
+} from "./components/TaskScopeDialog";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CountdownsPage } from "./pages/CountdownsPage";
 import { FocusPage } from "./pages/FocusPage";
@@ -42,7 +46,17 @@ export function App(): React.JSX.Element {
     open: boolean;
     task: TaskRecord | null;
     initialDueDate: string | null;
-  }>({ open: false, task: null, initialDueDate: null });
+    editScope: "single" | "series";
+  }>({
+    open: false,
+    task: null,
+    initialDueDate: null,
+    editScope: "single",
+  });
+  const [taskScope, setTaskScope] = useState<{
+    task: TaskRecord;
+    action: TaskScopeAction;
+  } | null>(null);
   const [search, setSearch] = useState(false);
   const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
   const [selectedCountdownId, setSelectedCountdownId] = useState<string | null>(
@@ -59,6 +73,16 @@ export function App(): React.JSX.Element {
     matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const [renderedUiScale, setRenderedUiScale] = useState(100);
+  const removeTask = useMutation({
+    mutationFn: async (input: { taskId: string; series: boolean }) => {
+      if (input.series) await window.zhixu.tasks.removeSeries(input.taskId);
+      else await window.zhixu.tasks.remove(input.taskId);
+    },
+    onSuccess: async () => {
+      setTaskScope(null);
+      await client.invalidateQueries();
+    },
+  });
   useDataInvalidation();
 
   useEffect(
@@ -85,7 +109,12 @@ export function App(): React.JSX.Element {
       window.zhixu.app.onNavigate((target) => {
         if (!canUseApp) return;
         if (target === "new-task")
-          setEditor({ open: true, task: null, initialDueDate: null });
+          setEditor({
+            open: true,
+            task: null,
+            initialDueDate: null,
+            editScope: "single",
+          });
         else if (target === "search") setSearch(true);
         else if (target === "settings-sync") {
           setSettingsInitialSection("sync");
@@ -120,11 +149,38 @@ export function App(): React.JSX.Element {
   const mode = settings.data?.themeMode ?? bootstrap.data.settings.themeMode;
   const dark = mode === "dark" || (mode === "system" && systemDark);
   const openNew = (): void =>
-    setEditor({ open: true, task: null, initialDueDate: null });
+    setEditor({
+      open: true,
+      task: null,
+      initialDueDate: null,
+      editScope: "single",
+    });
   const openNewForDate = (initialDueDate: string): void =>
-    setEditor({ open: true, task: null, initialDueDate });
-  const openEdit = (task: TaskRecord): void =>
-    setEditor({ open: true, task, initialDueDate: null });
+    setEditor({
+      open: true,
+      task: null,
+      initialDueDate,
+      editScope: "single",
+    });
+  const openTaskEditor = (
+    task: TaskRecord,
+    editScope: "single" | "series",
+  ): void => setEditor({ open: true, task, initialDueDate: null, editScope });
+  const openEdit = (task: TaskRecord): void => {
+    if (task.series) {
+      removeTask.reset();
+      setTaskScope({ task, action: "edit" });
+    } else openTaskEditor(task, "single");
+  };
+  const openDelete = (task: TaskRecord): void => {
+    removeTask.reset();
+    setTaskScope({ task, action: "delete" });
+  };
+  const seriesCount = taskScope?.task.series
+    ? (client.getQueryData<TaskRecord[]>(queryKeys.tasks) ?? []).filter(
+        (task) => task.series?.id === taskScope.task.series?.id,
+      ).length
+    : 1;
   const handleDrop = async (event: React.DragEvent): Promise<void> => {
     event.preventDefault();
     setDragging(false);
@@ -152,6 +208,7 @@ export function App(): React.JSX.Element {
       <TodayPage
         onNew={openNew}
         onEdit={openEdit}
+        onDelete={openDelete}
         onSearch={() => setSearch(true)}
         onOpenMemos={(memoId) => {
           setSelectedMemoId(memoId);
@@ -163,7 +220,9 @@ export function App(): React.JSX.Element {
         }}
       />
     ),
-    tasks: <TasksPage onNew={openNew} onEdit={openEdit} />,
+    tasks: (
+      <TasksPage onNew={openNew} onEdit={openEdit} onDelete={openDelete} />
+    ),
     memos: <MemosPage initialSelectedId={selectedMemoId} />,
     countdowns: <CountdownsPage initialSelectedId={selectedCountdownId} />,
     calendar: <CalendarPage onNewTask={openNewForDate} onEditTask={openEdit} />,
@@ -228,10 +287,49 @@ export function App(): React.JSX.Element {
           <TaskEditor
             open={editor.open}
             task={editor.task}
+            editScope={editor.editScope}
             initialDueDate={editor.initialDueDate}
             onClose={() =>
-              setEditor({ open: false, task: null, initialDueDate: null })
+              setEditor({
+                open: false,
+                task: null,
+                initialDueDate: null,
+                editScope: "single",
+              })
             }
+          />
+          <TaskScopeDialog
+            task={taskScope?.task ?? null}
+            action={taskScope?.action ?? null}
+            seriesCount={Math.max(1, seriesCount)}
+            pending={removeTask.isPending}
+            error={removeTask.error ? String(removeTask.error) : null}
+            onClose={() => {
+              if (!removeTask.isPending) {
+                removeTask.reset();
+                setTaskScope(null);
+              }
+            }}
+            onSingle={() => {
+              if (!taskScope) return;
+              if (taskScope.action === "edit") {
+                const task = taskScope.task;
+                setTaskScope(null);
+                openTaskEditor(task, "single");
+              } else {
+                removeTask.mutate({ taskId: taskScope.task.id, series: false });
+              }
+            }}
+            onSeries={() => {
+              if (!taskScope) return;
+              if (taskScope.action === "edit") {
+                const task = taskScope.task;
+                setTaskScope(null);
+                openTaskEditor(task, "series");
+              } else {
+                removeTask.mutate({ taskId: taskScope.task.id, series: true });
+              }
+            }}
           />
           <SearchDialog
             open={search}

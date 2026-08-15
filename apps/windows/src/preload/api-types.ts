@@ -4,6 +4,8 @@ import type {
   MemoDraft,
   TaskBatchDraft,
   TaskDraft,
+  TaskRecurrence,
+  TaskSeriesDraft,
   ThemeMode,
   UiScale,
 } from "@zhixu/contracts";
@@ -24,6 +26,7 @@ export interface TaskRecord {
   estimatedMinutes: number;
   categoryId: string | null;
   repeatRule: string | null;
+  series?: (TaskRecurrence & { id: string }) | null;
   completedAt: string | null;
   isArchived: boolean;
   createdAt: string;
@@ -56,6 +59,13 @@ export interface TaskBatchResult {
   primaryId: string;
   createdCount: number;
   ids: string[];
+}
+
+export interface TaskSeriesResult {
+  seriesId: string;
+  updatedCount: number;
+  createdCount: number;
+  removedCount: number;
 }
 
 export interface CategoryRecord {
@@ -455,8 +465,10 @@ export interface ZhixuApi {
     list(): Promise<TaskRecord[]>;
     save(draft: TaskDraft): Promise<string>;
     createBatch(draft: TaskBatchDraft): Promise<TaskBatchResult>;
+    updateSeries(draft: TaskSeriesDraft): Promise<TaskSeriesResult>;
     setStatus(id: string, status: TaskRecord["status"]): Promise<void>;
     remove(id: string): Promise<void>;
+    removeSeries(id: string): Promise<number>;
     categories(): Promise<CategoryRecord[]>;
     tags(): Promise<TagRecord[]>;
     saveTag(input: { id?: string; name: string }): Promise<string>;

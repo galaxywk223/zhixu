@@ -13,6 +13,7 @@ import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { initializeDatabase } from "../src/main/database";
 import { ZhixuStore } from "../src/main/store";
+import { localDateKey } from "../src/shared/local-date";
 import { tagColorHex } from "../src/shared/tag-colors";
 
 const directories: string[] = [];
@@ -520,6 +521,172 @@ describe("schema 12 migration", () => {
         .prepare("SELECT COUNT(*) AS count FROM tasks WHERE title = '失败批次'")
         .get(),
     ).toEqual({ count: 0 });
+    context.db.close();
+  });
+
+  it("updates and removes task series while preserving matching-day status", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+    const tagId = store.saveTag({ name: "系列标签" });
+    const result = store.createTaskBatch({
+      title: "每日复习",
+      descriptionMd: null,
+      priority: 2,
+      estimatedMinutes: 45,
+      categoryId: null,
+      tagIds: [],
+      startDate: "2026-08-07",
+      endDate: "2026-08-09",
+      time: null,
+      frequency: "daily",
+    });
+    store.setTaskStatus(result.ids[1]!, "done");
+
+    const expanded = store.updateTaskSeries({
+      taskId: result.ids[1]!,
+      title: "每日算法复习",
+      descriptionMd: "统一修改",
+      priority: 3,
+      estimatedMinutes: 60,
+      categoryId: null,
+      tagIds: [tagId],
+      startDate: "2026-08-07",
+      endDate: "2026-08-10",
+      time: "09:30",
+      frequency: "daily",
+    });
+    expect(expanded).toMatchObject({
+      seriesId: result.primaryId,
+      updatedCount: 3,
+      createdCount: 1,
+      removedCount: 0,
+    });
+    const expandedTasks = store.listTasks();
+    expect(expandedTasks).toHaveLength(4);
+    expect(
+      expandedTasks.every(
+        (task) =>
+          task.title === "每日算法复习" &&
+          task.priority === 3 &&
+          task.estimatedMinutes === 60 &&
+          task.tagIds.includes(tagId) &&
+          task.series?.id === result.primaryId,
+      ),
+    ).toBe(true);
+    const byDate = new Map(
+      expandedTasks.map((task) => [localDateKey(new Date(task.dueAt!)), task]),
+    );
+    expect(byDate.get("2026-08-08")).toMatchObject({
+      id: result.ids[1],
+      status: "done",
+    });
+    expect(byDate.get("2026-08-08")?.completedAt).not.toBeNull();
+    expect(byDate.get("2026-08-10")?.status).toBe("todo");
+    expect(new Date(byDate.get("2026-08-08")!.dueAt!).getHours()).toBe(9);
+    expect(new Date(byDate.get("2026-08-08")!.dueAt!).getMinutes()).toBe(30);
+
+    const shortened = store.updateTaskSeries({
+      taskId: result.ids[1]!,
+      title: "每日算法复习",
+      descriptionMd: "统一修改",
+      priority: 3,
+      estimatedMinutes: 60,
+      categoryId: null,
+      tagIds: [tagId],
+      startDate: "2026-08-08",
+      endDate: "2026-08-09",
+      time: "09:30",
+      frequency: "daily",
+    });
+    expect(shortened).toMatchObject({
+      updatedCount: 2,
+      createdCount: 0,
+      removedCount: 2,
+    });
+    expect(store.listTasks()).toHaveLength(2);
+    expect(
+      context.db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM tasks WHERE deleted_at IS NOT NULL",
+        )
+        .get(),
+    ).toEqual({ count: 2 });
+
+    const survivingChild = store.listTasks()[0]!;
+    expect(survivingChild.series?.id).toBe(result.primaryId);
+    const restored = store.updateTaskSeries({
+      taskId: survivingChild.id,
+      title: "每日算法复习",
+      descriptionMd: "统一修改",
+      priority: 3,
+      estimatedMinutes: 60,
+      categoryId: null,
+      tagIds: [tagId],
+      startDate: "2026-08-08",
+      endDate: "2026-08-11",
+      time: "09:30",
+      frequency: "daily",
+    });
+    expect(restored).toMatchObject({
+      seriesId: result.primaryId,
+      updatedCount: 2,
+      createdCount: 2,
+      removedCount: 0,
+    });
+    expect(store.removeTaskSeries(survivingChild.id)).toBe(4);
+    expect(store.listTasks()).toEqual([]);
+    const deletedOutbox = context.db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM sync_outbox WHERE entity_type = 'task' AND operation = 'delete'",
+      )
+      .get() as { count: number };
+    expect(deletedOutbox.count).toBeGreaterThanOrEqual(4);
+    context.db.close();
+  });
+
+  it("rolls back a failed task series update", () => {
+    const paths = temporaryPaths();
+    const context = initializeDatabase(paths);
+    const store = new ZhixuStore(context.db);
+    const result = store.createTaskBatch({
+      title: "原系列",
+      descriptionMd: null,
+      priority: 1,
+      estimatedMinutes: 0,
+      categoryId: null,
+      tagIds: [],
+      startDate: "2026-08-07",
+      endDate: "2026-08-09",
+      time: null,
+      frequency: "daily",
+    });
+    context.db.exec(`
+      CREATE TRIGGER reject_failed_series BEFORE UPDATE ON tasks
+      WHEN NEW.title = '失败系列' AND
+        (SELECT COUNT(*) FROM tasks WHERE title = '失败系列') >= 1
+      BEGIN SELECT RAISE(ABORT, 'reject series'); END;
+    `);
+
+    expect(() =>
+      store.updateTaskSeries({
+        taskId: result.primaryId,
+        title: "失败系列",
+        descriptionMd: null,
+        priority: 1,
+        estimatedMinutes: 0,
+        categoryId: null,
+        tagIds: [],
+        startDate: "2026-08-07",
+        endDate: "2026-08-10",
+        time: null,
+        frequency: "daily",
+      }),
+    ).toThrow("reject series");
+    expect(store.listTasks()).toHaveLength(3);
+    expect(store.listTasks().every((task) => task.title === "原系列")).toBe(
+      true,
+    );
     context.db.close();
   });
 });

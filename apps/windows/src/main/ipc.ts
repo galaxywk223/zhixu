@@ -6,6 +6,7 @@ import {
   memoDraftSchema,
   taskBatchDraftSchema,
   taskDraftSchema,
+  taskSeriesDraftSchema,
   taskStatusSchema,
   themeModeSchema,
   uiScaleSchema,
@@ -155,6 +156,12 @@ export function registerIpc(dependencies: IpcDependencies): void {
     ),
   );
   ipcMain.handle(
+    "tasks:update-series",
+    mutation("tasks", (value) =>
+      store.updateTaskSeries(taskSeriesDraftSchema.parse(value)),
+    ),
+  );
+  ipcMain.handle(
     "tasks:set-status",
     mutation("tasks", (value) => {
       const parsed = z
@@ -166,6 +173,10 @@ export function registerIpc(dependencies: IpcDependencies): void {
   ipcMain.handle(
     "tasks:remove",
     mutation("tasks", (id) => store.removeTask(idSchema.parse(id))),
+  );
+  ipcMain.handle(
+    "tasks:remove-series",
+    mutation("tasks", (id) => store.removeTaskSeries(idSchema.parse(id))),
   );
   ipcMain.handle("tasks:categories", () => store.listCategories());
   ipcMain.handle("tasks:tags", () => store.listTags());

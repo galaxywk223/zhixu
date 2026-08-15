@@ -102,7 +102,7 @@ export function Shell(props: ShellProps): React.JSX.Element {
     <div className={`app-frame ${collapsed ? "sidebar-collapsed" : ""}`}>
       <aside className="sidebar">
         <div className="brand-block">
-          <img src="/zhixu-mark-1024.png" alt="知序" />
+          <img src="./zhixu-mark-1024.png" alt="知序" />
           <strong>知序</strong>
         </div>
         <nav aria-label="主导航">

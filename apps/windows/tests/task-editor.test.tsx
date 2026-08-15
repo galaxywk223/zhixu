@@ -9,14 +9,19 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TagRecord, ZhixuApi } from "../src/preload/api-types";
+import type { TagRecord, TaskRecord, ZhixuApi } from "../src/preload/api-types";
 import { TaskEditor } from "../src/renderer/src/components/TaskEditor";
 import { zhixuLightTheme } from "../src/renderer/src/theme";
 import { isImplicitEndOfDay } from "../src/shared/task-schedule";
 
 afterEach(cleanup);
 
-function renderEditor(api: ZhixuApi, initialDueDate?: string): void {
+function renderEditor(
+  api: ZhixuApi,
+  initialDueDate?: string,
+  task: TaskRecord | null = null,
+  editScope: "single" | "series" = "single",
+): void {
   Object.defineProperty(window, "zhixu", { configurable: true, value: api });
   const client = new QueryClient({
     defaultOptions: {
@@ -29,7 +34,8 @@ function renderEditor(api: ZhixuApi, initialDueDate?: string): void {
       <FluentProvider theme={zhixuLightTheme}>
         <TaskEditor
           open
-          task={null}
+          task={task}
+          editScope={editScope}
           initialDueDate={initialDueDate}
           onClose={() => undefined}
         />
@@ -177,6 +183,85 @@ describe("task editor", () => {
       endDate: "2026-08-11",
       time: null,
       frequency: "weekdays",
+    });
+  });
+
+  it("edits a complete task series with its saved recurrence", async () => {
+    const updateSeries = vi.fn().mockResolvedValue({
+      seriesId: "series-1",
+      updatedCount: 3,
+      createdCount: 0,
+      removedCount: 0,
+    });
+    const task: TaskRecord = {
+      id: "task-2",
+      title: "每日复习",
+      descriptionMd: null,
+      status: "done",
+      priority: 2,
+      dueAt: new Date(2026, 7, 8, 23, 59, 59, 999).toISOString(),
+      estimatedMinutes: 45,
+      categoryId: null,
+      repeatRule: JSON.stringify({
+        frequency: "daily",
+        startDate: "2026-08-07",
+        endDate: "2026-08-09",
+        time: null,
+      }),
+      series: {
+        id: "series-1",
+        frequency: "daily",
+        startDate: "2026-08-07",
+        endDate: "2026-08-09",
+        time: null,
+      },
+      completedAt: new Date().toISOString(),
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      tagIds: [],
+    };
+    renderEditor(
+      {
+        tasks: {
+          categories: vi.fn().mockResolvedValue([]),
+          tags: vi.fn().mockResolvedValue([]),
+          updateSeries,
+          saveTag: vi.fn(),
+        },
+      } as unknown as ZhixuApi,
+      undefined,
+      task,
+      "series",
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: "编辑任务系列" }),
+    ).toBeTruthy();
+    expect(
+      (within(dialog).getByLabelText("开始日期") as HTMLInputElement).value,
+    ).toBe("2026年8月7日");
+    expect(
+      (within(dialog).getByLabelText("结束日期") as HTMLInputElement).value,
+    ).toBe("2026年8月9日");
+    expect(
+      (within(dialog).getByLabelText("重复频率") as HTMLSelectElement).value,
+    ).toBe("daily");
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /标题/ }), {
+      target: { value: "每日算法复习" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(updateSeries).toHaveBeenCalled());
+    expect(updateSeries.mock.calls[0]?.[0]).toMatchObject({
+      taskId: "task-2",
+      title: "每日算法复习",
+      startDate: "2026-08-07",
+      endDate: "2026-08-09",
+      frequency: "daily",
+      time: null,
     });
   });
 

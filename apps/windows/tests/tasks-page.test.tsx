@@ -54,6 +54,7 @@ describe("tasks page", () => {
     });
     const setStatus = vi.fn().mockResolvedValue(undefined);
     const onEdit = vi.fn();
+    const onDelete = vi.fn();
     const api = {
       tasks: {
         list: vi.fn().mockResolvedValue([activeTask, doneTask]),
@@ -82,7 +83,11 @@ describe("tasks page", () => {
     render(
       <QueryClientProvider client={client}>
         <FluentProvider theme={webLightTheme}>
-          <TasksPage onNew={() => undefined} onEdit={onEdit} />
+          <TasksPage
+            onNew={() => undefined}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         </FluentProvider>
       </QueryClientProvider>,
     );
@@ -135,6 +140,8 @@ describe("tasks page", () => {
     expect(
       screen.getByRole("button", { name: "删除线性代数复习" }),
     ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "删除线性代数复习" }));
+    expect(onDelete).toHaveBeenCalledWith(activeTask);
     expect(screen.queryByLabelText("精确状态")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /全部任务/ }));
@@ -173,7 +180,11 @@ describe("tasks page", () => {
     render(
       <QueryClientProvider client={client}>
         <FluentProvider theme={webLightTheme}>
-          <TasksPage onNew={() => undefined} onEdit={() => undefined} />
+          <TasksPage
+            onNew={() => undefined}
+            onEdit={() => undefined}
+            onDelete={() => undefined}
+          />
         </FluentProvider>
       </QueryClientProvider>,
     );
@@ -209,7 +220,11 @@ describe("tasks page", () => {
     render(
       <QueryClientProvider client={client}>
         <FluentProvider theme={webLightTheme}>
-          <TasksPage onNew={() => undefined} onEdit={() => undefined} />
+          <TasksPage
+            onNew={() => undefined}
+            onEdit={() => undefined}
+            onDelete={() => undefined}
+          />
         </FluentProvider>
       </QueryClientProvider>,
     );

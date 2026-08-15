@@ -125,6 +125,7 @@ function quoteErrorMessage(error: unknown): string {
 export function TodayPage(props: {
   onNew(): void;
   onEdit(task: TaskRecord): void;
+  onDelete(task: TaskRecord): void;
   onSearch(): void;
   onOpenMemos(memoId: string | null): void;
   onOpenCountdowns(countdownId: string | null): void;
@@ -236,10 +237,6 @@ export function TodayPage(props: {
   const status = useMutation({
     mutationFn: ({ id, value }: { id: string; value: TaskRecord["status"] }) =>
       window.zhixu.tasks.setStatus(id, value),
-    onSuccess: () => client.invalidateQueries(),
-  });
-  const remove = useMutation({
-    mutationFn: window.zhixu.tasks.remove,
     onSuccess: () => client.invalidateQueries(),
   });
   if (
@@ -410,9 +407,7 @@ export function TodayPage(props: {
                 onStatus={(task, value) =>
                   status.mutate({ id: task.id, value })
                 }
-                onDelete={(task) => {
-                  if (confirm(`删除“${task.title}”？`)) remove.mutate(task.id);
-                }}
+                onDelete={props.onDelete}
               />
             ) : (
               <EmptyState

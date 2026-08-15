@@ -58,21 +58,31 @@ export const recurrenceFrequencySchema = z.enum([
   "weekly",
 ]);
 
-export const taskBatchDraftSchema = z.object({
+const taskBatchFields = {
   title: z.string().trim().min(1).max(200),
   descriptionMd: z.string().max(100_000).nullable().default(null),
   priority: z.number().int().min(1).max(3).default(1),
   estimatedMinutes: z.number().int().min(0).max(100_000).default(0),
   categoryId: z.string().nullable().default(null),
   tagIds: z.array(z.string()).default([]),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+};
+
+export const taskRecurrenceSchema = z.object({
+  startDate: localDateSchema,
+  endDate: localDateSchema,
   time: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .nullable()
     .default(null),
   frequency: recurrenceFrequencySchema,
+});
+
+export const taskBatchDraftSchema =
+  taskRecurrenceSchema.extend(taskBatchFields);
+
+export const taskSeriesDraftSchema = taskBatchDraftSchema.extend({
+  taskId: z.string().min(1),
 });
 
 export const memoDraftSchema = z.object({
@@ -173,6 +183,8 @@ export const backupManifestV10Schema = z.object({
 
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 export type TaskBatchDraft = z.infer<typeof taskBatchDraftSchema>;
+export type TaskSeriesDraft = z.infer<typeof taskSeriesDraftSchema>;
+export type TaskRecurrence = z.infer<typeof taskRecurrenceSchema>;
 export type MemoDraft = Omit<z.infer<typeof memoDraftSchema>, "priority"> & {
   priority?: number;
 };

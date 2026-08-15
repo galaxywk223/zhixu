@@ -18,7 +18,7 @@ const manifest = {
   schemaVersion: 1,
   version,
   notes:
-    "知序 v0.4.0 新增手动格言收藏、设为今日和收藏反馈学习，移除外部语料并修复重复刷新与 AI 失败诊断；账号登录、云同步和历史数据兼容保持启用。",
+    "知序 v0.5.0 修复安装版品牌图标加载，并为批量创建的每日、工作日和每周任务新增单条或整个系列编辑与删除；系列改期会按日期保留完成状态。",
   releaseUrl: `https://github.com/${repository}/releases/tag/${tag}`,
   assets: {
     windows: {

@@ -305,7 +305,7 @@ function AuthFrame(props: {
         <header className="auth-gate-header">
           <div className="auth-gate-brand" aria-label="知序">
             <span className="auth-gate-brand-mark" aria-hidden="true">
-              <img src="/zhixu-mark-1024.png" alt="" />
+              <img src="./zhixu-mark-1024.png" alt="" />
             </span>
             <strong>知序</strong>
           </div>
