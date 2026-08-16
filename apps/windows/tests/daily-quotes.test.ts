@@ -13,12 +13,19 @@ import {
   normalizeQuoteText,
 } from "../src/shared/daily-quotes";
 import {
-  buildDailyQuoteMessages,
+  DEFAULT_DAILY_QUOTE_STYLE,
+  buildQuoteGenerationMessages,
+  buildSemanticReviewMessages,
+  buildStyleProfileMessages,
   isDailyQuoteDuplicate,
   normalizePromptInput,
+  parseDailyQuoteSemanticReview,
+  parseDailyQuoteStyleProfile,
   parseDailyQuoteResponse,
+  styleProfileContainsSourceText,
   validateDailyQuoteText,
 } from "../../../supabase/functions/daily-quote/prompt";
+import { generateDailyQuote } from "../../../supabase/functions/daily-quote/pipeline";
 import {
   DailyQuoteGenerationFailure,
   classifyUpstreamStatus,
@@ -312,6 +319,50 @@ describe("daily quote service", () => {
 });
 
 describe("daily quote prompt", () => {
+  it("isolates style learning and retries a semantically overlapping candidate", async () => {
+    const responses = [
+      JSON.stringify(DEFAULT_DAILY_QUOTE_STYLE),
+      '{"text":"每一步都在靠近想要的答案。"}',
+      '{"sameMeaning":true,"reason":"核心都是坚持行动才能抵达目标"}',
+      '{"text":"安静下来，才能听见细节里的变化。"}',
+      '{"sameMeaning":false,"reason":"只共享克制语气，核心命题不同"}',
+    ];
+    const requests: Array<{
+      stage: string;
+      messages: Array<{ content: string }>;
+    }> = [];
+    const failures: string[] = [];
+    const result = await generateDailyQuote(
+      {
+        localDate: "2026-08-16",
+        favorites: ["耐心不是停留，而是清醒地前行。"],
+        dislikes: ["只要努力就一定成功。"],
+        recent: ["昨天的格言已经完成。"],
+      },
+      async (request) => {
+        requests.push(request);
+        return responses.shift()!;
+      },
+      (stage, _attempt, failure) => failures.push(`${stage}:${failure.reason}`),
+    );
+
+    expect(result).toBe("安静下来，才能听见细节里的变化。");
+    expect(requests.map((request) => request.stage)).toEqual([
+      "style",
+      "generation",
+      "semantic_review",
+      "generation",
+      "semantic_review",
+    ]);
+    expect(
+      requests[1]!.messages.map((message) => message.content).join("\n"),
+    ).not.toContain("耐心不是停留");
+    expect(
+      requests[3]!.messages.map((message) => message.content).join("\n"),
+    ).toContain("核心意思相近");
+    expect(failures).toContain("generation:semantic_overlap");
+  });
+
   it("keeps all positive examples and bounds negative and recent guidance", () => {
     const input = normalizePromptInput({
       localDate: "2026-08-11",
@@ -326,18 +377,82 @@ describe("daily quote prompt", () => {
     expect(input.dislikes).toHaveLength(11);
     expect(input.dislikes).not.toContain("收藏内容0");
     expect(input.recent).toHaveLength(60);
-    const prompt = buildDailyQuoteMessages(input)
+    const stylePrompt = buildStyleProfileMessages(input)
       .map((item) => item.content)
       .join("\n");
-    expect(prompt).toContain("收藏内容29");
-    expect(prompt).toContain("所有收藏都是正向偏好");
-    expect(prompt).toContain("不喜欢：");
+    expect(stylePrompt).toContain("收藏内容29");
+    expect(stylePrompt).toContain("严禁总结样本的主题");
+    const generationPrompt = buildQuoteGenerationMessages(
+      DEFAULT_DAILY_QUOTE_STYLE,
+    )
+      .map((item) => item.content)
+      .join("\n");
+    expect(generationPrompt).not.toContain("收藏内容29");
+    expect(generationPrompt).toContain("主题必须由你自由选择");
+    const reviewPrompt = buildSemanticReviewMessages("候选格言", [
+      { kind: "favorite", text: "收藏内容29" },
+    ])
+      .map((item) => item.content)
+      .join("\n");
+    expect(reviewPrompt).toContain("收藏内容29");
+    expect(reviewPrompt).toContain("气势、语气、节奏、句式相似不算语义重复");
     expect(
-      buildDailyQuoteMessages(input, "duplicate").at(-1)?.content,
+      buildQuoteGenerationMessages(DEFAULT_DAILY_QUOTE_STYLE, "duplicate").at(
+        -1,
+      )?.content,
     ).toContain("近期格言重复");
     expect(
-      buildDailyQuoteMessages(input, "invalid_output").at(-1)?.content,
+      buildQuoteGenerationMessages(
+        DEFAULT_DAILY_QUOTE_STYLE,
+        "invalid_output",
+      ).at(-1)?.content,
     ).toContain("格式校验");
+    expect(
+      buildQuoteGenerationMessages(
+        DEFAULT_DAILY_QUOTE_STYLE,
+        "semantic_overlap",
+      ).at(-1)?.content,
+    ).toContain("核心意思相近");
+  });
+
+  it("parses style profiles and rejects copied source fragments", () => {
+    const profile = parseDailyQuoteStyleProfile(
+      JSON.stringify({
+        force: "稳定而有分寸的力量",
+        tone: "清醒克制",
+        rhythm: "短句和自然停顿",
+        sentenceShape: "先观察，再判断",
+        imagery: "少量日常意象",
+        emotionalTemperature: "温和不甜腻",
+        rhetoric: "自然对照",
+        avoid: ["古风腔", "口号化"],
+      }),
+    );
+    expect(profile.tone).toBe("清醒克制");
+    expect(
+      styleProfileContainsSourceText(profile, ["一盏灯照亮漫长的夜路"]),
+    ).toBe(false);
+    expect(
+      styleProfileContainsSourceText(
+        { ...profile, tone: "一盏灯照亮漫长的夜路" },
+        ["一盏灯照亮漫长的夜路"],
+      ),
+    ).toBe(true);
+    expect(() => parseDailyQuoteStyleProfile('{"tone":"只有一项"}')).toThrow();
+  });
+
+  it("parses semantic review without confusing style with meaning", () => {
+    expect(
+      parseDailyQuoteSemanticReview(
+        '{"sameMeaning":false,"reason":"只共享克制语气，核心命题不同"}',
+      ),
+    ).toEqual({
+      sameMeaning: false,
+      reason: "只共享克制语气，核心命题不同",
+    });
+    expect(() =>
+      parseDailyQuoteSemanticReview('{"sameMeaning":"false"}'),
+    ).toThrow();
   });
 
   it("accepts strict JSON Chinese text and rejects decorated output", () => {
@@ -369,6 +484,7 @@ describe("daily quote prompt", () => {
     expect(isRetryableFailureReason("upstream_5xx")).toBe(true);
     expect(isRetryableFailureReason("invalid_output")).toBe(true);
     expect(isRetryableFailureReason("duplicate")).toBe(true);
+    expect(isRetryableFailureReason("semantic_overlap")).toBe(true);
     expect(safeUpstreamCode("insufficient_balance")).toBe(
       "insufficient_balance",
     );

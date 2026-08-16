@@ -61,7 +61,8 @@ type DailyQuoteFailureReason =
   | "upstream_timeout"
   | "upstream_5xx"
   | "invalid_output"
-  | "duplicate";
+  | "duplicate"
+  | "semantic_overlap";
 
 interface DailyQuoteFailurePayload {
   error?: unknown;
@@ -78,7 +79,9 @@ function dailyQuoteFailureMessage(
       ? "AI 服务认证配置异常，请联系维护者。"
       : reason === "upstream_quota"
         ? "AI 服务额度不足，请联系维护者。"
-        : reason === "invalid_output" || reason === "duplicate"
+        : reason === "invalid_output" ||
+            reason === "duplicate" ||
+            reason === "semantic_overlap"
           ? "AI 未生成有效的新格言，请重试。"
           : "AI 服务暂时不可用，请稍后重试。";
   return requestId ? `${message} 请求编号：${requestId}` : message;
@@ -96,6 +99,7 @@ async function dailyQuoteInvocationError(error: unknown): Promise<Error> {
       "upstream_5xx",
       "invalid_output",
       "duplicate",
+      "semantic_overlap",
     ];
     const reason = reasons.includes(payload.reason as DailyQuoteFailureReason)
       ? (payload.reason as DailyQuoteFailureReason)

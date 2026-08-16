@@ -49,6 +49,10 @@ const quoteFunction = readFileSync(
   resolve(__dirname, "../../../supabase/functions/daily-quote/index.ts"),
   "utf8",
 );
+const quotePipeline = readFileSync(
+  resolve(__dirname, "../../../supabase/functions/daily-quote/pipeline.ts"),
+  "utf8",
+);
 const syncService = readFileSync(
   resolve(__dirname, "../src/main/services/sync.ts"),
   "utf8",
@@ -153,11 +157,15 @@ describe("Supabase sync migration", () => {
       "when incoming_payload ? 'source_kind' then excluded.source_kind",
     );
     expect(quoteSourcesMigration).toContain("else daily_quotes.source_kind");
-    expect(quoteFunction).toContain("for (let attempt = 0; attempt < 3");
-    expect(quoteFunction).toContain("temperature: [0.75, 0.65, 0.55][attempt]");
+    expect(quotePipeline).toContain("createStyleProfile");
+    expect(quotePipeline).toContain("buildQuoteGenerationMessages");
+    expect(quotePipeline).toContain("buildSemanticReviewMessages");
+    expect(quotePipeline).toContain('"semantic_overlap"');
+    expect(quotePipeline).toContain("for (let attempt = 0; attempt < 3");
+    expect(quoteFunction).toContain('response_format: { type: "json_object" }');
     expect(quoteFunction).toContain("requestId");
     expect(quoteFunction).toContain("upstreamStatus");
-    expect(quoteFunction).not.toContain("apiKey,");
+    expect(quoteFunction).not.toContain("failureBody(failure, apiKey");
   });
 
   it("supports manual favorites and removes unapproved legacy corpus rows", () => {

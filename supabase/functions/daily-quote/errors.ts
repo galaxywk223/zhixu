@@ -4,7 +4,8 @@ export type DailyQuoteFailureReason =
   | "upstream_timeout"
   | "upstream_5xx"
   | "invalid_output"
-  | "duplicate";
+  | "duplicate"
+  | "semantic_overlap";
 
 export interface DailyQuoteFailureBody {
   error: "quote_generation_failed";
@@ -19,6 +20,10 @@ export class DailyQuoteGenerationFailure extends Error {
     readonly upstreamCode: string | null = null,
   ) {
     super(reason);
+  }
+
+  get retryable(): boolean {
+    return isRetryableFailureReason(this.reason);
   }
 }
 

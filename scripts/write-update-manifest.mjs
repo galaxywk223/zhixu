@@ -18,7 +18,7 @@ const manifest = {
   schemaVersion: 1,
   version,
   notes:
-    "知序 v0.5.0 修复安装版品牌图标加载，并为批量创建的每日、工作日和每周任务新增单条或整个系列编辑与删除；系列改期会按日期保留完成状态。",
+    "知序 v0.5.1 重做每日格言生成：只学习收藏内容的气势与笔风，独立选择主题，并拦截与已有格言语义相近的结果。",
   releaseUrl: `https://github.com/${repository}/releases/tag/${tag}`,
   assets: {
     windows: {

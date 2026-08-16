@@ -1,19 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.2";
 import {
-  buildDailyQuoteMessages,
-  isDailyQuoteDuplicate,
-  normalizePromptInput,
-  parseDailyQuoteResponse,
-} from "./prompt.ts";
+  generateDailyQuote,
+  type DailyQuoteCompletionRequest,
+} from "./pipeline.ts";
 import {
   DailyQuoteGenerationFailure,
   classifyUpstreamStatus,
   failureBody,
-  isRetryableFailureReason,
   isTimeoutError,
   safeUpstreamCode,
-  type DailyQuoteFailureReason,
 } from "./errors.ts";
+import type { DailyQuotePipelineStage } from "./pipeline.ts";
 
 const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
 
@@ -36,17 +33,63 @@ function logFailure(
   requestId: string,
   attempt: number,
   failure: DailyQuoteGenerationFailure,
+  stage: DailyQuotePipelineStage = "generation",
 ): void {
   console.error(
     JSON.stringify({
       event: "daily_quote_generation_failed",
       requestId,
+      stage,
       attempt,
       reason: failure.reason,
       upstreamStatus: failure.upstreamStatus,
       upstreamCode: failure.upstreamCode,
     }),
   );
+}
+
+async function requestDeepSeek(
+  apiKey: string,
+  request: DailyQuoteCompletionRequest,
+): Promise<string> {
+  let deepseek: Response;
+  try {
+    deepseek = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: request.messages,
+        temperature: request.temperature,
+        max_tokens: request.maxTokens,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (error) {
+    throw new DailyQuoteGenerationFailure(
+      isTimeoutError(error) ? "upstream_timeout" : "upstream_5xx",
+    );
+  }
+  if (!deepseek.ok)
+    throw new DailyQuoteGenerationFailure(
+      classifyUpstreamStatus(deepseek.status),
+      deepseek.status,
+      await upstreamErrorCode(deepseek),
+    );
+  try {
+    const result = (await deepseek.json()) as {
+      choices?: Array<{ message?: { content?: unknown } }>;
+    };
+    if (typeof result.choices?.[0]?.message?.content !== "string")
+      throw new Error("模型响应为空");
+    return result.choices[0].message.content;
+  } catch {
+    throw new DailyQuoteGenerationFailure("invalid_output");
+  }
 }
 
 Deno.serve(async (request) => {
@@ -86,68 +129,19 @@ Deno.serve(async (request) => {
   } catch {
     return response(400, { error: "invalid_request" });
   }
-  const input = normalizePromptInput(body);
-  let retryReason:
-    | Extract<DailyQuoteFailureReason, "invalid_output" | "duplicate">
-    | undefined;
-  let lastFailure = new DailyQuoteGenerationFailure("upstream_5xx");
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      let deepseek: Response;
-      try {
-        deepseek = await fetch("https://api.deepseek.com/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: buildDailyQuoteMessages(input, retryReason),
-            temperature: [0.75, 0.65, 0.55][attempt],
-            max_tokens: 120,
-            response_format: { type: "json_object" },
-          }),
-          signal: AbortSignal.timeout(20_000),
-        });
-      } catch (error) {
-        throw new DailyQuoteGenerationFailure(
-          isTimeoutError(error) ? "upstream_timeout" : "upstream_5xx",
-        );
-      }
-      if (!deepseek.ok)
-        throw new DailyQuoteGenerationFailure(
-          classifyUpstreamStatus(deepseek.status),
-          deepseek.status,
-          await upstreamErrorCode(deepseek),
-        );
-
-      let text: string;
-      try {
-        const result = (await deepseek.json()) as {
-          choices?: Array<{ message?: { content?: unknown } }>;
-        };
-        text = parseDailyQuoteResponse(result.choices?.[0]?.message?.content);
-      } catch {
-        throw new DailyQuoteGenerationFailure("invalid_output");
-      }
-      if (isDailyQuoteDuplicate(text, input.recent))
-        throw new DailyQuoteGenerationFailure("duplicate");
-      return response(200, { text });
-    } catch (error) {
-      lastFailure =
-        error instanceof DailyQuoteGenerationFailure
-          ? error
-          : new DailyQuoteGenerationFailure("invalid_output");
-      logFailure(requestId, attempt + 1, lastFailure);
-      if (!isRetryableFailureReason(lastFailure.reason)) break;
-      retryReason =
-        lastFailure.reason === "invalid_output" ||
-        lastFailure.reason === "duplicate"
-          ? lastFailure.reason
-          : undefined;
-    }
+  try {
+    const text = await generateDailyQuote(
+      body,
+      (completionRequest) => requestDeepSeek(apiKey, completionRequest),
+      (stage, attempt, failure) =>
+        logFailure(requestId, attempt, failure, stage),
+    );
+    return response(200, { text });
+  } catch (error) {
+    const failure =
+      error instanceof DailyQuoteGenerationFailure
+        ? error
+        : new DailyQuoteGenerationFailure("invalid_output");
+    return response(502, failureBody(failure, requestId));
   }
-  return response(502, failureBody(lastFailure, requestId));
 });

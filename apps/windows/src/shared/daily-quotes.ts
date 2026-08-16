@@ -1,4 +1,4 @@
-export const DAILY_QUOTE_GENERATION_VERSION = 3;
+export const DAILY_QUOTE_GENERATION_VERSION = 4;
 export const DAILY_QUOTE_FAVORITE_SHARE = 0.2;
 
 export function normalizeQuoteText(value: string): string {
